@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Difusión · {{ inventario.codigo }}</title>
+    <link rel="stylesheet" href="/static/css/inventory_diffusion.css?v=8235">
+</head>
+<body>
+    <header class="toolbar">
+        <a href="/inventarios">← Volver</a>
+        <button type="button" onclick="window.print()">Imprimir / guardar PDF</button>
+    </header>
+    <main class="sheet">
+        <section class="heading">
+            <div>
+                <p><span class="heading-mark"></span>DIFUSIÓN DE RESULTADOS DE INVENTARIO</p>
+                <h1>{{ inventario.cliente }}</h1>
+                <div class="metadata">
+                    <span><b>Inventario:</b> {{ inventario.codigo }}</span>
+                    <span><b>Fecha:</b> {{ inventario.fecha }}</span>
+                    <span><b>Responsable:</b> {{ inventario.responsable }}</span>
+                    <span><b>Estado:</b> {{ inventario.estado }}</span>
+                </div>
+            </div>
+            <div class="general-result" id="general-result">
+                <small>RESULTADO GENERAL</small><strong id="reliability">—</strong>
+                <span id="result-caption">Calculando…</span>
+            </div>
+        </section>
+        <section class="summary" id="summary"></section>
+        <section class="table-area">
+            <table><thead><tr id="table-head"></tr></thead><tbody id="table-body"></tbody></table>
+        </section>
+        <footer><span>Tolerancia utilizada: ±<b data-tolerance></b>% · mismo criterio que la pantalla PC</span><span id="footer-result"></span></footer>
+    </main>
+    <main class="sheet analytics-sheet">
+        <section class="analytics-heading">
+            <div>
+                <p>ANÁLISIS DE DIFERENCIAS</p>
+                <h2>¿Dónde están concentrados los problemas?</h2>
+                <span>{{ inventario.codigo }} · {{ inventario.cliente }}</span>
+            </div>
+            <div class="analytics-badge">RESUMEN PARA PRODUCCIÓN</div>
+        </section>
+        <section class="analytics-grid">
+            <article class="chart-card critical-card">
+                <header><div><small>PRIORIDAD</small><h3>Códigos con mayor desvío</h3></div><span>Top 6 · Cant. / Desvío</span></header>
+                <div id="critical-list" class="critical-list"></div>
+            </article>
+            <article class="chart-card cause-card">
+                <header><div><small>ORIGEN</small><h3>Distribución de causas</h3></div><span id="causes-total"></span></header>
+                <div id="cause-chart" class="cause-chart"></div>
+            </article>
+            <article class="chart-card sector-card">
+                <header><div><small>CONFIABILIDAD</small><h3>Resultado por sector</h3></div><span id="target-label"></span></header>
+                <div id="sector-chart" class="sector-chart"></div>
+            </article>
+            <article class="chart-card direction-card">
+                <header><div><small>BALANCE</small><h3>Sentido de las diferencias</h3></div></header>
+                <div id="direction-chart" class="direction-chart"></div>
+            </article>
+        </section>
+        <footer><span>Análisis automático sobre tolerancia ±<b data-tolerance></b>%</span><span>El resultado general se calcula por renglón, igual que en la pantalla PC</span></footer>
+    </main>
+    <script id="inventory-data" type="application/json">{{ inventario | tojson }}</script>
+    <script id="cause-data" type="application/json">{{ causas | tojson }}</script>
+    <script id="settings-data" type="application/json">{{ configuracion | tojson }}</script>
+    <script src="/static/js/inventory_diffusion.js?v=8235"></script>
+</body>
+</html>

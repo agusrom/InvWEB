@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Difusión conciliación · {{ inventario.codigo }}</title>
+    <link rel="stylesheet" href="/static/css/preconciliation_diffusion.css?v=1">
+</head>
+<body>
+    <header class="toolbar">
+        <a href="/analisis-stock?inventario={{ inventario.id }}&analisis={{ analisis.id }}">← Volver al análisis</a>
+        <button type="button" onclick="window.print()">Imprimir / guardar PDF</button>
+    </header>
+
+    <main class="sheet reconciliation-sheet">
+        <section class="heading">
+            <div>
+                <p><span></span>DIFUSIÓN DE RESULTADOS DE CONCILIACIÓN</p>
+                <h1>{{ inventario.cliente }}</h1>
+                <div class="metadata">
+                    <span><b>Inventario final:</b> {{ inventario.codigo }}</span>
+                    <span><b>Fecha:</b> {{ inventario.fecha }}</span>
+                    <span><b>Responsable:</b> {{ inventario.responsable }}</span>
+                    <span><b>Estado:</b> {{ inventario.estado }}</span>
+                </div>
+                <div class="analysis-name"><b>Análisis:</b> {{ analisis.nombre }}</div>
+            </div>
+            <div class="general-result" id="general-result">
+                <small>CONFIABILIDAD</small>
+                <strong id="reliability">—</strong>
+                <span id="result-caption">Calculando…</span>
+            </div>
+        </section>
+
+        <section class="period-banner">
+            <div><small>INVENTARIO INICIAL</small><strong id="initial-inventory"></strong><span id="initial-date"></span></div>
+            <i>→</i>
+            <div><small>INVENTARIO FINAL</small><strong>{{ inventario.codigo }}</strong><span>{{ inventario.fecha }}</span></div>
+            <p>Control explotado a componentes · tolerancia ±<b data-tolerance></b>%</p>
+        </section>
+
+        <section class="summary" id="summary"></section>
+        <section class="table-area">
+            <table>
+                <thead><tr>
+                    <th class="code-column">Código interno</th>
+                    <th class="description-column">Descripción</th>
+                    <th>Inicial</th><th>Ingresos</th><th>Egresos</th><th>Scrap</th>
+                    <th>Esperado</th><th>Conteo actual</th><th>Diferencia</th><th>Desvío</th>
+                    <th class="analysis-column">Análisis</th><th class="comment-column">Comentario</th>
+                </tr></thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </section>
+        <footer><span>Fórmula: Inicial + Ingresos − Egresos − Scrap = Esperado</span><span id="footer-result"></span></footer>
+    </main>
+
+    <main class="sheet analytics-sheet">
+        <section class="analytics-heading">
+            <div><p>LECTURA EJECUTIVA</p><h2>¿Dónde concentrar la revisión?</h2><span id="analytics-period"></span></div>
+            <div class="analytics-badge">RESUMEN PARA PRODUCCIÓN</div>
+        </section>
+        <section class="analytics-grid">
+            <article class="chart-card critical-card">
+                <header><div><small>PRIORIDAD</small><h3>Códigos con mayor desvío</h3></div><span>Top 6 · Cant. / Desvío</span></header>
+                <div id="critical-list" class="critical-list"></div>
+            </article>
+            <article class="chart-card cause-card">
+                <header><div><small>ORIGEN</small><h3>Distribución de causas</h3></div><span id="causes-total"></span></header>
+                <div id="cause-chart" class="cause-chart"></div>
+            </article>
+            <article class="chart-card audit-card">
+                <header><div><small>DOCUMENTACIÓN</small><h3>Auditoría de movimientos</h3></div><span id="audit-caption"></span></header>
+                <div id="audit-chart" class="audit-chart"></div>
+            </article>
+            <article class="chart-card direction-card">
+                <header><div><small>BALANCE</small><h3>Sentido de las diferencias</h3></div></header>
+                <div id="direction-chart" class="direction-chart"></div>
+            </article>
+        </section>
+        <footer><span>Conciliación explotada; no compara contra el stock directo del sistema</span><span>Generado desde el análisis guardado</span></footer>
+    </main>
+
+    <script id="inventory-data" type="application/json">{{ inventario | tojson }}</script>
+    <script id="analysis-data" type="application/json">{{ analisis | tojson }}</script>
+    <script id="scenario-data" type="application/json">{{ escenario | tojson }}</script>
+    <script id="notes-data" type="application/json">{{ notas | tojson }}</script>
+    <script id="movements-data" type="application/json">{{ movimientos | tojson }}</script>
+    <script id="causes-data" type="application/json">{{ causas | tojson }}</script>
+    <script id="settings-data" type="application/json">{{ configuracion | tojson }}</script>
+    <script src="/static/js/preconciliation_diffusion.js?v=1"></script>
+</body>
+</html>

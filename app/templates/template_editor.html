@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ "Editar" if modo == "editar" else "Nueva" }} plantilla · {{ app_name }}</title>
+    <link rel="stylesheet" href="/static/css/template_editor.css?v=58">
+</head>
+<body data-template-id="{{ plantilla_id }}" data-mode="{{ modo }}">
+    <header class="editor-topbar">
+        <a href="/plantillas" class="brand-link" aria-label="Volver a plantillas">
+            <span>CI</span>
+            <div>
+                <strong>Sistema de Inventarios</strong>
+                <small>Configuración de plantillas</small>
+            </div>
+        </a>
+        <a href="/plantillas" class="back-link">← Volver a plantillas</a>
+    </header>
+
+    <main class="editor-page">
+        <section class="editor-heading">
+            <div>
+                <p class="eyebrow">CONFIGURACIÓN</p>
+                <h1 id="editor-title">
+                    {{ "Editar plantilla" if modo == "editar" else "Nueva plantilla" }}
+                </h1>
+                <p>Completá los datos y agregá los códigos que formarán parte del inventario.</p>
+            </div>
+            <div id="editor-mode-badge" class="mode-badge">
+                {{ "Edición" if modo == "editar" else "Nueva" }}
+            </div>
+        </section>
+
+        <form id="template-form">
+            <section class="editor-card">
+                <div class="section-title">
+                    <span>1</span>
+                    <div>
+                        <h2>Datos de la plantilla</h2>
+                        <p>Nombre, cliente y forma de contar el proceso.</p>
+                    </div>
+                </div>
+
+                <div class="form-grid two-columns">
+                    <label>
+                        Nombre
+                        <input id="template-name" required autocomplete="off">
+                    </label>
+                    <label>
+                        Cliente
+                        <input id="template-client" required autocomplete="off">
+                    </label>
+                </div>
+
+                <label>
+                    Descripción
+                    <input id="template-description" autocomplete="off">
+                </label>
+
+                <label>
+                    Tipo de inventario
+                    <select id="template-inventory-type"></select>
+                    <small class="field-note">
+                        Este catálogo se administra desde Configuración → Catálogos.
+                    </small>
+                </label>
+
+                <label>
+                    Motor de artículos
+                    <select id="template-category">
+                        <option value="PIEZAS">Piezas y proceso</option>
+                        <option value="MATERIA_PRIMA">Materia prima</option>
+                    </select>
+                    <small class="field-note">
+                        Piezas usa produc01 y materia prima usa mtprim01.
+                        El inventario cíclico se elige al crear un inventario.
+                    </small>
+                </label>
+
+                <label id="count-type-field">
+                    Forma de contar el proceso
+                    <select id="template-count-type">
+                        <option value="GLOBAL">Global: una fila con todo el stock en proceso</option>
+                        <option value="POR_OPERACION">Detallado: una fila por cada operación</option>
+                    </select>
+                </label>
+
+                <label class="feature-check">
+                    <input id="template-controls-delivery-notes" type="checkbox">
+                    <span>
+                        <strong>Controla remitos</strong>
+                        <small>
+                            Habilita el último remito de ingreso y de egreso
+                            al realizar el inventario.
+                        </small>
+                    </span>
+                </label>
+
+                <label class="feature-check">
+                    <input id="template-active" type="checkbox" checked>
+                    <span>
+                        <strong>Plantilla activa</strong>
+                        <small>
+                            Las plantillas inactivas conservan su historial,
+                            pero no se pueden usar ni programar.
+                        </small>
+                    </span>
+                </label>
+
+                <div id="template-dates" class="template-dates hidden">
+                    <span>
+                        <small>Creada</small>
+                        <strong id="template-created-at">—</strong>
+                    </span>
+                    <span>
+                        <small>Última actualización</small>
+                        <strong id="template-updated-at">—</strong>
+                    </span>
+                </div>
+            </section>
+
+            <section class="editor-card">
+                <div class="section-title">
+                    <span>2</span>
+                    <div>
+                        <h2 id="item-search-title">Agregar piezas</h2>
+                        <p id="item-search-help">Los códigos se validan contra produc01 antes de incorporarlos.</p>
+                    </div>
+                </div>
+
+                <div class="piece-search-row">
+                    <label class="autocomplete-control">
+                        <span id="item-code-label">Código de pieza</span>
+                        <input
+                            id="piece-code"
+                            placeholder="Ej. 284994"
+                            autocomplete="off"
+                            aria-autocomplete="list"
+                            aria-controls="piece-suggestions"
+                            aria-expanded="false"
+                        >
+                        <div
+                            id="piece-suggestions"
+                            class="autocomplete-menu hidden"
+                            role="listbox"
+                        ></div>
+                    </label>
+                    <button id="add-piece" type="button" class="secondary-button">
+                        Buscar y agregar
+                    </button>
+                </div>
+
+                <div id="piece-status" class="piece-status hidden" role="status"></div>
+
+                <section id="structure-preview" class="structure-preview hidden">
+                    <div class="structure-preview-header">
+                        <div>
+                            <small>ESTRUCTURA DETECTADA</small>
+                            <strong id="structure-title"></strong>
+                        </div>
+                        <span id="structure-count"></span>
+                    </div>
+                    <div id="structure-list" class="structure-list"></div>
+                </section>
+            </section>
+
+            <section class="editor-card pieces-card">
+                <div class="pieces-header">
+                    <div class="section-title compact">
+                        <span>3</span>
+                        <div>
+                            <h2 id="items-title">Piezas incluidas</h2>
+                            <p>La lista se guarda respetando este orden.</p>
+                        </div>
+                    </div>
+                    <strong id="piece-count" class="piece-count">0 piezas</strong>
+                </div>
+
+                <div id="empty-pieces" class="empty-pieces">
+                    <span>＋</span>
+                    <strong id="empty-items-title">Todavía no agregaste piezas</strong>
+                    <p>Ingresá un código en el buscador de arriba.</p>
+                </div>
+
+                <div id="pieces-list" class="pieces-list"></div>
+            </section>
+
+            <div class="editor-actions">
+                <a href="/plantillas" class="cancel-button">Cancelar</a>
+                <button id="save-template" type="submit" class="primary-button">
+                    {{ "Guardar cambios" if modo == "editar" else "Guardar plantilla" }}
+                </button>
+            </div>
+        </form>
+    </main>
+
+    <div id="page-loading" class="page-loading hidden">Procesando…</div>
+    <script src="/static/js/template_editor.js?v=58" defer></script>
+</body>
+</html>

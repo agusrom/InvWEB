@@ -1,0 +1,662 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Planilla {{ inventario.codigo }}</title>
+    <link rel="stylesheet" href="/static/css/print.css?v=60">
+    {% if diseno_impresion %}
+    <style>
+        @page {
+            size: A4 {{ "landscape" if diseno_impresion.orientacion == "HORIZONTAL" else "portrait" }};
+            margin:
+                {{ diseno_impresion.margen_superior_mm }}mm
+                {{ diseno_impresion.margen_derecho_mm }}mm
+                {{ diseno_impresion.margen_inferior_mm }}mm
+                {{ diseno_impresion.margen_izquierdo_mm }}mm;
+        }
+        .count-sheet th,
+        .count-sheet td {
+            font-size: {{ diseno_impresion.tamano_fuente_pt }}pt;
+        }
+        .count-sheet td {
+            height: {{ diseno_impresion.altura_fila_mm }}mm;
+        }
+    </style>
+    {% elif formato_impresion == "RESUMEN_VERTICAL" %}
+    <style>@page { size: A4 portrait; margin: 7mm 6mm; }</style>
+    {% endif %}
+</head>
+<body class="print-format-{{ formato_impresion | lower }}{% if diseno_impresion %} print-design-{{ diseno_impresion.orientacion | lower }}{% endif %}">
+    {% macro structure_badge(tipo) -%}
+        {% set role = tipo or "INDEPENDIENTE" %}
+        <small class="print-structure-role role-{{ role | lower }}">
+            {{ {
+                "PADRE": "PADRE",
+                "SUBCONJUNTO": "SUBCONJUNTO",
+                "HIJO": "HIJO",
+                "INDEPENDIENTE": "INDEPENDIENTE"
+            }.get(role, "INDEPENDIENTE") }}
+        </small>
+    {%- endmacro %}
+    <div class="print-toolbar">
+        <label>
+            Formato
+            <select id="print-format">
+                {% if inventario.categoria == "MATERIA_PRIMA" %}
+                <option
+                    value="MATERIA_PRIMA"
+                    {% if formato_impresion == "MATERIA_PRIMA" %}selected{% endif %}
+                >Materia prima por cantidad y lote</option>
+                <option
+                    value="LISTADO_SIMPLE"
+                    {% if formato_impresion == "LISTADO_SIMPLE" %}selected{% endif %}
+                >Listado simple de materiales</option>
+                {% elif inventario.categoria == "CICLICO" %}
+                <option
+                    value="CICLICO"
+                    {% if formato_impresion == "CICLICO" %}selected{% endif %}
+                >Estructura por nivel</option>
+                <option
+                    value="DETALLE_ETAPAS"
+                    {% if formato_impresion == "DETALLE_ETAPAS" %}selected{% endif %}
+                >Detalle por etapa u operación</option>
+                <option
+                    value="LISTADO_SIMPLE"
+                    {% if formato_impresion == "LISTADO_SIMPLE" %}selected{% endif %}
+                >Listado simple de códigos</option>
+                <option
+                    value="RESUMEN_VERTICAL"
+                    {% if formato_impresion == "RESUMEN_VERTICAL" %}selected{% endif %}
+                >Resumen vertical para inventarios grandes</option>
+                {% else %}
+                {% if inventario.modalidad_conteo == "MEDIOS" %}
+                <option
+                    value="MEDIOS"
+                    {% if formato_impresion == "MEDIOS" %}selected{% endif %}
+                >Medios: vacíos, llenos y rotos</option>
+                {% endif %}
+                <option
+                    value="FLUJO_HORIZONTAL"
+                    {% if formato_impresion == "FLUJO_HORIZONTAL" %}selected{% endif %}
+                >Flujo horizontal por sectores</option>
+                <option
+                    value="RESUMEN_VERTICAL"
+                    {% if formato_impresion == "RESUMEN_VERTICAL" %}selected{% endif %}
+                >Resumen vertical para inventarios grandes</option>
+                <option
+                    value="DETALLE_ETAPAS"
+                    {% if formato_impresion == "DETALLE_ETAPAS" %}selected{% endif %}
+                >Detalle por etapa u operación</option>
+                <option
+                    value="LISTADO_SIMPLE"
+                    {% if formato_impresion == "LISTADO_SIMPLE" %}selected{% endif %}
+                >Listado simple de piezas</option>
+                {% endif %}
+            </select>
+        </label>
+        {% if versiones_impresion %}
+        <label>
+            Diseño guardado
+            <select id="print-version">
+                {% for version in versiones_impresion %}
+                <option
+                    value="{{ version.id }}"
+                    {% if diseno_impresion and version.id == diseno_impresion.id %}selected{% endif %}
+                >
+                    {{ version.nombre }} · v{{ version.numero }}
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+        {% endif %}
+        <button type="button" onclick="window.print()">Imprimir</button>
+        <button type="button" onclick="window.close()">Cerrar</button>
+    </div>
+
+    <header class="sheet-header">
+        <div>
+            <p>CONTROL DE STOCK</p>
+            <h1>
+                {% if formato_impresion == "MATERIA_PRIMA" %}
+                    Inventario de materia prima
+                {% elif formato_impresion == "MEDIOS" %}
+                    Conteo de medios
+                {% elif formato_impresion == "CICLICO" %}
+                    Inventario cíclico de estructura
+                {% elif formato_impresion == "DETALLE_ETAPAS" %}
+                    Conteo por etapa u operación
+                {% elif formato_impresion == "LISTADO_SIMPLE" %}
+                    Listado simple de conteo
+                {% elif formato_impresion == "RESUMEN_VERTICAL" %}
+                    Planilla resumida de conteo
+                {% else %}
+                    Planilla de conteo físico
+                {% endif %}
+            </h1>
+        </div>
+        <dl>
+            <div><dt>Inventario</dt><dd>{{ inventario.codigo }}</dd></div>
+            <div><dt>Cliente</dt><dd>{{ inventario.cliente }}</dd></div>
+            <div><dt>Realizado</dt><dd>{{ inventario.fecha.strftime("%d/%m/%Y") }}</dd></div>
+            {% if inventario.fecha_programada %}
+            <div><dt>Programado</dt><dd>{{ inventario.fecha_programada.strftime("%d/%m/%Y") }}</dd></div>
+            {% endif %}
+            <div>
+                <dt>Mes de cierre</dt>
+                <dd>{{ (inventario.mes_cierre or inventario.fecha).strftime("%m/%Y") }}</dd>
+            </div>
+            <div><dt>Responsable</dt><dd>{{ inventario.responsable }}</dd></div>
+            <div>
+                <dt>Tipo</dt>
+                <dd>{{ "Con cliente" if inventario.ambito == "CLIENTE" else "Interno" }}</dd>
+            </div>
+            {% if inventario.colaboradores %}
+            <div><dt>Colaboradores</dt><dd>{{ inventario.colaboradores }}</dd></div>
+            {% endif %}
+            {% if inventario.cerrado_en %}
+            <div><dt>Cerrado</dt><dd>{{ inventario.cerrado_en.strftime("%d/%m/%Y %H:%M") }}</dd></div>
+            {% endif %}
+            {% if inventario.controla_remitos %}
+            <div><dt>Último remito ingreso</dt><dd>{{ inventario.ultimo_remito_ingreso or "—" }}</dd></div>
+            <div><dt>Último remito egreso</dt><dd>{{ inventario.ultimo_remito_egreso or "—" }}</dd></div>
+            {% endif %}
+        </dl>
+    </header>
+
+    {% if inventario.observaciones %}
+    <aside class="sheet-comment">
+        <strong>Comentario:</strong>
+        <span>{{ inventario.observaciones }}</span>
+    </aside>
+    {% endif %}
+
+    {% if formato_impresion == "MEDIOS" %}
+    <table class="count-sheet media-sheet">
+        <colgroup>
+            <col class="media-number">
+            <col class="media-code">
+            <col class="media-client">
+            <col class="media-description">
+            <col class="media-write">
+            <col class="media-write">
+            <col class="media-write">
+        </colgroup>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Cód. CGR</th>
+                <th>Cód. cliente</th>
+                <th>Descripción</th>
+                <th>Vacíos</th>
+                <th>Llenos</th>
+                <th>Rotos</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pieza in piezas %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td class="strong print-structure-code role-{{ pieza.tipo_estructura | lower }}">
+                    {{ pieza.codigo }}
+                    {{ structure_badge(pieza.tipo_estructura) }}
+                </td>
+                <td class="client-code">{{ pieza.codigo_cliente or "—" }}</td>
+                <td class="strong">{{ pieza.descripcion }}</td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <p class="media-note">
+        Total físico = Vacíos + Llenos + Rotos. Medios utilizables = Vacíos.
+    </p>
+    {% elif formato_impresion == "CICLICO" %}
+    <table class="count-sheet cyclic-sheet">
+        <colgroup>
+            <col class="cyclic-level">
+            <col class="cyclic-code">
+            <col class="cyclic-parent">
+            <col class="cyclic-description">
+            <col class="cyclic-use">
+            <col class="cyclic-stage">
+            <col class="cyclic-operation">
+            <col class="cyclic-location">
+            <col class="cyclic-count">
+        </colgroup>
+        <thead>
+            <tr>
+                <th>Nivel</th>
+                <th>Código</th>
+                <th>Padre</th>
+                <th>Descripción</th>
+                <th>Uso acum.</th>
+                <th>Etapa</th>
+                <th>Operación / lote</th>
+                <th>Ubicación</th>
+                <th>Conteo físico</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for fila in ciclico %}
+            <tr>
+                <td class="cyclic-level-cell">N{{ fila.nivel }}</td>
+                <td class="strong cyclic-code-cell print-structure-code role-{{ fila.tipo_estructura | lower }}">
+                    <span style="margin-left: {{ [fila.nivel, 6] | min * 3 }}mm">
+                        {{ fila.codigo }}
+                    </span>
+                    {% if fila.etapa != "Materia prima" %}
+                        {{ structure_badge(fila.tipo_estructura) }}
+                    {% endif %}
+                </td>
+                <td>{{ fila.codigo_padre or "—" }}</td>
+                <td>{{ fila.descripcion }}</td>
+                <td class="strong">{{ "%g" | format(fila.uso) }}</td>
+                <td>{{ fila.etapa }}</td>
+                <td>
+                    {{ fila.operacion or "—" }}
+                    {% if fila.unidad %}
+                        <small class="block-note">Unidad: {{ fila.unidad }}</small>
+                    {% endif %}
+                </td>
+                <td>{{ fila.ubicacion or "—" }}</td>
+                <td class="write-cell"></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% elif formato_impresion == "MATERIA_PRIMA" %}
+    <table class="count-sheet raw-material-sheet">
+        <colgroup>
+            <col class="raw-code">
+            <col class="raw-description">
+            <col class="raw-unit">
+            <col class="raw-label">
+            <col class="raw-slot">
+            <col class="raw-slot">
+            <col class="raw-slot">
+            <col class="raw-slot">
+            <col class="raw-slot">
+            <col class="raw-slot">
+        </colgroup>
+        <thead>
+            <tr>
+                <th>Cód. CGR</th>
+                <th>Descripción / medidas</th>
+                <th>Unidad</th>
+                <th></th>
+                <th colspan="6">Cantidad física</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for material in materiales %}
+            <tr class="raw-material-first">
+                <td rowspan="2" class="strong">{{ material.codigo }}</td>
+                <td rowspan="2" class="raw-description-cell">
+                    <strong>{{ material.descripcion }}</strong>
+                    <small>
+                        {% if material.diametro %}Ø {{ material.diametro }}{% endif %}
+                        {% if material.largo %} · Largo {{ material.largo }}{% endif %}
+                        {% if material.espesor %} · Espesor {{ material.espesor }}{% endif %}
+                    </small>
+                    {% if material.ubicacion %}
+                        <small>Ubicación: {{ material.ubicacion }}</small>
+                    {% endif %}
+                </td>
+                <td rowspan="2" class="strong">{{ material.unidad or "—" }}</td>
+                <td class="raw-row-label">Cant.</td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+            </tr>
+            <tr class="raw-material-second">
+                <td class="raw-row-label">Lote</td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% elif formato_impresion == "RESUMEN_VERTICAL" %}
+    <table class="count-sheet vertical-summary-sheet">
+        <colgroup>
+            <col class="vertical-code">
+            <col class="vertical-client">
+            <col class="vertical-description">
+            <col class="vertical-use">
+            <col class="vertical-supply">
+            <col class="vertical-line">
+            <col class="vertical-dispatch">
+            <col class="vertical-scrap">
+            <col class="vertical-final">
+        </colgroup>
+        <thead>
+            <tr>
+                <th>Cód. CGR</th>
+                <th>Cód. cliente</th>
+                <th>Descripción</th>
+                <th>Uso</th>
+                <th>Abastecimiento</th>
+                <th>Línea / proceso</th>
+                <th>Despacho</th>
+                <th>Scrap</th>
+                <th>Stock final</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pieza in piezas %}
+            <tr class="piece-count-row">
+                <td class="strong print-structure-code role-{{ pieza.tipo_estructura | lower }}">
+                    {{ pieza.codigo }}
+                    {{ structure_badge(pieza.tipo_estructura) }}
+                </td>
+                <td class="client-code">{{ pieza.codigo_cliente or "—" }}</td>
+                <td class="strong">{{ pieza.descripcion }}</td>
+                <td>{{ "%g" | format(pieza.uso) }}</td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+            </tr>
+            {% if pieza.material_contado and pieza.codigo_material %}
+            <tr class="material-count-row">
+                <td class="strong">{{ pieza.codigo_material }}</td>
+                <td></td>
+                <td>
+                    Materia prima
+                    {% if pieza.lotes %}
+                        <small class="block-note">Lotes: {{ pieza.lotes }}</small>
+                    {% endif %}
+                </td>
+                <td></td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+    {% elif formato_impresion == "DETALLE_ETAPAS" %}
+    <table class="count-sheet detail-sheet">
+        <colgroup>
+            <col class="detail-number">
+            <col class="detail-code">
+            <col class="detail-client">
+            <col class="detail-description">
+            <col class="detail-stage">
+            <col class="detail-operation">
+            <col class="detail-provider">
+            <col class="detail-location">
+            <col class="detail-count">
+        </colgroup>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Cód. CGR</th>
+                <th>Cód. cliente</th>
+                <th>Descripción</th>
+                <th>Etapa</th>
+                <th>Operación</th>
+                <th>Proveedor</th>
+                <th>Ubicación</th>
+                <th>Conteo físico</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for fila in detalle %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td class="strong{% if fila.etapa != 'Material sin usar' %} print-structure-code role-{{ fila.tipo_estructura | lower }}{% endif %}">
+                    {{ fila.codigo }}
+                    {% if fila.etapa != "Material sin usar" %}
+                        {{ structure_badge(fila.tipo_estructura) }}
+                    {% endif %}
+                </td>
+                <td>{{ fila.codigo_cliente or "—" }}</td>
+                <td>{{ fila.descripcion }}</td>
+                <td class="strong">{{ fila.etapa }}</td>
+                <td>{{ fila.operacion or "—" }}</td>
+                <td>{{ fila.proveedor or "—" }}</td>
+                <td>{{ fila.ubicacion or "—" }}</td>
+                <td class="write-cell"></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% elif formato_impresion == "LISTADO_SIMPLE" %}
+    <table class="count-sheet simple-sheet">
+        <colgroup>
+            <col class="simple-number">
+            <col class="simple-code">
+            <col class="simple-client">
+            <col class="simple-description">
+            <col class="simple-location">
+            <col class="simple-count">
+            <col class="simple-notes">
+        </colgroup>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Código</th>
+                <th>Cód. cliente</th>
+                <th>Descripción</th>
+                <th>Ubicación</th>
+                <th>Cantidad</th>
+                <th>Observaciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pieza in piezas %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td class="strong print-structure-code role-{{ pieza.tipo_estructura | lower }}">
+                    {{ pieza.codigo }}
+                    {{ structure_badge(pieza.tipo_estructura) }}
+                </td>
+                <td>{{ pieza.codigo_cliente or "—" }}</td>
+                <td class="strong">{{ pieza.descripcion }}</td>
+                <td>{{ pieza.ubicacion or "—" }}</td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+            </tr>
+            {% if pieza.material_contado and pieza.codigo_material %}
+            <tr class="material-count-row">
+                <td></td>
+                <td class="strong">{{ pieza.codigo_material }}</td>
+                <td></td>
+                <td>
+                    Materia prima
+                    {% if pieza.lotes %}
+                        <small class="block-note">Lotes: {{ pieza.lotes }}</small>
+                    {% endif %}
+                </td>
+                <td>{{ pieza.ubicacion or "—" }}</td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <table class="count-sheet flow-sheet">
+        <colgroup>
+            <col class="col-code">
+            <col class="col-use">
+            <col class="col-client">
+            <col class="col-description">
+            <col class="col-count">
+            <col class="col-count-wide">
+            <col class="col-count-wide">
+            <col class="col-scrap">
+            <col class="col-final">
+        </colgroup>
+        <thead>
+            <tr>
+                <th>Cód. CGR</th>
+                <th>Uso</th>
+                <th>Cód. cliente</th>
+                <th>Descripción</th>
+                <th>Abastecimiento</th>
+                <th>Despacho<br>(dársena)</th>
+                <th>Línea / proceso</th>
+                <th>Scrap</th>
+                <th>Stock final</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pieza in piezas %}
+            <tr class="piece-count-row">
+                <td class="strong print-structure-code role-{{ pieza.tipo_estructura | lower }}">
+                    {{ pieza.codigo }}
+                    {{ structure_badge(pieza.tipo_estructura) }}
+                </td>
+                <td>{{ "%g" | format(pieza.uso) }}</td>
+                <td class="client-code">{{ pieza.codigo_cliente or "—" }}</td>
+                <td class="strong">{{ pieza.descripcion }}</td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+            </tr>
+            {% if pieza.material_contado and pieza.codigo_material %}
+            <tr class="material-count-row">
+                <td class="strong">{{ pieza.codigo_material }}</td>
+                <td></td>
+                <td></td>
+                <td>
+                    Materia prima
+                    {% if pieza.lotes %}
+                        <small class="block-note">Lotes: {{ pieza.lotes }}</small>
+                    {% endif %}
+                </td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+                <td class="write-cell"></td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    {% if not piezas and not detalle and not materiales and not ciclico %}
+    <p class="empty">Este inventario no contiene piezas para imprimir.</p>
+    {% endif %}
+
+    <footer class="signatures{% if diseno_impresion and not diseno_impresion.mostrar_firmas %} hidden-print-element{% endif %}">
+        <div>Realizó conteo<span>Firma y aclaración</span></div>
+        <div>Verificó<span>Firma y aclaración</span></div>
+        <div>Aprobó<span>Firma y aclaración</span></div>
+    </footer>
+
+    <script>
+        const printDesign = {{ diseno_impresion | tojson }};
+        const baseColumnOrder = {
+            FLUJO_HORIZONTAL: [
+                "codigo", "uso", "codigo_cliente", "descripcion",
+                "abastecimiento", "despacho", "linea", "scrap", "stock_final"
+            ],
+            RESUMEN_VERTICAL: [
+                "codigo", "codigo_cliente", "descripcion", "uso",
+                "abastecimiento", "linea", "despacho", "scrap", "stock_final"
+            ],
+            DETALLE_ETAPAS: [
+                "numero", "codigo", "codigo_cliente", "descripcion", "etapa",
+                "operacion", "proveedor", "ubicacion", "conteo"
+            ],
+            LISTADO_SIMPLE: [
+                "numero", "codigo", "codigo_cliente", "descripcion",
+                "ubicacion", "conteo", "observaciones"
+            ],
+            MEDIOS: [
+                "numero", "codigo", "codigo_cliente", "descripcion",
+                "vacios", "llenos", "rotos"
+            ],
+            CICLICO: [
+                "nivel", "codigo", "padre", "descripcion", "uso",
+                "etapa", "operacion", "ubicacion", "conteo"
+            ],
+        };
+
+        function applyPrintDesign() {
+            const format = "{{ formato_impresion }}";
+            const baseOrder = baseColumnOrder[format];
+            const table = document.querySelector(".count-sheet");
+            if (!printDesign || !baseOrder || !table) return;
+
+            const configured = printDesign.columnas;
+            const visibleKeys = configured
+                .filter((column) => column.visible)
+                .map((column) => column.clave);
+            const byKey = Object.fromEntries(
+                configured.map((column) => [column.clave, column])
+            );
+
+            const rows = [
+                table.querySelector("colgroup"),
+                table.querySelector("thead tr"),
+                ...table.querySelectorAll("tbody tr"),
+            ].filter(Boolean);
+
+            rows.forEach((row) => {
+                const elements = [...row.children];
+                const elementByKey = {};
+                baseOrder.forEach((key, index) => {
+                    if (elements[index]) elementByKey[key] = elements[index];
+                });
+                baseOrder
+                    .filter((key) => !visibleKeys.includes(key))
+                    .forEach((key) => elementByKey[key]?.remove());
+                visibleKeys.forEach((key) => {
+                    const element = elementByKey[key];
+                    if (!element) return;
+                    if (row.tagName === "COLGROUP") {
+                        element.style.width = `${byKey[key].ancho_pct}%`;
+                    } else if (row.closest("tbody")) {
+                        element.style.fontSize =
+                            `${byKey[key].tamano_fuente_pt}pt`;
+                        element.style.fontWeight =
+                            byKey[key].negrita ? "700" : "400";
+                    }
+                    row.appendChild(element);
+                });
+            });
+
+            const headings = [...table.querySelectorAll("thead th")];
+            visibleKeys.forEach((key, index) => {
+                if (headings[index]) headings[index].textContent = byKey[key].titulo;
+            });
+        }
+
+        applyPrintDesign();
+        document.getElementById("print-format").addEventListener("change", (event) => {
+            const url = new URL(window.location.href);
+            url.searchParams.set("formato", event.target.value);
+            url.searchParams.delete("version_id");
+            window.location.href = url.toString();
+        });
+        document.getElementById("print-version")?.addEventListener("change", (event) => {
+            const url = new URL(window.location.href);
+            url.searchParams.set("version_id", event.target.value);
+            window.location.href = url.toString();
+        });
+    </script>
+</body>
+</html>

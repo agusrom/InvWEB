@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Catálogos · {{ app_name }}</title>
+    <link rel="stylesheet" href="/static/css/catalog_settings.css?v=59">
+</head>
+<body>
+    <header class="settings-topbar">
+        <a href="/configuracion" class="brand-link">
+            <span>CI</span>
+            <div><strong>Sistema de Inventarios</strong><small>Configuración general</small></div>
+        </a>
+        <nav><a href="/configuracion">← Volver a configuración</a></nav>
+    </header>
+
+    <main>
+        <section class="heading">
+            <div>
+                <p>CONFIGURACIÓN ESCALABLE</p>
+                <h1>Tipos, personas y sectores</h1>
+                <span>Administrá las opciones que después aparecen en plantillas, inventarios y programaciones.</span>
+            </div>
+        </section>
+
+        <div class="tabs">
+            <button class="active" data-tab="tipos">Tipos de inventario</button>
+            <button data-tab="personas">Personas</button>
+            <button data-tab="sectores">Sectores</button>
+        </div>
+
+        <section id="panel-tipos" class="panel">
+            <div class="panel-head">
+                <div>
+                    <h2>Tipos de inventario</h2>
+                    <p>El motor determina la lógica; el nombre y el uso diario son configurables.</p>
+                </div>
+                <button class="primary" data-new="tipo">＋ Nuevo tipo</button>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Tipo</th><th>Motor</th><th>Registro</th><th>Impresión</th><th>Estado</th><th></th></tr></thead>
+                    <tbody id="tabla-tipos"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="panel-personas" class="panel hidden">
+            <div class="panel-head">
+                <div>
+                    <h2>Personas</h2>
+                    <p>Se ofrecen como responsables y colaboradores en los formularios.</p>
+                </div>
+                <button class="primary" data-new="persona">＋ Nueva persona</button>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Nombre</th><th>Sector</th><th>Legajo</th><th>Contacto</th><th>Estado</th><th></th></tr></thead>
+                    <tbody id="tabla-personas"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="panel-sectores" class="panel hidden">
+            <div class="panel-head">
+                <div>
+                    <h2>Sectores</h2>
+                    <p>Organizan el listado de personas sin afectar inventarios históricos.</p>
+                </div>
+                <button class="primary" data-new="sector">＋ Nuevo sector</button>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Sector</th><th>Descripción</th><th>Personas</th><th>Estado</th><th></th></tr></thead>
+                    <tbody id="tabla-sectores"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <div id="modal-tipo" class="backdrop hidden">
+        <form id="form-tipo" class="modal">
+            <header><div><small>TIPO DE INVENTARIO</small><h2 id="titulo-tipo">Nuevo tipo</h2></div><button type="button" data-close>×</button></header>
+            <input id="tipo-codigo" type="hidden">
+            <label>Nombre<input id="tipo-nombre" maxlength="120" required></label>
+            <label>Descripción<input id="tipo-descripcion" maxlength="255"></label>
+            <div class="grid">
+                <label>Motor
+                    <select id="tipo-motor"><option value="PIEZAS">Piezas</option><option value="MATERIA_PRIMA">Materia prima</option><option value="CICLICO">Cíclico</option></select>
+                </label>
+                <label>Forma de registro
+                    <select id="tipo-modalidad"><option value="ESTANDAR">Estándar</option><option value="MEDIOS">Vacíos, llenos y rotos</option></select>
+                </label>
+            </div>
+            <div class="grid">
+                <label>Formato predeterminado
+                    <select id="tipo-formato">
+                        <option value="FLUJO_HORIZONTAL">Flujo horizontal</option>
+                        <option value="RESUMEN_VERTICAL">Resumen vertical</option>
+                        <option value="DETALLE_ETAPAS">Detalle por etapas</option>
+                        <option value="LISTADO_SIMPLE">Listado simple</option>
+                        <option value="MEDIOS">Medios</option>
+                        <option value="MATERIA_PRIMA">Materia prima</option>
+                        <option value="CICLICO">Cíclico</option>
+                    </select>
+                </label>
+                <label>Orden<input id="tipo-orden" type="number" min="0" max="9999" value="100"></label>
+            </div>
+            <label class="check"><input id="tipo-activo" type="checkbox" checked><span><b>Tipo activo</b><small>Disponible para nuevos inventarios.</small></span></label>
+            <footer><button type="button" class="secondary" data-close>Cancelar</button><button class="primary">Guardar</button></footer>
+        </form>
+    </div>
+
+    <div id="modal-persona" class="backdrop hidden">
+        <form id="form-persona" class="modal">
+            <header><div><small>PERSONAS</small><h2 id="titulo-persona">Nueva persona</h2></div><button type="button" data-close>×</button></header>
+            <input id="persona-id" type="hidden">
+            <label>Nombre completo<input id="persona-nombre" maxlength="120" required></label>
+            <div class="grid">
+                <label>Sector<select id="persona-sector"><option value="">Sin sector</option></select></label>
+                <label>Legajo<input id="persona-legajo" maxlength="40"></label>
+            </div>
+            <label>Contacto <small>(opcional)</small><input id="persona-contacto" maxlength="120" placeholder="Correo, interno u otro dato"></label>
+            <div class="grid">
+                <label>Orden<input id="persona-orden" type="number" min="0" max="9999" value="100"></label>
+                <label class="check"><input id="persona-activa" type="checkbox" checked><span><b>Persona activa</b><small>Aparece en los selectores.</small></span></label>
+            </div>
+            <footer><button type="button" class="secondary" data-close>Cancelar</button><button class="primary">Guardar</button></footer>
+        </form>
+    </div>
+
+    <div id="modal-sector" class="backdrop hidden">
+        <form id="form-sector" class="modal">
+            <header><div><small>SECTORES</small><h2 id="titulo-sector">Nuevo sector</h2></div><button type="button" data-close>×</button></header>
+            <input id="sector-id" type="hidden">
+            <label>Nombre<input id="sector-nombre" maxlength="120" required></label>
+            <label>Descripción<input id="sector-descripcion" maxlength="255"></label>
+            <div class="grid">
+                <label>Orden<input id="sector-orden" type="number" min="0" max="9999" value="100"></label>
+                <label class="check"><input id="sector-activo" type="checkbox" checked><span><b>Sector activo</b><small>Disponible para asignar personas.</small></span></label>
+            </div>
+            <footer><button type="button" class="secondary" data-close>Cancelar</button><button class="primary">Guardar</button></footer>
+        </form>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+    <script src="/static/js/catalog_settings.js?v=59" defer></script>
+</body>
+</html>

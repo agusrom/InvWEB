@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Indicadores · {{ app_name }}</title>
+    <link rel="stylesheet" href="/static/css/indicator_settings.css?v=59">
+</head>
+<body>
+    <header class="settings-topbar">
+        <a href="/configuracion" class="brand-link">
+            <span>CI</span>
+            <div>
+                <strong>Sistema de Inventarios</strong>
+                <small>Configuración · Indicadores</small>
+            </div>
+        </a>
+        <a class="back-link" href="/configuracion">← Volver a configuración</a>
+    </header>
+
+    <main class="settings-page">
+        <section class="page-heading">
+            <p>REGLAS DE ANÁLISIS</p>
+            <h1>Indicadores</h1>
+            <span>
+                Estos parámetros se aplican de forma general en análisis y
+                reportes.
+            </span>
+        </section>
+
+        <form id="indicator-settings-form" class="settings-card">
+            <div class="form-heading">
+                <div>
+                    <h2>Parámetros generales</h2>
+                    <p>Definí los límites que utiliza el sistema.</p>
+                </div>
+                <span>APLICACIÓN GENERAL</span>
+            </div>
+
+            <div class="settings-form">
+                <label>
+                    <span>Tolerancia del conteo</span>
+                    <div class="number-suffix">
+                        <input id="setting-tolerance" type="number" min="0" max="50" step="0.1" required>
+                        <b>%</b>
+                    </div>
+                    <small>Dentro de ± este valor, la fila se considera correcta.</small>
+                </label>
+
+                <label>
+                    <span>Objetivo de confiabilidad</span>
+                    <div class="number-suffix">
+                        <input id="setting-target" type="number" min="0" max="100" step="0.1" required>
+                        <b>%</b>
+                    </div>
+                    <small>Meta general que se muestra en los reportes.</small>
+                </label>
+
+                <label>
+                    <span>Alerta por cliente</span>
+                    <div class="number-suffix">
+                        <input id="setting-client-alert" type="number" min="0" max="100" step="0.1" required>
+                        <b>%</b>
+                    </div>
+                    <small>Se alerta cuando un cliente queda debajo de este valor.</small>
+                </label>
+
+                <label>
+                    <span>Muestra mínima</span>
+                    <div class="number-suffix">
+                        <input id="setting-minimum-sample" type="number" min="1" max="1000" step="1" required>
+                        <b>filas</b>
+                    </div>
+                    <small>Evita alertas por clientes con muy pocos renglones.</small>
+                </label>
+            </div>
+
+            <div class="form-actions">
+                <p id="indicator-settings-error" class="form-error hidden"></p>
+                <button class="primary" type="submit">Guardar indicadores</button>
+            </div>
+        </form>
+    </main>
+
+    <div id="toast" class="toast hidden" role="status"></div>
+    <div id="loading" class="loading hidden">Procesando…</div>
+    <script src="/static/js/indicator_settings.js?v=59" defer></script>
+</body>
+</html>

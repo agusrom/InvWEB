@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0f6f7a">
+    <title>Conteo móvil · {{ app_name }}</title>
+    <link rel="stylesheet" href="/static/css/mobile_count.css?v=843">
+</head>
+<body data-inventory-id="{{ inventario_id }}">
+    <header class="mobile-header">
+        <a href="/movil" aria-label="Volver a inventarios">←</a>
+        <div>
+            <small>Conteo móvil</small>
+            <strong id="inventory-code">Inventario</strong>
+        </div>
+        <span id="connection-status" class="sync-state waiting">Cargando…</span>
+    </header>
+
+    <main>
+        <section class="inventory-summary">
+            <div>
+                <small id="inventory-client">—</small>
+                <strong id="inventory-progress">0 / 0</strong>
+                <span>renglones contados</span>
+            </div>
+            <button id="sync-now" type="button">↻ Sincronizar</button>
+        </section>
+
+        <section id="route-mode" class="route-mode">
+            <div class="route-context">
+                <div class="route-context-head"><div><small>Ubicación y etapa de la próxima carga</small><strong id="route-context-label">Disponible · Terminado</strong></div><span>Queda guardado</span></div>
+                <div class="route-option-block">
+                    <small>Situación física</small>
+                    <div id="physical-options" class="route-options">
+                        <button type="button" data-physical="DISPONIBLE" class="active">Disponible</button>
+                        <button type="button" data-physical="LINEA">En línea</button>
+                        <button type="button" data-physical="SCRAP">Scrap</button>
+                    </div>
+                </div>
+                <div class="route-option-block">
+                    <small>Estado en sistema</small>
+                    <div id="system-options" class="route-options system-options">
+                        <button type="button" data-system="MATERIAL">MP</button>
+                        <button type="button" data-system="PROCESO">Proceso</button>
+                        <button type="button" data-system="TERMINADO" class="active">Terminado</button>
+                    </div>
+                </div>
+            </div>
+            <div class="unified-count-head">
+                <div><small>Conteo rápido</small><strong>Una fila por renglón</strong></div>
+                <span>El orden no cambia</span>
+            </div>
+            <label class="mobile-search route-search">
+                <span aria-hidden="true">⌕</span>
+                <input id="route-item-search" type="search" autocomplete="off" placeholder="Buscar código, cliente o descripción...">
+            </label>
+            <button id="add-route-article" class="add-material-button route-add-code" type="button">＋ Agregar código de pieza</button>
+            <div id="route-results" class="route-results"><div class="route-empty">Cargando códigos...</div></div>
+            <div id="route-recent" class="route-recent"></div>
+        </section>
+
+        <section id="media-mode" class="media-mode hidden">
+            <div class="media-intro"><small>Conteo de medios</small><strong>Cargá directamente sobre cada código</strong></div>
+            <label class="mobile-search route-search">
+                <span aria-hidden="true">⌕</span>
+                <input id="media-search" type="search" autocomplete="off" placeholder="Filtrar por código de cliente, interno o descripción...">
+            </label>
+            <button id="add-media-code" class="add-material-button route-add-code" type="button">＋ Agregar código de medio</button>
+            <div id="media-results" class="media-results"></div>
+        </section>
+
+        <div id="pending-banner" class="pending-banner hidden"></div>
+        <section id="piece-mode" class="hidden" aria-hidden="true">
+            <label class="mobile-search">
+                <span aria-hidden="true">⌕</span>
+                <input id="item-search" type="search" autocomplete="off" placeholder="Buscar código, descripción u operación">
+            </label>
+            <button id="add-material" class="add-material-button" type="button">＋ Agregar código</button>
+            <section id="item-list" class="item-list" aria-live="polite"></section>
+        </section>
+    </main>
+
+    <section id="entry-sheet" class="entry-sheet hidden" aria-hidden="true">
+        <button id="sheet-backdrop" class="sheet-backdrop" aria-label="Cerrar"></button>
+        <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+            <div class="sheet-handle"></div>
+            <div class="sheet-head">
+                <div>
+                    <small id="sheet-stage">Etapa</small>
+                    <h2 id="sheet-title">Código</h2>
+                    <p id="sheet-description"></p>
+                </div>
+                <button id="close-sheet" type="button" aria-label="Cerrar">×</button>
+            </div>
+            <div class="sheet-totals">
+                <span>Sistema <strong id="sheet-system">0</strong></span>
+                <span>Físico <strong id="sheet-physical">0</strong></span>
+                <span>Registros <strong id="sheet-box-count">0</strong></span>
+            </div>
+            <form id="box-form">
+                <div class="box-batch-fields">
+                    <label class="quantity-field">
+                    Cantidad por registro
+                    <input
+                        id="box-quantity"
+                        type="number"
+                        inputmode="numeric"
+                        min="1"
+                        step="1"
+                        required
+                        autocomplete="off"
+                    >
+                    </label>
+                    <label class="box-count-field">
+                    Registros iguales
+                    <input
+                        id="box-count"
+                        type="number"
+                        inputmode="numeric"
+                        min="1"
+                        max="100"
+                        step="1"
+                        value="1"
+                        required
+                        autocomplete="off"
+                    >
+                    </label>
+                </div>
+                <div id="batch-summary" class="batch-summary" aria-live="polite">
+                    Ingresá la cantidad del registro
+                </div>
+                <label class="box-note-field">
+                    Nota <span>(opcional)</span>
+                    <input
+                        id="box-note"
+                        type="text"
+                        maxlength="255"
+                        autocomplete="off"
+                        placeholder="Ej. pallet, rack, bolsón o material suelto"
+                    >
+                </label>
+                <button id="add-box" class="add-box" type="submit">＋ Agregar registro</button>
+            </form>
+            <div class="recent-head">
+                <h3>Registros cargados</h3>
+                <small>Tocá la papelera para corregir</small>
+            </div>
+            <div id="recent-boxes" class="recent-boxes"></div>
+        </div>
+    </section>
+
+    <section id="material-sheet" class="entry-sheet hidden" aria-hidden="true">
+        <button id="material-backdrop" class="sheet-backdrop" aria-label="Cerrar"></button>
+        <div class="sheet-card compact-sheet" role="dialog" aria-modal="true">
+            <div class="sheet-handle"></div>
+            <div class="sheet-head">
+                <div><small id="article-source">Catálogo</small><h2>Agregar código</h2><p id="article-help">Buscá por código o descripción</p></div>
+                <button id="close-material" type="button" aria-label="Cerrar">×</button>
+            </div>
+            <label class="sheet-search"><input id="material-search" type="search" autocomplete="off" placeholder="Escribí al menos 2 caracteres"></label>
+            <div id="material-suggestions" class="mobile-suggestions"></div>
+        </div>
+    </section>
+
+    <section id="lot-sheet" class="entry-sheet hidden" aria-hidden="true">
+        <button id="lot-backdrop" class="sheet-backdrop" aria-label="Cerrar"></button>
+        <div class="sheet-card compact-sheet" role="dialog" aria-modal="true">
+            <div class="sheet-handle"></div>
+            <div class="sheet-head">
+                <div><small>Materia prima</small><h2 id="lot-material-code">Agregar lote</h2><p id="lot-material-description"></p></div>
+                <button id="close-lot" type="button" aria-label="Cerrar">×</button>
+            </div>
+            <form id="lot-form" class="lot-form">
+                <label>Número de lote
+                    <input id="lot-number" type="text" inputmode="numeric" pattern="[0-9]{5}" minlength="5" maxlength="5" autocomplete="off" placeholder="00000" required>
+                </label>
+                <small>Debe contener exactamente 5 dígitos.</small>
+                <button class="add-box" type="submit">Agregar lote</button>
+            </form>
+        </div>
+    </section>
+
+    <div id="mobile-toast" class="mobile-toast hidden" role="status"></div>
+    <script src="/static/js/mobile_count.js?v=843" defer></script>
+</body>
+</html>

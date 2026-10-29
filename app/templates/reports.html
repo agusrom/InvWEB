@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Reportes · {{ app_name }}</title>
+    <link rel="stylesheet" href="/static/css/styles.css?v=59">
+    <link rel="stylesheet" href="/static/css/reports.css?v=803">
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar" aria-label="Navegación">
+            <a class="brand" href="/inventarios" aria-label="Inicio">CI</a>
+            <nav>
+                <a class="nav-button" href="/inventarios">
+                    <span>⌂</span><small>Inicio</small>
+                </a>
+                <a class="nav-button" href="/programados">
+                    <span>◷</span><small>Programados</small>
+                </a>
+                <a class="nav-button" href="/plantillas">
+                    <span>▣</span><small>Plantillas</small>
+                </a>
+                <a class="nav-button" href="/conciliaciones">
+                    <span>⇄</span><small>Conciliar</small>
+                </a>
+                <a class="nav-button active" href="/reportes">
+                    <span>▥</span><small>Reportes</small>
+                </a>
+            </nav>
+            <a
+                class="sidebar-settings"
+                href="/configuracion"
+                aria-label="Configuración"
+            >⚙</a>
+        </aside>
+
+        <div class="main-area">
+            <header class="topbar">
+                <div class="breadcrumbs">
+                    Operaciones <b>›</b> <span>Reportes</span>
+                </div>
+                <div class="top-actions">
+                    <div class="avatar">AR</div>
+                    <div class="profile">
+                        <strong>Agustín Romero</strong>
+                        <span>Logística</span>
+                    </div>
+                </div>
+            </header>
+
+            <main class="content reports-content">
+                <section class="reports-heading">
+                    <div>
+                        <p class="eyebrow">VISIÓN GENERAL</p>
+                        <h1>Indicadores de inventario</h1>
+                        <p>
+                            Una lectura rápida de confiabilidad, diferencias,
+                            causas y acciones pendientes.
+                        </p>
+                    </div>
+                    <div class="report-filters">
+                        <label>
+                            Mes de cierre
+                            <select id="report-period">
+                                <option value="">Cargando meses…</option>
+                            </select>
+                        </label>
+                        <label>
+                            Cliente
+                            <select id="report-client">
+                                <option value="">Todos los clientes</option>
+                            </select>
+                        </label>
+                        <label>
+                            Origen
+                            <select id="report-programming">
+                                <option value="todos">Todos</option>
+                                <option value="programado">Programados</option>
+                                <option value="no_programado">No programados</option>
+                            </select>
+                        </label>
+                        <label>
+                            Tipo de inventario
+                            <select id="report-inventory-type">
+                                <option value="todos">Todos los tipos</option>
+                                <option value="piezas">Piezas</option>
+                                <option value="medios">Medios</option>
+                                <option value="materia_prima">Materia prima</option>
+                            </select>
+                        </label>
+                    </div>
+                </section>
+
+                <p id="report-scope" class="report-scope"></p>
+
+                <section class="panel piece-history-panel">
+                    <div class="panel-head piece-history-head">
+                        <div>
+                            <h2>Historial de una pieza</h2>
+                            <p>Buscá un código para ver cuándo se contó y qué resultado tuvo.</p>
+                        </div>
+                        <div class="piece-search autocomplete-control">
+                            <label for="piece-history-search">Código o descripción</label>
+                            <div class="piece-search-row">
+                                <input
+                                    id="piece-history-search"
+                                    type="search"
+                                    autocomplete="off"
+                                    placeholder="Ej. código interno o del cliente"
+                                >
+                                <button id="piece-history-button" type="button">Buscar</button>
+                            </div>
+                            <div id="piece-history-suggestions" class="piece-suggestions hidden"></div>
+                        </div>
+                    </div>
+                    <div id="piece-history-content" class="piece-history-content hidden">
+                        <div class="piece-history-summary">
+                            <div>
+                                <strong id="piece-history-code"></strong>
+                                <span id="piece-history-description"></span>
+                            </div>
+                            <span id="piece-history-count" class="piece-history-count"></span>
+                        </div>
+                        <div class="table-scroll">
+                            <table class="piece-history-table">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Inventario</th>
+                                        <th>Cliente</th>
+                                        <th>Etapa / operación</th>
+                                        <th>Sistema</th>
+                                        <th>Físico</th>
+                                        <th>Diferencia</th>
+                                        <th>Desvío</th>
+                                        <th>Resultado</th>
+                                        <th>Causa / observación</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="piece-history-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="piece-history-empty" class="report-empty">
+                        Escribí al menos dos caracteres y elegí una pieza.
+                    </div>
+                </section>
+
+                <section class="report-metrics" aria-label="Indicadores generales">
+                    <article class="report-metric reliability">
+                        <span>Confiabilidad global</span>
+                        <strong id="metric-reliability">—</strong>
+                        <small id="metric-reliability-detail">Sin renglones evaluables</small>
+                    </article>
+                    <article class="report-metric inventories">
+                        <span>Inventarios realizados</span>
+                        <strong id="metric-inventories">0</strong>
+                        <small>Inventarios del cierre seleccionado</small>
+                    </article>
+                    <article class="report-metric differences">
+                        <span>Fuera de tolerancia</span>
+                        <strong id="metric-differences">0</strong>
+                        <small id="metric-differences-detail">0% de los evaluados</small>
+                    </article>
+                    <article class="report-metric pending">
+                        <span>Ajustes pendientes</span>
+                        <strong id="metric-pending">0</strong>
+                        <small id="metric-pending-detail">Sin acciones pendientes</small>
+                    </article>
+                </section>
+
+                <section class="report-secondary">
+                    <div>
+                        <span>Cobertura de causas</span>
+                        <strong id="metric-cause-coverage">—</strong>
+                    </div>
+                    <div>
+                        <span>Renglones evaluados</span>
+                        <strong id="metric-evaluated">0</strong>
+                    </div>
+                    <div>
+                        <span>Diferencias ajustadas</span>
+                        <strong id="metric-adjusted">0</strong>
+                    </div>
+                    <div>
+                        <span>Estado general</span>
+                        <strong id="metric-status">Sin datos</strong>
+                    </div>
+                </section>
+
+                <section class="panel inventory-type-panel">
+                    <div class="panel-head">
+                        <div>
+                            <h2>Confiabilidad por tipo de inventario</h2>
+                            <p>Piezas, medios y materia prima se calculan por separado.</p>
+                        </div>
+                    </div>
+                    <div id="inventory-type-summary" class="inventory-type-summary"></div>
+                </section>
+
+                <section class="panel report-trend-panel">
+                    <div class="panel-head">
+                        <div>
+                            <h2>Evolución de la confiabilidad</h2>
+                            <p id="trend-tolerance-label">Porcentaje de renglones dentro del ±5%.</p>
+                        </div>
+                        <div class="trend-actions">
+                            <label class="trend-grouping-label" for="trend-grouping">
+                                Ver por
+                                <select id="trend-grouping">
+                                    <option value="diaria">Día</option>
+                                    <option value="semanal" selected>Semana</option>
+                                    <option value="mensual">Mes</option>
+                                </select>
+                            </label>
+                            <span id="trend-target-label" class="target-reference">Objetivo 90%</span>
+                        </div>
+                    </div>
+                    <div id="trend-chart" class="trend-chart"></div>
+                </section>
+
+                <section class="panel client-chart-panel">
+                    <div class="panel-head">
+                        <div>
+                            <h2>Confiabilidad por cliente</h2>
+                            <p>Comparación entre inventarios programados y no programados.</p>
+                        </div>
+                        <div class="client-chart-legend" aria-label="Referencias">
+                            <span class="scheduled">Programado</span>
+                            <span class="unscheduled">No programado</span>
+                        </div>
+                    </div>
+                    <div id="client-chart" class="client-chart"></div>
+                </section>
+
+                <div class="report-main-grid">
+                    <section class="panel client-report-panel">
+                        <div class="panel-head">
+                            <div>
+                                <h2>Resumen por cliente</h2>
+                                <p>Situación del cierre y cambio contra el mes anterior.</p>
+                            </div>
+                        </div>
+                        <div class="table-scroll">
+                            <table class="report-client-table">
+                                <thead>
+                                    <tr>
+                                        <th>Cliente</th>
+                                        <th>Inventarios</th>
+                                        <th>Confiabilidad</th>
+                                        <th>Diferencias</th>
+                                        <th>Pendientes</th>
+                                        <th>Tendencia</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="report-client-body"></tbody>
+                            </table>
+                        </div>
+                        <div id="report-client-empty" class="report-empty hidden">
+                            No hay clientes con inventarios cerrados en el período.
+                        </div>
+                    </section>
+
+                    <section class="panel cause-report-panel">
+                        <div class="panel-head">
+                            <div>
+                                <h2>Principales causas</h2>
+                                <p>Distribución de los renglones fuera de tolerancia.</p>
+                            </div>
+                        </div>
+                        <div id="report-causes" class="cause-list"></div>
+                        <div id="report-causes-empty" class="report-empty hidden">
+                            No hay diferencias para analizar en el período.
+                        </div>
+                    </section>
+                </div>
+
+                <section class="panel alert-report-panel">
+                    <div class="panel-head">
+                        <div>
+                            <h2>Atención requerida</h2>
+                            <p>Situaciones que conviene revisar primero.</p>
+                        </div>
+                        <span id="report-alert-count" class="alert-count">0 alertas</span>
+                    </div>
+                    <div id="report-alerts" class="alert-list"></div>
+                    <div id="report-alerts-empty" class="report-empty hidden">
+                        No hay alertas relevantes para los filtros seleccionados.
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <div id="report-loading" class="loading hidden">Calculando indicadores…</div>
+    <div id="report-toast" class="toast hidden" role="status"></div>
+    <script src="/static/js/reports.js?v=803" defer></script>
+</body>
+</html>

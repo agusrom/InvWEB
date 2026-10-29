@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mapa de depósito · {{ app_name }}</title>
+    <link rel="stylesheet" href="/static/css/styles.css?v=79">
+    <link rel="stylesheet" href="/static/css/warehouse.css?v=8217">
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar" aria-label="Navegación">
+            <a class="brand" href="/inventarios" aria-label="Inicio">CI</a>
+            <nav>
+                <a class="nav-button" href="/inventarios"><span>⌂</span><small>Inicio</small></a>
+                <a class="nav-button" href="/programados"><span>◷</span><small>Programados</small></a>
+                <a class="nav-button" href="/plantillas"><span>▣</span><small>Plantillas</small></a>
+                <a class="nav-button" href="/conciliaciones"><span>⇄</span><small>Conciliar</small></a>
+                <a class="nav-button active" href="/deposito"><span>▤</span><small>Depósito</small></a>
+                <a class="nav-button" href="/reportes"><span>▥</span><small>Reportes</small></a>
+            </nav>
+            <a class="sidebar-settings" href="/configuracion" aria-label="Configuración">⚙</a>
+        </aside>
+
+        <div class="main-area">
+            <header class="topbar">
+                <div class="breadcrumbs">Operaciones <b>›</b> <span>Mapa de depósito</span></div>
+                <div class="top-actions">
+                    <div class="avatar">AR</div>
+                    <div class="profile"><strong>Agustín Romero</strong><span>Logística</span></div>
+                </div>
+            </header>
+
+            <main class="content warehouse-content">
+                <section class="warehouse-heading">
+                    <div>
+                        <div class="heading-line">
+                            <p class="eyebrow">UBICACIONES</p>
+                            <span class="prototype-badge">Configuración editable</span>
+                        </div>
+                        <h1>Mapa de depósito</h1>
+                        <p>Ubicá pallets, bandejas y cajas utilizando los maestros actuales de piezas.</p>
+                    </div>
+                    <div class="warehouse-actions">
+                        <button id="print-rack" class="secondary-action" type="button">⌁ Imprimir vista</button>
+                        <button id="configure-rack" class="primary" type="button">⚙ Configurar estantería</button>
+                    </div>
+                </section>
+
+                <section class="warehouse-metrics" aria-label="Resumen del depósito">
+                    <article><span class="metric-icon occupied">▤</span><div><small>Posiciones ocupadas</small><strong id="occupied-total">0</strong><p id="occupied-detail">de 0 disponibles</p></div></article>
+                    <article><span class="metric-icon free">□</span><div><small>Posiciones libres</small><strong id="free-total">0</strong><p>Disponibles para ingreso</p></div></article>
+                    <article><span class="metric-icon quantity">Σ</span><div><small>Cantidad almacenada</small><strong id="quantity-total">0</strong><p>Unidades registradas</p></div></article>
+                    <article><span class="metric-icon alert">!</span><div><small>Para verificar</small><strong id="review-total">0</strong><p>Posiciones observadas</p></div></article>
+                </section>
+
+                <section class="warehouse-layout">
+                    <aside class="rack-list panel">
+                        <div class="rack-list-head">
+                            <div><h2>Estanterías</h2><p>Configuradas en el sistema</p></div>
+                            <button id="add-rack" type="button" aria-label="Agregar estantería">＋</button>
+                        </div>
+                        <label class="warehouse-search"><span>⌕</span><input id="rack-search" type="search" placeholder="Buscar pieza o trazabilidad"></label>
+                        <div id="rack-list-content"><p class="rack-loading">Cargando estanterías…</p></div>
+                    </aside>
+
+                    <section class="rack-panel panel">
+                        <div class="rack-toolbar">
+                            <div>
+                                <div class="rack-title-line"><h2 id="rack-title">Mapa de estantería</h2><span id="rack-status">Activa</span></div>
+                                <p id="rack-description">Seleccioná una estantería para ver su distribución.</p>
+                            </div>
+                            <div class="rack-legend">
+                                <span><i class="legend-dot occupied"></i>Ocupada</span>
+                                <span><i class="legend-dot free"></i>Libre</span>
+                                <span><i class="legend-dot review"></i>Verificar</span>
+                            </div>
+                        </div>
+                        <div id="search-result" class="search-result hidden"></div>
+                        <div class="rack-scroll">
+                            <div id="rack-grid" class="rack-grid" aria-label="Vista frontal de la estantería"></div>
+                        </div>
+                        <p class="rack-help">Tocá una posición libre para cargarla o una ocupada para editarla.</p>
+                    </section>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <section id="position-sheet" class="position-sheet hidden" aria-hidden="true">
+        <button id="sheet-backdrop" class="sheet-backdrop" aria-label="Cerrar detalle"></button>
+        <article class="position-card">
+            <button id="close-sheet" class="sheet-close" type="button" aria-label="Cerrar">×</button>
+            <p class="eyebrow">CONTENIDO DE LA UBICACIÓN</p>
+            <h2 id="detail-location">A-01-C01-P01-01</h2>
+            <div id="detail-current" class="detail-current hidden"></div>
+            <form id="location-form" class="location-form">
+                <label>Tipo de artículo
+                    <select id="article-type">
+                        <option value="PIEZA">Pieza</option>
+                        <option value="MATERIA_PRIMA">Materia prima</option>
+                    </select>
+                </label>
+                <label class="article-search-field">Código o descripción
+                    <input id="article-search" type="search" autocomplete="off" placeholder="Escribí al menos 2 caracteres" required>
+                    <div id="article-suggestions" class="article-suggestions hidden"></div>
+                </label>
+                <div id="selected-article" class="selected-article hidden"></div>
+                <div class="form-two-cols">
+                    <label>Trazabilidad<input id="article-trace" maxlength="120" placeholder="HCP, lote o etiqueta" required></label>
+                    <label>Cantidad<input id="article-quantity" type="number" min="0.001" step="any" required></label>
+                </div>
+                <label>Estado
+                    <select id="article-status">
+                        <option value="CONFIRMADA">Ubicación confirmada</option>
+                        <option value="VERIFICAR">Requiere verificación</option>
+                    </select>
+                </label>
+                <div class="detail-actions">
+                    <button id="empty-location" class="danger-action hidden" type="button">Vaciar</button>
+                    <button class="save-location" type="submit">Guardar contenido</button>
+                </div>
+            </form>
+        </article>
+    </section>
+
+    <section id="config-sheet" class="position-sheet hidden" aria-hidden="true">
+        <button id="config-backdrop" class="sheet-backdrop" aria-label="Cerrar configuración"></button>
+        <article class="position-card config-card">
+            <button id="close-config" class="sheet-close" type="button" aria-label="Cerrar">×</button>
+            <p class="eyebrow">DISTRIBUCIÓN FÍSICA</p>
+            <h2>Configurar estantería</h2>
+            <form id="rack-config-form" class="rack-config-form">
+                <div class="config-basics">
+                    <label>Código<input id="config-code" maxlength="40" required></label>
+                    <label>Nombre<input id="config-name" maxlength="120" required></label>
+                    <label>Sector<input id="config-sector" maxlength="80" placeholder="Ej. Sector A"></label>
+                    <label>Columnas principales<input id="config-columns" type="number" min="1" max="12" value="4" required></label>
+                    <label>Cantidad de pisos<input id="config-floors" type="number" min="1" max="20" value="5" required></label>
+                </div>
+                <div class="config-help">Cada piso puede dividirse de manera diferente. Las divisiones se aplican dentro de cada columna principal.</div>
+                <div id="level-config-list" class="level-config-list"></div>
+                <div id="config-summary" class="config-summary"></div>
+                <button class="primary save-config" type="submit">Guardar distribución</button>
+            </form>
+        </article>
+    </section>
+    <div id="warehouse-toast" class="warehouse-toast hidden"></div>
+    <script src="/static/js/warehouse.js?v=8217" defer></script>
+</body>
+</html>

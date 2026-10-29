@@ -1,0 +1,1321 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ app_name }}</title>
+    <link rel="stylesheet" href="/static/css/styles.css?v=92">
+</head>
+<body data-initial-view="{{ vista_inicial | default('inventarios') }}">
+    <div class="app-shell">
+        <aside class="sidebar" aria-label="Navegación">
+            <a class="brand" data-view="inventarios" href="/inventarios" aria-label="Inicio">CI</a>
+            <nav>
+                <a class="nav-button {{ 'active' if vista_inicial == 'inventarios' else '' }}" data-view="inventarios" href="/inventarios">
+                    <span>⌂</span><small>Inicio</small>
+                </a>
+                <a class="nav-button {{ 'active' if vista_inicial == 'programados' else '' }}" data-view="programados" href="/programados">
+                    <span>◷</span><small>Programados</small>
+                </a>
+                <a class="nav-button {{ 'active' if vista_inicial == 'plantillas' else '' }}" data-view="plantillas" href="/plantillas">
+                    <span>▣</span><small>Plantillas</small>
+                </a>
+                <a class="nav-button {{ 'active' if vista_inicial == 'conciliaciones' else '' }}" data-view="conciliaciones" href="/conciliaciones">
+                    <span>⇄</span><small>Conciliar</small>
+                </a>
+                <a class="nav-button" href="/analisis-stock">
+                    <span>⌁</span><small>Análisis</small>
+                </a>
+                <a class="nav-button" href="/reportes">
+                    <span>▥</span><small>Reportes</small>
+                </a>
+            </nav>
+            <a class="sidebar-settings" href="/configuracion" aria-label="Configuración">⚙</a>
+        </aside>
+
+        <div class="main-area">
+            <header class="topbar">
+                <div class="breadcrumbs">
+                    Operaciones <b>›</b> <span id="breadcrumb-current">Inventarios</span>
+                </div>
+                <div class="top-actions">
+                    <button class="bell" aria-label="Notificaciones">♢<i></i></button>
+                    <div class="avatar">AR</div>
+                    <div class="profile">
+                        <strong>Agustín Romero</strong>
+                        <span>Logística</span>
+                    </div>
+                </div>
+            </header>
+
+            <main id="view-inventarios" class="content view {{ 'hidden' if vista_inicial != 'inventarios' else '' }}">
+                <section class="page-heading">
+                    <div>
+                        <p class="eyebrow">CONTROL DE STOCK</p>
+                        <h1>Inventarios</h1>
+                        <p>Generá, contá y analizá inventarios físicos en un solo lugar.</p>
+                    </div>
+                    <button id="btn-nuevo-inventario" class="primary">
+                        ＋ Nuevo inventario
+                    </button>
+                </section>
+
+                <section class="metrics" aria-label="Resumen">
+                    <article class="metric">
+                        <span class="blue">▣</span>
+                        <div><p>En preparación</p><strong id="metric-preparacion">0</strong><small>Listos para imprimir</small></div>
+                    </article>
+                    <article class="metric">
+                        <span class="teal">◉</span>
+                        <div><p>En conteo</p><strong id="metric-conteo">0</strong><small>Conteos en curso</small></div>
+                    </article>
+                    <article class="metric">
+                        <span class="amber">✓</span>
+                        <div><p>Cerrados</p><strong id="metric-cerrados">0</strong><small>Historial disponible</small></div>
+                    </article>
+                    <article class="metric">
+                        <span class="gray">±</span>
+                        <div><p>Diferencias abiertas</p><strong id="metric-diferencias">0</strong><small>Ítems para revisar</small></div>
+                    </article>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <h2>Inventarios recientes</h2>
+                            <p id="inventarios-total">0 inventarios registrados</p>
+                        </div>
+                        <div class="tools">
+                            <div class="inventory-tabs" role="group" aria-label="Estado de inventarios">
+                                <button type="button" class="inventory-tab active" data-inventory-tab="EN_CURSO">En curso</button>
+                                <button type="button" class="inventory-tab" data-inventory-tab="REALIZADOS">Realizados</button>
+                                <button type="button" class="inventory-tab" data-inventory-tab="TODOS">Todos</button>
+                            </div>
+                            <label class="search">
+                                <span>⌕</span>
+                                <input id="buscar-inventario" type="search" placeholder="Buscar inventario o cliente">
+                            </label>
+                            <select id="filtro-estado" aria-label="Filtrar por estado">
+                                <option>Todos</option>
+                                <option>En preparación</option>
+                                <option>En conteo</option>
+                                <option>Cerrado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="table-scroll screen-count-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Inventario</th>
+                                    <th>Cliente</th>
+                                    <th>Fecha</th>
+                                    <th>Progreso</th>
+                                    <th>Confiabilidad</th>
+                                    <th>Estado</th>
+                                    <th>Responsable</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-inventarios"></tbody>
+                        </table>
+                    </div>
+                    <div id="inventarios-vacio" class="empty hidden">
+                        No hay inventarios que coincidan con los filtros.
+                    </div>
+                </section>
+            </main>
+
+            <main id="view-programados" class="content view {{ 'hidden' if vista_inicial != 'programados' else '' }}">
+                <section class="page-heading">
+                    <div>
+                        <p class="eyebrow">PLANIFICACIÓN</p>
+                        <h1>Inventarios programados</h1>
+                        <p>Organizá los conteos únicos, semanales y mensuales.</p>
+                    </div>
+                    <div class="page-actions">
+                        <button id="btn-copiar-tabla" class="secondary">
+                            Copiar tabla
+                        </button>
+                        <button id="btn-copiar-imagen" class="secondary">
+                            Copiar imagen
+                        </button>
+                        <button id="btn-imprimir-cronograma" class="secondary">
+                            Imprimir / PDF
+                        </button>
+                        <button id="btn-nueva-programacion" class="primary">
+                            ＋ Programar inventario
+                        </button>
+                    </div>
+                </section>
+
+                <section class="schedule-metrics" aria-label="Resumen de programación">
+                    <article><span>Vencidos</span><strong id="programados-vencidos">0</strong></article>
+                    <article><span>Para hoy</span><strong id="programados-hoy">0</strong></article>
+                    <article><span>Próximos</span><strong id="programados-proximos">0</strong></article>
+                    <article><span>Activos</span><strong id="programados-activos">0</strong></article>
+                </section>
+
+                <div class="schedule-view-tabs" role="group" aria-label="Vista de programaciones">
+                    <button type="button" class="schedule-view-tab active" data-schedule-view="LISTA">
+                        ☷ Lista
+                    </button>
+                    <button type="button" class="schedule-view-tab" data-schedule-view="CALENDARIO">
+                        ▦ Calendario
+                    </button>
+                </div>
+
+                <section id="programaciones-lista" class="panel schedule-panel">
+                    <div class="panel-head">
+                        <div>
+                            <h2>Programaciones</h2>
+                            <p id="programaciones-total">0 programaciones</p>
+                        </div>
+                        <select id="filtro-programacion" aria-label="Filtrar programaciones">
+                            <option value="ACTIVAS">Activas</option>
+                            <option value="PENDIENTES">Vencidas y para hoy</option>
+                            <option value="TODAS">Todas</option>
+                        </select>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="schedule-table">
+                            <thead>
+                                <tr>
+                                    <th>Plantilla</th>
+                                    <th>Cliente</th>
+                                    <th>Próxima fecha</th>
+                                    <th>Frecuencia</th>
+                                    <th>Responsable</th>
+                                    <th>Estado</th>
+                                    <th>Último inventario</th>
+                                    <th>Acción</th>
+                                    <th>Configuración</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-programaciones"></tbody>
+                        </table>
+                    </div>
+                    <div id="programaciones-vacio" class="empty hidden">
+                        No hay inventarios programados en esta vista.
+                    </div>
+                </section>
+
+                <section id="programaciones-calendario" class="calendar-panel hidden">
+                    <div class="calendar-print-header">
+                        <p>CRONOGRAMA DE PRODUCCIÓN</p>
+                        <h2 id="calendar-print-title">Inventarios programados</h2>
+                        <span id="calendar-print-date"></span>
+                    </div>
+
+                    <div class="calendar-toolbar">
+                        <div class="calendar-period-tabs">
+                            <button type="button" class="calendar-period active" data-calendar-period="MES">Mes</button>
+                            <button type="button" class="calendar-period" data-calendar-period="SEMANA">Semana</button>
+                        </div>
+                        <div class="calendar-navigation">
+                            <button id="calendar-prev" type="button" aria-label="Período anterior">←</button>
+                            <button id="calendar-today" type="button">Hoy</button>
+                            <button id="calendar-next" type="button" aria-label="Período siguiente">→</button>
+                        </div>
+                        <h2 id="calendar-title"></h2>
+                        <div class="calendar-legend">
+                            <span><i class="legend-planned"></i>Programado</span>
+                            <span><i class="legend-progress"></i>En curso</span>
+                            <span><i class="legend-done"></i>Realizado</span>
+                            <span><i class="legend-paused"></i>Pausado</span>
+                        </div>
+                    </div>
+
+                    <div class="calendar-weekdays" aria-hidden="true">
+                        <span>Lunes</span><span>Martes</span><span>Miércoles</span>
+                        <span>Jueves</span><span>Viernes</span><span>Sábado</span>
+                        <span>Domingo</span>
+                    </div>
+                    <div id="calendar-grid" class="calendar-grid"></div>
+                    <div id="calendar-empty" class="calendar-empty hidden">
+                        No hay inventarios programados en este período.
+                    </div>
+                </section>
+            </main>
+
+            <main id="view-plantillas" class="content view {{ 'hidden' if vista_inicial != 'plantillas' else '' }}">
+                <section class="page-heading">
+                    <div>
+                        <p class="eyebrow">CONFIGURACIÓN</p>
+                        <h1>Plantillas de inventario</h1>
+                        <p id="plantillas-resumen">Definí qué piezas se cuentan habitualmente para cada cliente.</p>
+                    </div>
+                    <div class="page-actions">
+                        <label class="search template-search">
+                            <span>⌕</span>
+                            <input
+                                id="buscar-plantilla"
+                                type="search"
+                                placeholder="Buscar plantilla, cliente o código"
+                            >
+                        </label>
+                        <button id="btn-nueva-plantilla" class="primary">
+                            ＋ Nueva plantilla
+                        </button>
+                    </div>
+                </section>
+                <section id="plantillas-grid" class="template-list"></section>
+            </main>
+
+            <main id="view-conciliaciones" class="content view {{ 'hidden' if vista_inicial != 'conciliaciones' else '' }}">
+                <section class="page-heading">
+                    <div>
+                        <p class="eyebrow">BALANCE DE MOVIMIENTOS</p>
+                        <h1>Conciliaciones de stock</h1>
+                        <p>Compará dos inventarios aplicando ingresos y egresos del período.</p>
+                    </div>
+                    <button id="btn-nueva-conciliacion" class="primary">
+                        ＋ Nueva conciliación
+                    </button>
+                </section>
+
+                <section class="metrics reconciliation-metrics">
+                    <article class="metric">
+                        <span class="blue">⇄</span>
+                        <div><p>Análisis guardados</p><strong id="metric-conciliaciones">0</strong><small>Historial disponible</small></div>
+                    </article>
+                    <article class="metric">
+                        <span class="teal">✓</span>
+                        <div><p>Última confiabilidad</p><strong id="metric-conciliacion-confianza">—</strong><small id="conciliacion-confiabilidad-etiqueta">Dentro de ±5%</small></div>
+                    </article>
+                    <article class="metric">
+                        <span class="amber">±</span>
+                        <div><p>Diferencia última</p><strong id="metric-conciliacion-diferencia">—</strong><small>Físico menos esperado</small></div>
+                    </article>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <h2>Análisis realizados</h2>
+                            <p>Seleccioná uno para revisar o completar movimientos.</p>
+                        </div>
+                    </div>
+                    <div class="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Análisis</th>
+                                    <th>Inicial explotado</th>
+                                    <th>Final explotado</th>
+                                    <th>Período</th>
+                                    <th>Confiabilidad</th>
+                                    <th>Diferencia</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-conciliaciones"></tbody>
+                        </table>
+                    </div>
+                    <div id="conciliaciones-vacio" class="empty hidden">
+                        Todavía no hay conciliaciones guardadas.
+                    </div>
+                </section>
+
+                <section id="conciliacion-detalle" class="panel reconciliation-detail hidden">
+                    <div class="panel-head">
+                        <div>
+                            <h2 id="conciliacion-titulo">Detalle</h2>
+                            <p id="conciliacion-subtitulo"></p>
+                        </div>
+                        <div class="detail-actions">
+                            <button id="btn-recalcular-conciliacion" class="secondary">↻ Recalcular desde remitos</button>
+                            <span id="conciliacion-autosave-status" class="autosave-status saved">✓ Guardado</span>
+                            <button id="btn-guardar-conciliacion" class="secondary">Guardar movimientos</button>
+                            <button id="btn-eliminar-conciliacion" class="danger">Eliminar análisis</button>
+                        </div>
+                    </div>
+                    <div id="conciliacion-remitos" class="reconciliation-cutoffs"></div>
+                    <div id="conciliacion-advertencias" class="reconciliation-warnings hidden"></div>
+                    <details class="reconciliation-audit">
+                        <summary>Ver y controlar remitos de ingreso</summary>
+                        <div class="reconciliation-audit-actions">
+                            <button id="btn-agregar-ingreso-manual" type="button" class="secondary">+ Agregar ingreso manual</button>
+                            <small>Las correcciones y verificaciones se guardan automáticamente.</small>
+                        </div>
+                        <div id="tabla-remitos-ingreso" class="remittance-groups"></div>
+                        <p id="remitos-ingreso-vacio" class="empty-inline hidden">No se encontraron ingresos dentro del corte.</p>
+                    </details>
+                    <details class="reconciliation-audit">
+                        <summary>Ver y controlar remitos de egreso</summary>
+                        <div class="reconciliation-audit-actions">
+                            <button id="btn-agregar-egreso-manual" type="button" class="secondary">+ Agregar egreso manual</button>
+                            <small>Las correcciones y verificaciones se guardan automáticamente.</small>
+                        </div>
+                        <div id="tabla-remitos-egreso" class="remittance-groups"></div>
+                        <p id="remitos-egreso-vacio" class="empty-inline hidden">No se encontraron egresos activos dentro del corte.</p>
+                    </details>
+                    <div class="table-scroll">
+                        <table class="reconciliation-table">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Descripción</th>
+                                    <th>Inventario inicial</th>
+                                    <th>Ingresos equivalentes</th>
+                                    <th>Egresos equivalentes</th>
+                                    <th>Scrap</th>
+                                    <th>Stock esperado</th>
+                                    <th>Inventario final</th>
+                                    <th>Diferencia</th>
+                                    <th>Físico / esperado</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-conciliacion-detalle"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
+
+            <main id="view-detalle" class="content view hidden">
+                <section class="detail-head">
+                    <div>
+                        <button id="btn-volver" class="back">← Volver a inventarios</button>
+                        <div class="title-line">
+                            <h1 id="detalle-codigo"></h1>
+                            <span id="detalle-estado"></span>
+                        </div>
+                        <p id="detalle-subtitulo"></p>
+                    </div>
+                    <div class="detail-actions">
+                        <details class="action-menu">
+                            <summary>▣ Archivo <span>⌄</span></summary>
+                            <div class="action-menu-popover">
+                                <button
+                                    id="btn-imprimir"
+                                    type="button"
+                                    onclick="
+                                        event.preventDefault();
+                                        event.stopImmediatePropagation();
+                                        const codigo = document.getElementById('detalle-codigo').textContent.trim();
+                                        window.open(
+                                            '/inventarios/codigo/' + encodeURIComponent(codigo) + '/imprimir',
+                                            '_blank',
+                                            'noopener'
+                                        );
+                                    "
+                                >
+                                    <span>▤</span>
+                                    <div>
+                                        <strong>Imprimir planilla</strong>
+                                        <small>Abrir vista de impresión</small>
+                                    </div>
+                                </button>
+                                <button id="btn-excel" type="button">
+                                    <span>↓</span>
+                                    <div>
+                                        <strong>Exportar Excel</strong>
+                                        <small>Descargar el inventario</small>
+                                    </div>
+                                </button>
+                            </div>
+                        </details>
+                        <details class="action-menu">
+                            <summary>⋯ Gestionar <span>⌄</span></summary>
+                            <div class="action-menu-popover">
+                                <button id="btn-agregar-articulo" type="button">
+                                    <span>＋</span>
+                                    <div>
+                                        <strong>Agregar artículo</strong>
+                                        <small>Sumar una pieza al conteo</small>
+                                    </div>
+                                </button>
+                                <button id="btn-actualizar-stock" type="button">
+                                    <span>↻</span>
+                                    <div>
+                                        <strong>Actualizar stock</strong>
+                                        <small>Consultar nuevamente el sistema</small>
+                                    </div>
+                                </button>
+                                <button id="btn-eliminar-inventario" class="menu-danger" type="button">
+                                    <span>⌫</span>
+                                    <div>
+                                        <strong>Eliminar inventario</strong>
+                                        <small>Esta acción no se puede deshacer</small>
+                                    </div>
+                                </button>
+                            </div>
+                        </details>
+                        <button id="btn-conteo-movil" class="mobile-count-button" type="button">
+                            <span aria-hidden="true">▯</span> Conteo móvil
+                        </button>
+                        <button id="btn-difusion" class="diffusion-button" type="button">
+                            <span aria-hidden="true">▦</span> Difusión
+                        </button>
+                        <button id="btn-preconciliacion" class="preconciliation-button" type="button">
+                            <span aria-hidden="true">⌁</span> Abrir en análisis de stock
+                        </button>
+                        <button id="btn-cerrar" class="primary detail-close-button">Cerrar inventario</button>
+                        <button id="btn-reabrir" class="secondary detail-close-button hidden" type="button">🔒 Habilitar corrección</button>
+                        <button id="btn-iniciar-reconteo" class="secondary hidden" type="button">Iniciar reconteo</button>
+                    </div>
+                </section>
+
+                <section id="reconteos-panel" class="panel hidden">
+                    <div class="panel-head">
+                        <div><h2>Inventarios vinculados</h2><p>Origen y reconteos con numeración propia.</p></div>
+                    </div>
+                    <div id="reconteos-contenido"></div>
+                </section>
+
+                <section class="detail-summary">
+                    <div><span>Progreso</span><strong id="detalle-progreso">0 / 0</strong></div>
+                    <div><span>Diferencias</span><strong id="detalle-diferencias">0</strong></div>
+                    <div>
+                        <span>Stock de sistema</span>
+                        <strong id="detalle-stock">0</strong>
+                        <small id="detalle-stock-actualizado">Sin actualización registrada</small>
+                    </div>
+                    <div>
+                        <span id="detalle-confiabilidad-etiqueta">Confiabilidad (±5%)</span>
+                        <strong id="detalle-confiabilidad">—</strong>
+                        <small id="detalle-confiabilidad-detalle">0 / 0 renglones OK</small>
+                    </div>
+                </section>
+
+                <section id="difference-focus-panel" class="panel difference-focus-panel hidden">
+                    <div class="panel-head difference-focus-head">
+                        <div>
+                            <span class="section-eyebrow">FOCO DE DIFERENCIAS</span>
+                            <h2>Piezas que requieren atención</h2>
+                            <p>Prioridad actual, explicación e historial de los últimos conteos comparables.</p>
+                        </div>
+                        <div class="difference-focus-head-actions">
+                            <span id="difference-focus-count" class="difference-focus-count"></span>
+                            <button id="btn-toggle-difference-focus" class="difference-focus-toggle" type="button" aria-expanded="false">
+                                Analizar diferencias <span>⌄</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="difference-focus-content" class="difference-focus-layout hidden">
+                        <div id="difference-focus-list" class="difference-focus-list"></div>
+                        <aside class="difference-cause-panel">
+                            <div class="difference-cause-title">
+                                <span>CAUSAS PRINCIPALES</span>
+                                <small>Solo causas asignadas</small>
+                            </div>
+                            <div id="difference-cause-list" class="difference-cause-list"></div>
+                        </aside>
+                    </div>
+                </section>
+
+                <div id="inventory-meta-grid" class="inventory-meta-grid">
+                    <section class="panel inventory-data-panel">
+                        <div class="panel-head">
+                            <div>
+                                <h2>Datos del inventario</h2>
+                                <p id="inventory-data-summary">
+                                    Tipo de control y comentarios para el seguimiento.
+                                </p>
+                            </div>
+                            <div class="inventory-panel-actions">
+                                <button
+                                    id="btn-toggle-inventory-data"
+                                    class="inventory-data-toggle"
+                                    type="button"
+                                    aria-expanded="false"
+                                    aria-controls="inventory-data-fields"
+                                >
+                                    Mostrar datos <span>⌄</span>
+                                </button>
+                                <button
+                                    id="btn-guardar-datos"
+                                    class="secondary hidden"
+                                    type="button"
+                                >
+                                    Guardar datos
+                                </button>
+                            </div>
+                        </div>
+                        <div id="inventory-data-fields" class="inventory-data-fields hidden">
+                            <label>
+                                Tipo de inventario
+                                <select id="detalle-ambito">
+                                    <option value="INTERNO">Interno</option>
+                                    <option value="CLIENTE">Con cliente</option>
+                                </select>
+                            </label>
+                            <label>
+                                Mes de cierre
+                                <input id="detalle-mes-cierre" type="month" required>
+                                <small>Se puede corregir sin cambiar la fecha real o programada.</small>
+                            </label>
+                            <label>
+                                Comentario
+                                <textarea
+                                    id="detalle-comentario"
+                                    maxlength="4000"
+                                    rows="2"
+                                    placeholder="Ej. Conteo realizado junto al auditor del cliente."
+                                ></textarea>
+                            </label>
+                        </div>
+                    </section>
+
+                    <section id="remitos-control" class="panel remittance-panel hidden">
+                        <div class="panel-head">
+                            <div>
+                                <h2>Control de remitos</h2>
+                                <p id="remittance-summary">
+                                    Últimos comprobantes incluidos en el corte.
+                                </p>
+                            </div>
+                            <div class="inventory-panel-actions">
+                                <button
+                                    id="btn-toggle-remittances"
+                                    class="inventory-data-toggle"
+                                    type="button"
+                                    aria-expanded="false"
+                                    aria-controls="remittance-fields"
+                                >
+                                    Mostrar remitos <span>⌄</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="remittance-fields" class="remittance-fields hidden">
+                            <label>
+                                Último remito de ingreso
+                                <input
+                                    id="remito-ingreso"
+                                    maxlength="80"
+                                    autocomplete="off"
+                                    placeholder="Ej. 0001-00012345"
+                                >
+                            </label>
+                            <label>
+                                Último remito de egreso
+                                <input
+                                    id="remito-egreso"
+                                    maxlength="80"
+                                    autocomplete="off"
+                                    placeholder="Ej. 0001-00012346"
+                                >
+                            </label>
+                        </div>
+                    </section>
+                </div>
+
+                <section class="panel count-panel">
+                    <div class="print-title">
+                        <h2>Planilla de conteo físico</h2>
+                        <p id="print-subtitulo"></p>
+                    </div>
+                    <div class="panel-head">
+                        <div>
+                            <h2>Detalle del conteo</h2>
+                            <p>Ingresá la cantidad física encontrada para cada código.</p>
+                        </div>
+                        <div class="count-panel-tools">
+                            <div id="count-view-tabs" class="count-view-tabs">
+                                <button type="button" data-count-view="PIEZA">
+                                    Por pieza
+                                </button>
+                                <button type="button" data-count-view="DETALLE">
+                                    Detallada
+                                </button>
+                            </div>
+                            <div class="count-save-group">
+                                <span id="conteo-autosave-status" class="autosave-status saved">✓ Guardado</span>
+                                <button id="btn-guardar-conteo" class="primary count-save-button" type="button">
+                                    Guardar conteo
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="count-detail-wrap" class="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Código</th>
+                                    <th>Descripción</th>
+                                    <th>Material</th>
+                                    <th>Etapa</th>
+                                    <th>Operación</th>
+                                    <th>Proveedor</th>
+                                    <th class="system-column">Stock sistema</th>
+                                    <th>Conteo físico</th>
+                                    <th class="system-column">Diferencia</th>
+                                    <th class="system-column">Físico / teórico</th>
+                                    <th>Análisis</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-conteo"></tbody>
+                        </table>
+                    </div>
+                    <div id="count-piece-wrap" class="table-scroll hidden">
+                        <table class="piece-count-table">
+                            <thead>
+                                <tr>
+                                    <th>Pieza</th>
+                                    <th>Material sin usar</th>
+                                    <th>En proceso</th>
+                                    <th>Pieza terminada</th>
+                                    <th>Total general</th>
+                                    <th>Desvío</th>
+                                    <th>Diagnóstico</th>
+                                    <th>Análisis</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-conteo-piezas"></tbody>
+                        </table>
+                    </div>
+                    <div id="count-media-wrap" class="table-scroll hidden">
+                        <table class="media-count-table">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Cód. cliente</th>
+                                    <th>Descripción</th>
+                                    <th>Stock sistema</th>
+                                    <th>Vacíos</th>
+                                    <th>Llenos</th>
+                                    <th>Rotos</th>
+                                    <th>Utilizables</th>
+                                    <th>Total físico</th>
+                                    <th>Diferencia</th>
+                                    <th>Físico / teórico</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-conteo-medios"></tbody>
+                        </table>
+                    </div>
+                    <div class="print-count-sheet">
+                        <table>
+                            <colgroup>
+                                <col class="print-col-code">
+                                <col class="print-col-use">
+                                <col class="print-col-client">
+                                <col class="print-col-description">
+                                <col class="print-col-material">
+                                <col class="print-col-count">
+                                <col class="print-col-count-wide">
+                                <col class="print-col-count-wide">
+                                <col class="print-col-scrap">
+                                <col class="print-col-final">
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th>Cód. CGR</th>
+                                    <th>Uso</th>
+                                    <th>Cód. cliente</th>
+                                    <th>Descripción</th>
+                                    <th>Material</th>
+                                    <th>Abastecimiento</th>
+                                    <th>Despacho<br>(dársena)</th>
+                                    <th>Línea / proceso</th>
+                                    <th>Scrap</th>
+                                    <th>Stock final</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-conteo-impresion"></tbody>
+                        </table>
+                        <p class="print-note">
+                            Conteo físico: completar las cantidades encontradas en cada sector.
+                        </p>
+                    </div>
+                    <div class="signatures">
+                        <div>Realizó conteo<span>Firma y aclaración</span></div>
+                        <div>Verificó<span>Firma y aclaración</span></div>
+                        <div>Aprobó<span>Firma y aclaración</span></div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <div id="modal-inventario" class="backdrop hidden">
+        <form id="form-inventario" class="modal">
+            <div class="modal-head">
+                <div>
+                    <span>NUEVO INVENTARIO</span>
+                    <h2>Preparar conteo</h2>
+                    <p>Elegí una plantilla, generá un cíclico o armá un listado manual.</p>
+                </div>
+                <button type="button" class="modal-close">×</button>
+            </div>
+            <label>
+                Origen del inventario
+                <select id="inventario-modo">
+                    <option value="PLANTILLA">Desde una plantilla</option>
+                    <option value="CICLICO">Cíclico por pieza raíz</option>
+                    <option value="MANUAL">Manual: listado de piezas o materias primas</option>
+                </select>
+            </label>
+
+            <section id="inventario-desde-plantilla" class="inventory-source">
+                <label>
+                    Plantilla
+                    <select id="inventario-plantilla" required></select>
+                </label>
+                <div id="plantilla-resumen" class="selection-summary"></div>
+            </section>
+
+            <section id="inventario-ciclico" class="inventory-source hidden">
+                <div class="cycle-root-search">
+                    <label class="autocomplete-control">
+                        Código de pieza raíz
+                        <input
+                            id="inventario-codigo-raiz"
+                            autocomplete="off"
+                            placeholder="Ej. 284994"
+                            aria-autocomplete="list"
+                            aria-controls="cyclic-root-suggestions"
+                            aria-expanded="false"
+                        >
+                        <div
+                            id="cyclic-root-suggestions"
+                            class="autocomplete-menu hidden"
+                            role="listbox"
+                        ></div>
+                    </label>
+                    <button id="validar-raiz-ciclica" type="button" class="secondary">
+                        Validar estructura
+                    </button>
+                </div>
+                <div id="resumen-raiz-ciclica" class="selection-summary hidden"></div>
+                <div class="field-row">
+                    <label>
+                        Forma de contar el proceso
+                        <select id="inventario-tipo-conteo">
+                            <option value="GLOBAL">Global: todo el proceso</option>
+                            <option value="POR_OPERACION">Detallado por operación</option>
+                        </select>
+                    </label>
+                </div>
+                <label class="modal-feature-check">
+                    <input id="inventario-controla-remitos" type="checkbox">
+                    <span>
+                        <strong>Controla remitos</strong>
+                        <small>Habilita remito de ingreso y egreso en el conteo.</small>
+                    </span>
+                </label>
+            </section>
+
+            <section id="inventario-manual" class="inventory-source hidden">
+                <div class="field-row">
+                    <label>
+                        Qué vas a contar
+                        <select id="inventario-tipo-articulo-manual">
+                            <option value="PIEZA">Pieza o componente</option>
+                            <option value="MATERIA_PRIMA">Materia prima</option>
+                        </select>
+                    </label>
+                    <label>
+                        Forma de contar el proceso
+                        <select id="inventario-tipo-conteo-manual">
+                            <option value="GLOBAL">Global: todo el proceso</option>
+                            <option value="POR_OPERACION">Detallado por operación</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="cycle-root-search">
+                    <label class="autocomplete-control">
+                        Código
+                        <input
+                            id="inventario-codigo-manual"
+                            autocomplete="off"
+                            placeholder="Escribí al menos 2 caracteres"
+                            aria-autocomplete="list"
+                            aria-controls="manual-code-suggestions"
+                            aria-expanded="false"
+                        >
+                        <div
+                            id="manual-code-suggestions"
+                            class="autocomplete-menu hidden"
+                            role="listbox"
+                        ></div>
+                        <small>Podés escribir parte del código o de la descripción.</small>
+                    </label>
+                    <button id="validar-codigo-manual" type="button" class="secondary">
+                        Agregar a la lista
+                    </button>
+                </div>
+                <label id="manual-contar-material-wrap" class="modal-feature-check">
+                    <input id="inventario-contar-material-manual" type="checkbox" checked>
+                    <span>
+                        <strong>Incluir material sin usar</strong>
+                        <small>Desmarcalo si de esta pieza sólo se cuenta proceso y terminado.</small>
+                    </span>
+                </label>
+                <label class="modal-feature-check">
+                    <input id="inventario-controla-remitos-manual" type="checkbox">
+                    <span>
+                        <strong>Controla remitos</strong>
+                        <small>Habilita remito de ingreso y egreso en el conteo.</small>
+                    </span>
+                </label>
+                <div id="resumen-codigo-manual" class="selection-summary manual-list-summary">
+                    <div class="manual-list-head">
+                        <div>
+                            <strong>Artículos agregados</strong>
+                            <small>Podés revisar y quitar códigos antes de generar.</small>
+                        </div>
+                        <span id="manual-list-count">0 artículos</span>
+                    </div>
+                    <p id="manual-list-empty" class="manual-list-empty">
+                        Todavía no agregaste ningún código.
+                    </p>
+                    <div id="manual-list-items" class="selection-preview-list hidden"></div>
+                </div>
+            </section>
+
+            <label>
+                Tipo de inventario
+                <select id="inventario-tipo-inventario" required></select>
+                <small id="inventario-tipo-ayuda">
+                    Los tipos disponibles se administran desde Configuración.
+                </small>
+            </label>
+
+            <label id="inventario-modalidad-wrap" class="hidden">
+                Forma de registro heredada
+                <select id="inventario-modalidad-conteo" tabindex="-1">
+                    <option value="ESTANDAR">
+                        Inventario estándar por etapas
+                    </option>
+                    <option value="MEDIOS">
+                        Medios: vacíos, llenos y rotos
+                    </option>
+                </select>
+                <small id="inventario-modalidad-ayuda">
+                    En medios se compara el total físico contra el stock de pieza terminada.
+                </small>
+            </label>
+
+            <div class="field-row">
+                <label>Fecha real<input id="inventario-fecha" type="date" required></label>
+                <label>
+                    Mes de cierre
+                    <input id="inventario-mes-cierre" type="month" required>
+                    <small>Período al que pertenece el conteo.</small>
+                </label>
+                <label>
+                    Tipo de inventario
+                    <select id="inventario-ambito">
+                        <option value="INTERNO">Interno</option>
+                        <option value="CLIENTE">Con cliente</option>
+                    </select>
+                </label>
+                <label>Responsable<select id="inventario-responsable" required></select></label>
+            </div>
+            <label>
+                Colaboradores
+                <select id="inventario-colaboradores" multiple size="4"></select>
+                <small>Podés seleccionar varias personas con Ctrl + clic.</small>
+            </label>
+            <label>
+                Comentario
+                <textarea
+                    id="inventario-observaciones"
+                    maxlength="4000"
+                    rows="3"
+                    placeholder="Datos o indicaciones particulares de este inventario"
+                ></textarea>
+            </label>
+            <div class="modal-actions">
+                <button type="button" class="secondary modal-cancel">Cancelar</button>
+                <button type="submit" class="primary">Crear inventario</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="modal-reconteo" class="backdrop hidden">
+        <form id="form-reconteo" class="modal large">
+            <div class="modal-head">
+                <div><span>CONTROL</span><h2>Iniciar reconteo</h2><p>El primer conteo quedará intacto.</p></div>
+                <button type="button" class="modal-close">×</button>
+            </div>
+            <label>Selección
+                <select id="reconteo-seleccion">
+                    <option value="FUERA_TOLERANCIA">Piezas fuera de tolerancia</option>
+                    <option value="COMPLETO">Inventario completo</option>
+                    <option value="MANUAL">Selección manual</option>
+                </select>
+            </label>
+            <label>Stock de referencia
+                <select id="reconteo-stock">
+                    <option value="ORIGINAL">Mantener stock del inventario original</option>
+                    <option value="ACTUALIZADO">Consultar y congelar stock actualizado</option>
+                </select>
+                <small id="reconteo-stock-ayuda">Permite comparar ambos conteos bajo la misma fotografía.</small>
+            </label>
+            <label>Responsable<input id="reconteo-responsable" maxlength="120"></label>
+            <div id="reconteo-items-seleccion" class="recount-selection"></div>
+            <label>Observación<textarea id="reconteo-observacion" rows="2" maxlength="4000"></textarea></label>
+            <div class="modal-actions">
+                <button type="button" class="secondary modal-cancel">Cancelar</button>
+                <button type="submit" class="primary">Crear reconteo</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="modal-programacion" class="backdrop hidden">
+        <form id="form-programacion" class="modal">
+            <div class="modal-head">
+                <div>
+                    <span>PROGRAMACIÓN</span>
+                    <h2 id="programacion-modal-title">Programar inventario</h2>
+                    <p>La fecha quedará pendiente hasta que generes el conteo.</p>
+                </div>
+                <button type="button" class="modal-close">×</button>
+            </div>
+            <input id="programacion-id" type="hidden">
+            <label>
+                Plantilla
+                <select id="programacion-plantilla" required></select>
+            </label>
+            <div class="field-row">
+                <label>
+                    Primera / próxima fecha
+                    <input id="programacion-fecha" type="date" required>
+                </label>
+                <label>
+                    Mes de cierre de esta ocurrencia
+                    <input id="programacion-mes-cierre" type="month" required>
+                </label>
+                <label>
+                    Repetición
+                    <select id="programacion-frecuencia" required>
+                        <option value="UNA_VEZ">Una sola vez</option>
+                        <option value="SEMANAL">Todas las semanas</option>
+                        <option value="MENSUAL">Todos los meses</option>
+                    </select>
+                </label>
+            </div>
+            <label>
+                Responsable
+                <select id="programacion-responsable" required></select>
+            </label>
+            <label>
+                Colaboradores
+                <select id="programacion-colaboradores" multiple size="4"></select>
+            </label>
+            <label>
+                Observaciones
+                <textarea id="programacion-observaciones" rows="3" placeholder="Indicaciones para el conteo"></textarea>
+            </label>
+            <div class="schedule-explanation">
+                La fecha indica cuándo se cuenta; el mes de cierre indica en qué
+                informe se incluirá. En programaciones mensuales ambos avanzan un
+                mes por ocurrencia.
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="secondary modal-cancel">Cancelar</button>
+                <button id="guardar-programacion" type="submit" class="primary">Guardar programación</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="modal-conciliacion" class="backdrop hidden">
+        <form id="form-conciliacion" class="modal">
+            <div class="modal-head">
+                <div>
+                    <span>NUEVO ANÁLISIS</span>
+                    <h2>Conciliar inventarios</h2>
+                    <p>Los conteos se explotan a componentes; los movimientos se completan manualmente en esa misma unidad equivalente.</p>
+                </div>
+                <button type="button" class="modal-close">×</button>
+            </div>
+            <label>
+                Nombre
+                <input id="conciliacion-nombre" required placeholder="Ej. Visita Cliente Delta - Julio">
+            </label>
+            <label>
+                Inventario inicial conocido
+                <select id="conciliacion-inicial" required></select>
+            </label>
+            <label>
+                Inventario final
+                <select id="conciliacion-final" required></select>
+            </label>
+            <div class="schedule-explanation">
+                Ambos inventarios deben tener todos sus renglones contados.
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="secondary modal-cancel">Cancelar</button>
+                <button type="submit" class="primary">Crear análisis</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="modal-ingreso-manual" class="backdrop hidden">
+        <form id="form-ingreso-manual" class="modal">
+            <div class="modal-head">
+                <div>
+                    <h2>Agregar ingreso manual</h2>
+                    <p>Quedará identificado como manual en la auditoría.</p>
+                </div>
+                <button type="button" class="modal-close">×</button>
+            </div>
+            <label>
+                Pieza de la conciliación
+                <select id="ingreso-manual-item" required></select>
+            </label>
+            <div class="form-grid two">
+                <label>
+                    Código de material
+                    <input id="ingreso-manual-material" maxlength="80" placeholder="Código de MP" required>
+                </label>
+                <label>
+                    Número de remito
+                    <input id="ingreso-manual-remito" maxlength="80" value="MANUAL" required>
+                </label>
+                <label>
+                    Fecha
+                    <input id="ingreso-manual-fecha" type="date" required>
+                </label>
+                <label>
+                    Cantidad
+                    <input id="ingreso-manual-cantidad" type="number" min="0.000001" step="any" required>
+                </label>
+            </div>
+            <label>
+                Observación
+                <textarea id="ingreso-manual-observacion" maxlength="1000" placeholder="Motivo del alta manual"></textarea>
+            </label>
+            <div class="modal-actions">
+                <button type="button" class="secondary modal-close">Cancelar</button>
+                <button type="submit" class="primary">Agregar ingreso</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="modal-egreso-manual" class="backdrop hidden">
+        <form id="form-egreso-manual" class="modal">
+            <div class="modal-head">
+                <div>
+                    <h2>Agregar egreso manual</h2>
+                    <p>Se cargará como despacho directo del componente elegido.</p>
+                </div>
+                <button type="button" class="modal-close">×</button>
+            </div>
+            <label>
+                Componente de la conciliación
+                <select id="egreso-manual-item" required></select>
+            </label>
+            <div class="form-grid two">
+                <label>
+                    Número de remito
+                    <input id="egreso-manual-remito" maxlength="80" value="MANUAL" required>
+                </label>
+                <label>
+                    Fecha
+                    <input id="egreso-manual-fecha" type="date" required>
+                </label>
+                <label>
+                    Cantidad despachada
+                    <input id="egreso-manual-cantidad" type="number" min="0.000001" step="any" required>
+                </label>
+            </div>
+            <label>
+                Observación
+                <textarea id="egreso-manual-observacion" maxlength="1000" placeholder="Motivo del alta manual"></textarea>
+            </label>
+            <div class="modal-actions">
+                <button type="button" class="secondary modal-close">Cancelar</button>
+                <button type="submit" class="primary">Agregar egreso</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="modal-actualizar-stock" class="backdrop hidden">
+        <div class="modal large stock-source-modal">
+            <div class="modal-head">
+                <div>
+                    <span>FOTO DE STOCK</span>
+                    <h2>Actualizar stock del sistema</h2>
+                    <p>Elegí la fuente que querés usar para recalcular las diferencias.</p>
+                </div>
+                <button type="button" class="modal-close">×</button>
+            </div>
+
+            <section class="stock-source-card">
+                <div>
+                    <strong>Base productiva MySQL</strong>
+                    <p>Consulta las tablas conectadas actualmente.</p>
+                </div>
+                <button id="btn-stock-mysql" type="button" class="secondary">
+                    Actualizar desde MySQL
+                </button>
+            </section>
+
+            <div class="stock-source-divider"><span>o importar reportes actuales</span></div>
+
+            <form id="form-stock-excel">
+                <div class="stock-file-grid">
+                    <label id="label-archivo-pt">
+                        Reporte PT
+                        <input id="archivo-stock-pt" name="archivo_pt" type="file" accept=".xls,.xlsx">
+                        <small>Columnas: gcod, ccod, stok</small>
+                    </label>
+                    <label id="label-archivo-prd">
+                        Reporte PRD
+                        <input id="archivo-stock-prd" name="archivo_prd" type="file" accept=".xls,.xlsx">
+                        <small>Columnas: piezacod, operacion, cantidad</small>
+                    </label>
+                    <label id="label-archivo-mp">
+                        Reporte MP
+                        <input id="archivo-stock-mp" name="archivo_mp" type="file" accept=".xls,.xlsx">
+                        <small>Columnas: lote, cmat, descr, undad, cant</small>
+                    </label>
+                    <label id="label-archivo-asignado">
+                        Stock asignado
+                        <input id="archivo-stock-asignado" name="archivo_asignado" type="file" accept=".xls,.xlsx">
+                        <small>Columnas: ccodmat, ncantidad</small>
+                    </label>
+                </div>
+                <div class="stock-import-note">
+                    La MP se actualiza por código y lote. Los lotes nuevos se
+                    agregan y los ausentes quedan con stock de sistema cero sin
+                    borrar el conteo ya registrado.
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="secondary modal-cancel">Cancelar</button>
+                    <button type="submit" class="primary">Importar y actualizar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-agregar-articulo" class="backdrop hidden">
+        <form id="form-agregar-articulo" class="modal">
+            <div class="modal-head">
+                <div>
+                    <span>AMPLIAR CONTEO</span>
+                    <h2>Agregar artículo</h2>
+                    <p id="agregar-articulo-ayuda">
+                        El nuevo código se incorpora con el stock actual del sistema.
+                    </p>
+                </div>
+                <button type="button" class="modal-close">×</button>
+            </div>
+            <div class="field-row">
+                <label>
+                    Tipo de artículo
+                    <select id="agregar-tipo-articulo">
+                        <option value="PIEZA">Pieza o componente</option>
+                        <option value="MATERIA_PRIMA">Materia prima</option>
+                    </select>
+                </label>
+                <label id="agregar-tipo-conteo-wrap">
+                    Forma de contar el proceso
+                    <select id="agregar-tipo-conteo">
+                        <option value="GLOBAL">Global: todo el proceso</option>
+                        <option value="POR_OPERACION">Detallado por operación</option>
+                    </select>
+                </label>
+            </div>
+            <label>
+                Código
+                <input
+                    id="agregar-codigo-articulo"
+                    list="agregar-articulo-options"
+                    autocomplete="off"
+                    placeholder="Escribí parte del código o descripción"
+                    required
+                >
+                <datalist id="agregar-articulo-options"></datalist>
+            </label>
+            <label id="agregar-contar-material-wrap" class="modal-feature-check">
+                <input id="agregar-contar-material" type="checkbox" checked>
+                <span>
+                    <strong>Incluir material sin usar</strong>
+                    <small>Agrega también la comparación contra la materia prima asignada.</small>
+                </span>
+            </label>
+            <div class="schedule-explanation">
+                No se permiten códigos repetidos. Esta acción sólo está disponible
+                mientras el inventario permanezca abierto.
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="secondary modal-cancel">Cancelar</button>
+                <button type="submit" class="primary">Agregar al inventario</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="modal-reabrir" class="backdrop hidden">
+        <form id="form-reabrir" class="modal">
+            <div class="modal-head">
+                <div>
+                    <span class="eyebrow">Acceso restringido</span>
+                    <h2>Habilitar corrección</h2>
+                    <p>La reapertura quedará registrada en las observaciones del inventario.</p>
+                </div>
+                <button type="button" class="modal-close">×</button>
+            </div>
+            <label>
+                Persona que autoriza
+                <input id="reabrir-autorizado" type="text" maxlength="120" autocomplete="name" required>
+            </label>
+            <label>
+                Motivo de la corrección
+                <textarea id="reabrir-motivo" maxlength="500" rows="3" required></textarea>
+            </label>
+            <label>
+                Clave administrativa
+                <input id="reabrir-clave" type="password" maxlength="200" autocomplete="current-password" required>
+            </label>
+            <div class="schedule-explanation">
+                Si el inventario participa en una conciliación, recalculá sus movimientos después de corregirlo y volver a cerrarlo.
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="secondary modal-cancel">Cancelar</button>
+                <button type="submit" class="primary">Habilitar edición</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="modal-detalle-registros" class="backdrop hidden">
+        <div class="modal large count-records-modal">
+            <div class="modal-head">
+                <div>
+                    <span>COMPOSICIÓN DEL CONTEO</span>
+                    <h2 id="count-records-title">Detalle del acumulado</h2>
+                    <p id="count-records-subtitle">Registros que forman el total físico.</p>
+                </div>
+                <button type="button" class="modal-close">×</button>
+            </div>
+            <div id="count-records-summary" class="count-records-summary"></div>
+            <form id="form-count-records-add" class="count-records-add">
+                <label>
+                    Cantidad por registro
+                    <input id="count-record-quantity" type="number" min="1" step="1" required placeholder="Ej. 8">
+                </label>
+                <label>
+                    Cantidad de registros
+                    <input id="count-record-count" type="number" min="1" max="100" step="1" value="1" required>
+                </label>
+                <label class="count-record-note">
+                    Observación
+                    <input id="count-record-observation" type="text" maxlength="255" placeholder="Ubicación o aclaración opcional">
+                </label>
+                <button type="submit" class="primary">＋ Agregar</button>
+            </form>
+            <button id="btn-confirm-count-zero" type="button" class="secondary count-zero-confirm hidden">
+                Confirmar físico 0
+            </button>
+            <div id="count-records-list" class="count-records-list">
+                <div class="count-records-empty">Cargando registros…</div>
+            </div>
+            <div class="modal-actions">
+                <button id="btn-back-material-lots" type="button" class="secondary hidden">← Volver a lotes</button>
+                <button type="button" class="secondary modal-close">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast hidden" role="status"></div>
+    <div id="loading" class="loading hidden">Procesando…</div>
+
+    <script src="/static/js/app.js?v=810" defer></script>
+</body>
+</html>
