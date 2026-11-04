@@ -1,5 +1,17 @@
 # Sistema de Inventarios
 
+## Notas de preparación en el cronograma
+
+El calendario semanal de la portada y el calendario de Programados permiten
+agregar notas con título, fecha y anotaciones usando **＋ Nota**. Cada tarjeta
+se abre al hacer clic, permite guardar cambios, marcarla como **Cerrada** y
+reabrirla. Antes de descartar cambios sin guardar se pide confirmación.
+
+Las notas se guardan automáticamente en `data/notas_cronograma.db` (SQLite).
+No requieren migraciones ni tablas o columnas nuevas en MySQL. Incluí este
+archivo en los respaldos para conservarlas. Los inventarios siguen usando su
+base habitual y mantienen la vista Componentes de la versión 1.16.
+
 ## v1.16.7 · Más registros visibles en la composición del conteo
 
 - Se compactó la cabecera, el resumen de stock y el formulario de carga de la ventana emergente.

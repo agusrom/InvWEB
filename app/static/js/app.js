@@ -2,6 +2,7 @@ const state = {
     plantillas: [],
     inventarios: [],
     programaciones: [],
+    notasCronograma: [],
     conciliaciones: [],
     causasDiferencia: [],
     tiposInventario: [],
@@ -71,7 +72,7 @@ function hayAutoguardadoPendiente() {
 }
 
 window.addEventListener("beforeunload", (event) => {
-    if (!hayAutoguardadoPendiente()) return;
+    if (!hayAutoguardadoPendiente() && !notaCronogramaModificada()) return;
     event.preventDefault();
     event.returnValue = "";
 });
@@ -476,6 +477,8 @@ function registrarEventos() {
     });
     $("#form-inventario").addEventListener("submit", crearInventario);
     $("#form-programacion").addEventListener("submit", guardarProgramacion);
+    $("#form-nota-cronograma").addEventListener("submit", guardarNotaCronograma);
+    $("#btn-nota-semana").addEventListener("click", () => abrirNotaCronograma());
     $$(".modal-close, .modal-cancel").forEach((boton) => {
         boton.addEventListener("click", cerrarModales);
     });
@@ -639,6 +642,7 @@ async function cargarInicio() {
         state.plantillas = data.plantillas;
         state.inventarios = data.inventarios;
         state.programaciones = data.programaciones || [];
+        state.notasCronograma = data.notas_cronograma || [];
         state.conciliaciones = data.conciliaciones || [];
         state.causasDiferencia = data.causas_diferencia || [];
         state.tiposInventario = data.tipos_inventario || [];
@@ -801,12 +805,14 @@ function renderInicioOperativo() {
                             <strong>${escapeHtml(evento.nombre)}</strong>
                             <span>${escapeHtml(evento.cliente)} · ${escapeHtml(evento.estado_label)}</span>
                         </button>
-                    `).join("") : '<span class="home-week-empty">Sin inventarios</span>'}
+                    `).join("") : ""}
+                    ${notasDiaHtml(iso)}
                 </div>
             </article>
         `;
     }).join("");
 
+    enlazarNotasCronograma($("#home-week-grid"));
     $$('[data-week-program]').forEach((boton) => {
         boton.addEventListener("click", () => {
             generarInventarioProgramado(Number(boton.dataset.weekProgram));
@@ -1119,7 +1125,8 @@ function renderCalendario() {
     $("#calendar-print-title").textContent = `Inventarios · ${titulo}`;
     $("#calendar-print-date").textContent =
         `Emitido el ${formatearFecha(fechaHoyLocal())}`;
-    $("#calendar-empty").classList.toggle("hidden", eventos.length !== 0);
+    $("#calendar-empty").classList.toggle("hidden", eventos.length !== 0
+        || state.notasCronograma.some((nota) => nota.fecha >= fechaISO(inicio) && nota.fecha <= fechaISO(fin)));
     $("#calendar-grid").classList.toggle(
         "week-view",
         state.periodoCalendario === "SEMANA"
@@ -1139,6 +1146,7 @@ function renderCalendario() {
                 </header>
                 <div class="calendar-events">
                     ${eventosDia.map(eventoCalendarioHtml).join("")}
+                    ${notasDiaHtml(iso)}
                 </div>
             </article>
         `;
@@ -1156,6 +1164,7 @@ function renderCalendario() {
         });
     });
 
+    enlazarNotasCronograma($("#calendar-grid"));
     renderCalendario.datos = { inicio, fin, titulo, eventos };
 }
 
@@ -5891,6 +5900,10 @@ async function validarRaizCiclica() {
 }
 function abrirModal(selector) { $(selector).classList.remove("hidden"); }
 function cerrarModales() {
+    if (!$("#modal-nota-cronograma").classList.contains("hidden")) {
+        if (notaCronogramaEditor.guardando) return;
+        if (notaCronogramaModificada() && !window.confirm("¿Descartar los cambios sin guardar de la nota?")) return;
+    }
     hideCyclicSuggestions();
     $$(".backdrop").forEach((x) => x.classList.add("hidden"));
 }
@@ -6262,4 +6275,89 @@ function escapeHtml(texto) {
     return String(texto ?? "").replace(/[&<>"']/g, (caracter) => ({
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;",
     })[caracter]);
+}
+
+const notaCronogramaEditor = { id: null, inicial: "", guardando: false };
+
+function datosNotaCronograma() {
+    return {
+        titulo: $("#schedule-note-title").value.trim(),
+        fecha: $("#schedule-note-date").value,
+        contenido: $("#schedule-note-content").value,
+        cerrada: $("#schedule-note-closed").checked,
+    };
+}
+
+function notaCronogramaModificada() {
+    const modal = $("#modal-nota-cronograma");
+    return modal && !modal.classList.contains("hidden")
+        && JSON.stringify(datosNotaCronograma()) !== notaCronogramaEditor.inicial;
+}
+
+function abrirNotaCronograma(id = null, fecha = fechaHoyLocal()) {
+    const nota = state.notasCronograma.find((item) => item.id === id);
+    notaCronogramaEditor.id = nota?.id || null;
+    $("#schedule-note-title").value = nota?.titulo || "";
+    $("#schedule-note-date").value = nota?.fecha || fecha;
+    $("#schedule-note-content").value = nota?.contenido || "";
+    $("#schedule-note-closed").checked = nota?.cerrada || false;
+    $("#schedule-note-error").textContent = "";
+    notaCronogramaEditor.inicial = JSON.stringify(datosNotaCronograma());
+    abrirModal("#modal-nota-cronograma");
+    $("#schedule-note-title").focus();
+}
+
+async function guardarNotaCronograma(event) {
+    event.preventDefault();
+    if (notaCronogramaEditor.guardando) return;
+    const datos = datosNotaCronograma();
+    if (!datos.titulo) {
+        $("#schedule-note-error").textContent = "Escribí un título para la nota.";
+        $("#schedule-note-title").focus();
+        return;
+    }
+    notaCronogramaEditor.guardando = true;
+    $("#schedule-note-save").disabled = true;
+    // Preserve the submitted values if the request fails.
+    const controles = $$("#form-nota-cronograma input, #form-nota-cronograma textarea");
+    controles.forEach((control) => { control.disabled = true; });
+    try {
+        const id = notaCronogramaEditor.id;
+        const nota = await api(`/api/notas-cronograma${id ? `/${id}` : ""}`, {
+            method: id ? "PUT" : "POST", body: JSON.stringify(datos),
+        });
+        state.notasCronograma = state.notasCronograma.filter((item) => item.id !== nota.id);
+        state.notasCronograma.push(nota);
+        $("#modal-nota-cronograma").classList.add("hidden");
+        renderCalendario();
+        renderInicioOperativo();
+        toast("Nota guardada");
+    } catch (error) {
+        $("#schedule-note-error").textContent = error.message;
+    } finally {
+        notaCronogramaEditor.guardando = false;
+        $("#schedule-note-save").disabled = false;
+        controles.forEach((control) => { control.disabled = false; });
+    }
+}
+
+function notasDiaHtml(fecha) {
+    const notas = state.notasCronograma.filter((nota) => nota.fecha === fecha)
+        .sort((a, b) => Number(a.cerrada) - Number(b.cerrada) || a.id - b.id);
+    return notas.map((nota) => `
+        <button type="button" class="schedule-note-card ${nota.cerrada ? "is-closed" : ""}" data-note-id="${nota.id}">
+            <small>${nota.cerrada ? "✓ Cerrada" : "✎ Nota abierta"}</small>
+            <strong>${escapeHtml(nota.titulo)}</strong>
+            ${nota.contenido ? `<span>${escapeHtml(nota.contenido.slice(0, 160))}</span>` : ""}
+        </button>
+    `).join("") + `<button type="button" class="schedule-note-add" data-note-date="${fecha}" aria-label="Agregar nota para ${fecha}">＋ Nota</button>`;
+}
+
+function enlazarNotasCronograma(contenedor) {
+    contenedor.querySelectorAll("[data-note-id]").forEach((boton) => {
+        boton.addEventListener("click", () => abrirNotaCronograma(Number(boton.dataset.noteId)));
+    });
+    contenedor.querySelectorAll("[data-note-date]").forEach((boton) => {
+        boton.addEventListener("click", () => abrirNotaCronograma(null, boton.dataset.noteDate));
+    });
 }

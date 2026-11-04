@@ -50,6 +50,7 @@
                                     <span><i class="closed"></i>Cerrado</span>
                                 </div>
                                 <button type="button" class="today-link" data-view="programados">Calendario completo</button>
+                                <button id="btn-nota-semana" type="button" class="secondary home-new-inventory">＋ Nota</button>
                                 <button id="btn-nuevo-inventario" class="primary home-new-inventory" type="button">
                                     ＋ Nuevo inventario
                                 </button>
@@ -220,7 +221,7 @@
                     </div>
                     <div id="calendar-grid" class="calendar-grid"></div>
                     <div id="calendar-empty" class="calendar-empty hidden">
-                        No hay inventarios programados en este período.
+                        No hay inventarios programados ni notas en este período.
                     </div>
                 </section>
             </main>
@@ -1320,6 +1321,24 @@
                 <button type="button" class="secondary modal-close">Cerrar</button>
             </div>
         </div>
+    </div>
+
+    <div id="modal-nota-cronograma" class="backdrop hidden">
+        <form id="form-nota-cronograma" class="modal schedule-note-editor" role="dialog" aria-modal="true" aria-labelledby="note-heading">
+            <div class="modal-head">
+                <div><p class="eyebrow">PREPARATIVOS</p><h2 id="note-heading">Nota del cronograma</h2></div>
+                <button type="button" class="modal-close" aria-label="Cerrar nota">×</button>
+            </div>
+            <label>Título<input id="schedule-note-title" required maxlength="150" placeholder="¿Qué hay que preparar?"></label>
+            <label>Fecha<input id="schedule-note-date" type="date" required></label>
+            <label>Anotaciones<textarea id="schedule-note-content" maxlength="15000" rows="12" placeholder="Escribí los preparativos, pendientes o recordatorios…"></textarea></label>
+            <label class="schedule-note-check"><input id="schedule-note-closed" type="checkbox"> Cerrada · preparativos terminados</label>
+            <p id="schedule-note-error" class="schedule-note-error" role="alert"></p>
+            <div class="modal-actions">
+                <button type="button" class="secondary modal-cancel">Cancelar</button>
+                <button type="submit" class="primary" id="schedule-note-save">Guardar nota</button>
+            </div>
+        </form>
     </div>
 
     <div id="toast" class="toast hidden" role="status"></div>

@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.config import settings
 from app import preconciliation_audit
+from app.schedule_notes_store import listar_notas
 from app.schemas import (
     PreconciliacionControlEntrada,
     PreconciliacionManualEntrada,
@@ -677,6 +678,7 @@ def obtener_inicio(db: Session = Depends(get_db)):
         .order_by(Conciliacion.id.desc())
     ).all()
     return {
+        "notas_cronograma": listar_notas(),
         "plantillas": [plantilla_dict(item) for item in plantillas],
         "inventarios": [inventario_dict(item) for item in inventarios],
         "causas_diferencia": [

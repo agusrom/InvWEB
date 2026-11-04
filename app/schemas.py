@@ -373,3 +373,10 @@ class ConciliacionMovimientosEntrada(BaseModel):
     controles_egreso: list[ConciliacionEgresoControlEntrada] = Field(
         default_factory=list,
     )
+
+
+class NotaCronogramaEntrada(BaseModel):
+    fecha: date
+    titulo: str = Field(min_length=1, max_length=150)
+    contenido: str = Field(default="", max_length=15000)
+    cerrada: bool = False
