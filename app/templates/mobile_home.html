@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0f6f7a">
+    <title>Inventarios móvil · {{ app_name }}</title>
+    <link rel="stylesheet" href="/static/css/mobile_home.css?v=823">
+    <link rel="stylesheet" href="/static/css/mobile_home_v826.css?v=829">
+</head>
+<body>
+    <header class="topbar">
+        <div><small>{{ app_name }}</small><strong>Inventarios móvil</strong></div>
+        <a href="/inventarios">Versión PC</a>
+    </header>
+    <main>
+        <section class="actions">
+            <button id="show-list" class="active">Inventarios</button>
+            <button id="show-create">＋ Nuevo</button>
+        </section>
+
+        <section id="list-view">
+            <label class="search"><span>⌕</span><input id="inventory-search" type="search" placeholder="Buscar número, cliente o responsable"></label>
+            <div class="filters">
+                <button data-filter="ABIERTO" class="active">Abiertos</button>
+                <button data-filter="CERRADO">Cerrados</button>
+                <button data-filter="TODOS">Todos</button>
+            </div>
+            <div id="inventory-list" class="inventory-list"><p class="empty">Cargando…</p></div>
+        </section>
+
+        <section id="create-view" class="hidden">
+            <form id="create-form" class="panel">
+                <h2>Nuevo inventario</h2>
+                <label>Tipo de creación
+                    <select id="create-mode">
+                        <option value="PLANTILLA">Desde plantilla</option>
+                        <option value="MANUAL">Manual</option>
+                        <option value="CICLICO">Cíclico</option>
+                    </select>
+                </label>
+                <label id="template-field">Plantilla<select id="create-template"></select></label>
+                <div id="manual-fields" class="hidden">
+                    <label>Tipo de material<select id="manual-type"><option value="PIEZA">Piezas</option><option value="MATERIA_PRIMA">Materia prima</option></select></label>
+                    <label>Buscar códigos <small>escribí código o descripción</small><input id="manual-search" type="search" autocomplete="off" placeholder="Buscar..."></label>
+                    <div id="manual-suggestions" class="create-suggestions"></div>
+                    <div id="manual-selected" class="selected-articles"><small>Todavía no agregaste códigos.</small></div>
+                </div>
+                <label id="cyclic-field" class="hidden">Pieza raíz<input id="cyclic-code" autocomplete="off" placeholder="Código de pieza"></label>
+                <div class="two-cols">
+                    <label>Fecha<input id="create-date" type="date" required></label>
+                    <label>Mes de cierre<input id="create-month" type="month" required></label>
+                </div>
+                <label>Responsable<input id="create-owner" list="people-list" required placeholder="Nombre o legajo"></label>
+                <datalist id="people-list"></datalist>
+                <label>Colaboradores<input id="create-collaborators" placeholder="Opcional"></label>
+                <label>Observaciones<textarea id="create-notes" rows="3" placeholder="Opcional"></textarea></label>
+                <button class="primary" type="submit">Crear y comenzar conteo</button>
+            </form>
+        </section>
+    </main>
+
+    <section id="detail-sheet" class="sheet hidden" aria-hidden="true">
+        <button id="detail-backdrop" class="backdrop" aria-label="Cerrar"></button>
+        <article class="sheet-card">
+            <button id="close-detail" class="close">×</button>
+            <div id="detail-content"></div>
+        </article>
+    </section>
+    <div id="toast" class="toast hidden"></div>
+    <script src="/static/js/mobile_home.js?v=835" defer></script>
+</body>
+</html>

@@ -1,0 +1,513 @@
+{
+  "88": {
+    "572913": {
+      "causa": "ERROR_STOCK_SISTEMA",
+      "observacion": "Ingresos y egresos ok, analizar movstock2, quizas algo no sumo al stock",
+      "estado": "AJUSTAR_SISTEMA"
+    },
+    "572914": {
+      "causa": "ERROR_STOCK_SISTEMA",
+      "observacion": "Ingresos y egresos ok, analizar movstock2, quizas algo no sumo al stock",
+      "estado": "AJUSTAR_SISTEMA"
+    },
+    "572915": {
+      "causa": "ERROR_STOCK_SISTEMA",
+      "observacion": "Ingresos y egresos ok, analizar movstock2, quizas algo no sumo al stock",
+      "estado": "AJUSTAR_SISTEMA"
+    },
+    "572904": {
+      "causa": "ERROR_CONTEO",
+      "observacion": "Cartel con cantidad vieja, se agregaron piezas al bolson y no se cambio el cartel",
+      "estado": "RECONTAR",
+      "controles": {
+        "conteo": false,
+        "ingresos": true,
+        "egresos": true,
+        "scrap": true,
+        "ajustes": true
+      }
+    },
+    "572907": {
+      "causa": "MOVIMIENTO_NO_REGISTRADO",
+      "observacion": "Bolson mal identificado desde ISRI, se ingreso como 909",
+      "estado": "AJUSTAR_SISTEMA"
+    },
+    "572901": {
+      "causa": "",
+      "observacion": "Egresos ok, ingresos ok",
+      "estado": "RESUELTO"
+    },
+    "572905": {
+      "causa": "",
+      "observacion": "ok",
+      "estado": "RESUELTO"
+    },
+    "572906": {
+      "causa": "",
+      "observacion": "ok",
+      "estado": "RESUELTO"
+    },
+    "572908": {
+      "causa": "",
+      "observacion": "ok",
+      "estado": "RESUELTO"
+    },
+    "572911": {
+      "causa": "",
+      "observacion": "ok",
+      "estado": "RESUELTO"
+    },
+    "572903": {
+      "causa": "",
+      "observacion": "Arrastrado en sistema, ajustado",
+      "estado": "AJUSTAR_SISTEMA",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "572909": {
+      "causa": "REMITO_PENDIENTE",
+      "observacion": "Remito 22826 mal ingresado, bolson identificado desde isri como 572909 cuando el caño dentro era 572907 x2324",
+      "estado": "REVISAR_MOVIMIENTOS"
+    },
+    "572910": {
+      "causa": "ERROR_CONTEO",
+      "observacion": "Falto contar lo cargado en el puesto?",
+      "estado": "RECONTAR"
+    },
+    "572918": {
+      "causa": "ERROR_CONTEO",
+      "observacion": "Diferencia anterior, se soldo y despacho todo el material",
+      "estado": "RESUELTO"
+    },
+    "572919": {
+      "causa": "ERROR_CONTEO",
+      "observacion": "Raro, revisar identificación o conteo",
+      "estado": "RECONTAR"
+    },
+    "572902": {
+      "causa": "",
+      "observacion": "Ingresos ok, despacho ok. Revisar remitos",
+      "estado": "PENDIENTE"
+    },
+    "572912": {
+      "causa": "ERROR_CONTEO",
+      "observacion": "Remitos de ing ok, remitos egresos ok. Se conto mal?",
+      "estado": "RECONTAR"
+    },
+    "572916": {
+      "causa": "",
+      "observacion": "Revisar remitos, piezas que fueron y vinieron por retrabajo",
+      "estado": "PENDIENTE"
+    },
+    "572917": {
+      "causa": "REMITO_PENDIENTE",
+      "observacion": "Remito 7436 dudoso, sin control de recepción",
+      "estado": "REVISAR_MOVIMIENTOS"
+    }
+  },
+  "93": {
+    "572901": {
+      "causa": "ERROR_STOCK_SISTEMA",
+      "observacion": "Mal ajuste 26/6, ajustado nuevamente",
+      "estado": "AJUSTAR_SISTEMA",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "572906": {
+      "causa": "",
+      "observacion": "ok perfecto",
+      "estado": "RESUELTO",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "572902": {
+      "causa": "ERROR_STOCK_SISTEMA",
+      "observacion": "Ok vs 25/6. Revisar consumos de sistema, ajustado",
+      "estado": "AJUSTAR_SISTEMA",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "572907": {
+      "causa": "REMITO_PENDIENTE",
+      "observacion": "Remito 22826 mal identificado como 909",
+      "estado": "RESUELTO",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "572915": {
+      "causa": "",
+      "observacion": "ok",
+      "estado": "RESUELTO",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "572914": {
+      "causa": "",
+      "observacion": "ok",
+      "estado": "RESUELTO",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "572904": {
+      "causa": "",
+      "observacion": "ok",
+      "estado": "RESUELTO",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "572918": {
+      "causa": "",
+      "observacion": "ok, bandeja no contada en inv 25/6 x43",
+      "estado": "RESUELTO",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "572917": {
+      "causa": "REMITO_PENDIENTE",
+      "observacion": "Revisar remitos, hay 2 guias dudosas 7430 y 7436",
+      "estado": "REVISAR_MOVIMIENTOS",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "572912": {
+      "causa": "REMITO_PENDIENTE",
+      "observacion": "Revisar remitos desde 25/6",
+      "estado": "REVISAR_MOVIMIENTOS",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "572903": {
+      "causa": "ERROR_CONTEO",
+      "observacion": "Se reconto, falto contar 1 bolson x2000",
+      "estado": "RESUELTO",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "572909": {
+      "causa": "ERROR_CONTEO",
+      "observacion": "Ver conteo 25/6 si se peso, diferencia desde 25/6",
+      "estado": "RECONTAR",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "572911": {
+      "causa": "REMITO_PENDIENTE",
+      "observacion": "Ver si esta cruzado",
+      "estado": "REVISAR_MOVIMIENTOS",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "572916": {
+      "causa": "REMITO_PENDIENTE",
+      "observacion": "Revisar movimientos y remitos",
+      "estado": "REVISAR_MOVIMIENTOS",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "572919": {
+      "causa": "ERROR_CONTEO",
+      "observacion": "Ver conteo anterior",
+      "estado": "RESUELTO",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "572910": {
+      "causa": "ERROR_CONTEO",
+      "observacion": "ok, ver conteo 25/6",
+      "estado": "RESUELTO",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "572913": {
+      "causa": "",
+      "observacion": "ok",
+      "estado": "RESUELTO",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "572908": {
+      "causa": "",
+      "observacion": "ok",
+      "estado": "RESUELTO",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "572905": {
+      "causa": "",
+      "observacion": "ok",
+      "estado": "RESUELTO",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    }
+  },
+  "138": {
+    "448200": {
+      "causa": "CONSUMO_NO_DECLARADO",
+      "observacion": "Ok",
+      "estado": "AJUSTAR_SISTEMA",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "448209": {
+      "causa": "",
+      "observacion": "Conciliacion ok, dif en sistema repetida",
+      "estado": "RESUELTO",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "448201": {
+      "causa": "",
+      "observacion": "Ver scrap del mes",
+      "estado": "PENDIENTE",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "448202": {
+      "causa": "",
+      "observacion": "ok",
+      "estado": "PENDIENTE",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "448205": {
+      "causa": "",
+      "observacion": "Conciliación ok, dif en sistema",
+      "estado": "RESUELTO",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "448206": {
+      "causa": "",
+      "observacion": "Conciliacion ok, dif en sistema contraria al mes anterior",
+      "estado": "RESUELTO",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "448207": {
+      "causa": "",
+      "observacion": "Conciliación OK, dif repetida en sistema del mes anterior",
+      "estado": "RESUELTO",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "448208": {
+      "causa": "",
+      "observacion": "Conciliacion ok, dif en sistema.",
+      "estado": "PENDIENTE",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "448210": {
+      "causa": "",
+      "observacion": "Conciliación ok, dif en sistema.",
+      "estado": "RESUELTO",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "448213": {
+      "causa": "ERROR_CONTEO",
+      "observacion": "Posible mal conteo anterior, dif repetida entre sistema del mes anterior y conciliacion.",
+      "estado": "RESUELTO",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "448215": {
+      "causa": "ERROR_CONTEO",
+      "observacion": "Diferencia cruzada en sistema. Conciliación sobrante, mal conteo anterior?",
+      "estado": "REVISAR_MOVIMIENTOS",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "448218": {
+      "causa": "ERROR_CONTEO",
+      "observacion": "Dif repetida en sistema del mes anterior. Conciliacion sobrante, mal conteo?",
+      "estado": "RECONTAR",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "MP:CON-44.82-03": {
+      "causa": "ERROR_CONTEO",
+      "observacion": "Dif en sistema del mes anterior. Revisar conteo anterior, sobra conciliacion.",
+      "estado": "RECONTAR",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    },
+    "MP:CON-44.82-11": {
+      "causa": "PRODUCCION_NO_REGISTRADA",
+      "observacion": "Conciliacion ok. 211 con dif en sistema, partes de mas.",
+      "estado": "AJUSTAR_SISTEMA",
+      "controles": {
+        "conteo": false,
+        "ingresos": false,
+        "egresos": false,
+        "scrap": false,
+        "ajustes": false
+      }
+    }
+  }
+}

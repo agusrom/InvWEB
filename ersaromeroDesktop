@@ -1,0 +1,77 @@
+[33mcommit 3a4423032dda3fb16881aca8d5c87690b27bdaee[m[33m ([m[1;31morigin/master[m[33m)[m
+Author: = <=>
+Date:   Wed Nov 4 08:39:12 2026 -0300
+
+    Se modifico vista principal con calendario semanal, se agrego explosion por componentes dentro del mismo inventario
+
+ .env.example                                   |   60 [32m+[m
+ .gitignore                                     |    7 [32m+[m
+ LEEME_PRIMERO.txt                              |   33 [32m+[m
+ README.md                                      |  398 [32m+++[m
+ app.py                                         | 3536 [32m++++++++++++++++++++++++[m
+ estructura_mysql.sql                           |  190 [32m++[m
+ generar_estructura_mysql.py                    |   21 [32m+[m
+ init_db.py                                     |    9 [32m+[m
+ migrar_a_mysql.bat                             |   61 [32m+[m
+ migrar_a_mysql.py                              |  380 [32m+++[m
+ migrar_desde_version_anterior.bat              |    4 [32m+[m
+ productivo.py                                  |  667 [32m+++++[m
+ requirements.txt                               |    6 [32m+[m
+ run.bat                                        |   28 [32m+[m
+ run_demo.bat                                   |   19 [32m+[m
+ static/css/app.css                             | 1045 [32m+++++++[m
+ static/js/calidad-bandeja.js                   |   83 [32m+[m
+ static/js/calidad.js                           |  448 [32m+++[m
+ static/js/declaracion_nueva.js                 |  418 [32m+++[m
+ static/js/gestion-parametros.js                |   15 [32m+[m
+ static/js/gestion-piezas-logistica.js          |   58 [32m+[m
+ static/js/legajos.js                           |   25 [32m+[m
+ static/js/logistica-inicio.js                  |   61 [32m+[m
+ static/js/operaciones.js                       |   52 [32m+[m
+ static/js/produccion-inicio.js                 |   62 [32m+[m
+ static/js/produccion.js                        | 1750 [32m++++++++++++[m
+ static/js/retrabajo.js                         |   55 [32m+[m
+ static/js/retrabajos-historial.js              |   22 [32m+[m
+ static/js/searchable-select.js                 |  153 [32m+[m
+ static/js/vale_nuevo.js                        |  157 [32m++[m
+ templates/403.html                             |   10 [32m+[m
+ templates/_calidad_bandeja_contenido.html      |   44 [32m+[m
+ templates/_impresion_automatica.html           |   14 [32m+[m
+ templates/_logistica_validaciones.html         |   61 [32m+[m
+ templates/_produccion_inicio_contenido.html    |   16 [32m+[m
+ templates/_retrabajo_contexto.html             |   81 [32m+[m
+ templates/base.html                            |   50 [32m+[m
+ templates/base_produccion.html                 |   48 [32m+[m
+ templates/calidad_bandeja.html                 |   16 [32m+[m
+ templates/calidad_validar.html                 |  271 [32m++[m
+ templates/declaracion_detalle.html             |  112 [32m+[m
+ templates/declaracion_editar.html              |  128 [32m+[m
+ templates/declaracion_nueva.html               |  134 [32m+[m
+ templates/declaraciones.html                   |   33 [32m+[m
+ templates/gestion_catalogo.html                |   13 [32m+[m
+ templates/gestion_configuracion.html           |   50 [32m+[m
+ templates/gestion_motivos.html                 |   48 [32m+[m
+ templates/gestion_parametros.html              |   25 [32m+[m
+ templates/gestion_piezas_logistica.html        |   48 [32m+[m
+ templates/gestion_unidades.html                |   81 [32m+[m
+ templates/gestion_usuarios.html                |   23 [32m+[m
+ templates/inicio.html                          |  100 [32m+[m
+ templates/login.html                           |   26 [32m+[m
+ templates/logistica_inicio.html                |   25 [32m+[m
+ templates/logistica_piezas_control.html        |   22 [32m+[m
+ templates/produccion_declaraciones.html        |   58 [32m+[m
+ templates/produccion_exito.html                |   32 [32m+[m
+ templates/produccion_inicio.html               |   23 [32m+[m
+ templates/produccion_nueva.html                |  223 [32m++[m
+ templates/produccion_retrabajo_registrar.html  |   31 [32m+[m
+ templates/produccion_retrabajos.html           |   22 [32m+[m
+ templates/produccion_retrabajos_historial.html |   69 [32m+[m
+ templates/reporte_scrap.html                   |  150 [32m+[m
+ templates/retrabajo_registrar.html             |   39 [32m+[m
+ templates/retrabajos.html                      |   51 [32m+[m
+ templates/vale_detalle.html                    |   65 [32m+[m
+ templates/vale_nuevo.html                      |   74 [32m+[m
+ templates/vales.html                           |   43 [32m+[m
+ tests/test_app.py                              | 1734 [32m++++++++++++[m
+ tests/test_migrador_mysql.py                   |   32 [32m+[m
+ 70 files changed, 13948 insertions(+)

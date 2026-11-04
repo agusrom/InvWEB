@@ -1,0 +1,190 @@
+:root {
+    --canvas: #f5f4f1;
+    --surface: #fff;
+    --text: #17212b;
+    --muted: #5e6a78;
+    --line: #dfe4ea;
+    --blue: #2457d6;
+    --blue-soft: #eaf0ff;
+    --red: #b42318;
+}
+* { box-sizing: border-box; }
+body {
+    background: var(--canvas);
+    color: var(--text);
+    font-family: Inter, "Segoe UI", Arial, sans-serif;
+    margin: 0;
+    min-height: 100vh;
+}
+button, input { font: inherit; }
+.hidden { display: none !important; }
+.settings-topbar {
+    align-items: center;
+    background: #fff;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    min-height: 64px;
+    padding: 10px max(24px, calc((100vw - 1060px) / 2));
+}
+.brand-link {
+    align-items: center;
+    color: var(--text);
+    display: flex;
+    gap: 11px;
+    text-decoration: none;
+}
+.brand-link > span {
+    align-items: center;
+    background: var(--blue);
+    border-radius: 10px;
+    color: #fff;
+    display: flex;
+    font-size: 12px;
+    font-weight: 800;
+    height: 38px;
+    justify-content: center;
+    width: 38px;
+}
+.brand-link div { display: flex; flex-direction: column; }
+.brand-link strong { font-size: 12px; }
+.brand-link small { color: var(--muted); font-size: 10px; margin-top: 2px; }
+.back-link {
+    color: var(--blue);
+    font-size: 12px;
+    font-weight: 750;
+    text-decoration: none;
+}
+.settings-page {
+    margin: 0 auto;
+    max-width: 1060px;
+    padding: 38px 24px 64px;
+}
+.page-heading { margin-bottom: 22px; }
+.page-heading > p {
+    color: var(--blue);
+    font-size: 10px;
+    font-weight: 850;
+    letter-spacing: .12em;
+    margin: 0 0 7px;
+}
+.page-heading h1 {
+    font-size: clamp(30px, 3vw, 40px);
+    letter-spacing: -.035em;
+    margin: 0;
+}
+.page-heading > span {
+    color: var(--muted);
+    display: block;
+    font-size: 13px;
+    margin-top: 8px;
+}
+.settings-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+}
+.form-heading {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    padding: 19px 21px;
+}
+.form-heading h2 { font-size: 17px; margin: 0; }
+.form-heading p { color: var(--muted); font-size: 11px; margin: 4px 0 0; }
+.form-heading > span {
+    background: var(--blue-soft);
+    border-radius: 999px;
+    color: var(--blue);
+    font-size: 9px;
+    font-weight: 850;
+    letter-spacing: .07em;
+    padding: 6px 8px;
+}
+.settings-form {
+    border-top: 1px solid var(--line);
+    display: grid;
+    gap: 22px 18px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 24px 21px;
+}
+.settings-form label {
+    color: #344054;
+    display: flex;
+    flex-direction: column;
+    font-size: 12px;
+    font-weight: 750;
+    gap: 7px;
+}
+.settings-form small {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1.4;
+}
+.number-suffix {
+    align-items: center;
+    background: #fff;
+    border: 1px solid #cfd6df;
+    border-radius: 8px;
+    display: flex;
+    min-height: 42px;
+    overflow: hidden;
+}
+.number-suffix input {
+    border: 0;
+    color: var(--text);
+    min-width: 0;
+    outline: 0;
+    padding: 9px 11px;
+    width: 100%;
+}
+.number-suffix b {
+    border-left: 1px solid #e5e8ec;
+    color: var(--muted);
+    font-size: 10px;
+    min-width: 50px;
+    padding: 11px 10px;
+    text-align: center;
+}
+.form-actions {
+    align-items: center;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: flex-end;
+    min-height: 67px;
+    padding: 13px 21px;
+}
+.primary {
+    background: var(--blue);
+    border: 1px solid var(--blue);
+    border-radius: 8px;
+    color: #fff;
+    cursor: pointer;
+    font-weight: 750;
+    min-height: 40px;
+    padding: 0 15px;
+}
+.form-error {
+    color: var(--red);
+    font-size: 11px;
+    margin: 0 auto 0 0;
+}
+.toast, .loading {
+    border-radius: 8px;
+    bottom: 22px;
+    color: #fff;
+    font-size: 11px;
+    padding: 11px 14px;
+    position: fixed;
+    right: 22px;
+}
+.toast { background: #17212b; }
+.toast.error { background: var(--red); }
+.loading { background: var(--blue); }
+@media (max-width: 680px) {
+    .settings-page { padding: 28px 14px 50px; }
+    .settings-form { grid-template-columns: 1fr; }
+    .form-heading { align-items: flex-start; flex-direction: column; gap: 12px; }
+}

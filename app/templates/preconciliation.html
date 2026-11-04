@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ 'Análisis de stock' if not inventario_id else 'Análisis de stock · ' ~ inventario_codigo }}</title>
+    <link rel="stylesheet" href="/static/css/preconciliation.css?v=26">
+</head>
+<body data-inventory-id="{{ inventario_id }}" data-standalone="{{ 'true' if not inventario_id else 'false' }}">
+    <header class="pre-header">
+        <div>
+            <a href="/inventarios">← Volver al sistema</a>
+            <span>ANÁLISIS DE STOCK</span>
+            <h1 id="analysis-title">{{ 'Análisis de stock' if not inventario_id else 'Análisis de stock · ' ~ inventario_codigo }}</h1>
+            <p id="final-description">Cargando inventario actual…</p>
+        </div>
+        <span id="draft-badge" class="draft-badge {{ 'hidden' if not inventario_id else '' }}">PROVISORIA</span>
+    </header>
+
+    <main>
+        <section id="analysis-home" class="analysis-home {{ 'hidden' if inventario_id else '' }}">
+            <div class="analysis-home-heading">
+                <div><span>HISTORIAL</span><h2>Análisis guardados</h2><p>Buscá un análisis para continuar trabajando o iniciá uno nuevo.</p></div>
+                <button id="new-analysis" type="button">＋ Nuevo análisis</button>
+            </div>
+            <label class="saved-analysis-search"><span>Buscar análisis</span><input id="saved-analysis-search" type="search" placeholder="Nombre, inventario final o período inicial"></label>
+            <div id="saved-analysis-list" class="saved-analysis-list"><p class="empty">Cargando análisis…</p></div>
+        </section>
+
+        <div id="analysis-workspace" class="analysis-workspace {{ 'hidden' if not inventario_id else '' }}">
+            <button id="back-to-analyses" class="back-to-analyses" type="button">← Análisis guardados</button>
+            <section id="final-selector-panel" class="final-selector-panel {{ 'hidden' if inventario_id else '' }}">
+                <div><h2>Inventario a analizar</h2><p>Elegí el inventario actual; después seleccioná los períodos contra los que querés conciliar.</p></div>
+                <select id="final-inventory-picker" aria-label="Inventario a analizar"></select>
+            </section>
+            <section class="selector-panel">
+                <div class="selector-heading">
+                    <div><h2>¿Desde qué inventarios querés comparar?</h2><p>Elegí hasta cuatro. El inventario actual queda fijo como resultado final.</p></div>
+                    <button id="calculate" type="button">Calcular escenarios</button>
+                </div>
+                <div id="initial-options" class="initial-options"></div>
+                <p id="selector-message" class="message"></p>
+            </section>
+
+        <section id="results" class="hidden">
+            <div class="view-navigation">
+                <div class="unified-view-title">
+                    <span>VISTA UNIFICADA</span>
+                    <strong>Análisis general, conciliación y remitos</strong>
+                </div>
+                <div class="view-export-actions">
+                    <select id="export-scenario" aria-label="Período para exportar"></select>
+                    <button id="save-analysis" type="button">Guardar análisis</button>
+                    <button id="export-excel" type="button">⇩ Exportar Excel</button>
+                    <button id="print-view" type="button">▤ Imprimir</button>
+                </div>
+            </div>
+            <nav class="analysis-view-tabs" aria-label="Secciones del análisis">
+                <button type="button" data-analysis-view="SUMMARY" class="active">Resumen</button>
+                <button type="button" data-analysis-view="DETAIL">Análisis detallado</button>
+                <button type="button" data-analysis-view="REMITTANCES">Conciliación y remitos</button>
+            </nav>
+            <section id="analysis-summary-view" class="analysis-summary-view">
+                <div class="summary-overview">
+                    <div class="summary-reliability" id="summary-reliability"></div>
+                    <div class="summary-scenario-actions">
+                        <label class="summary-scenario-picker">Conciliar desde
+                            <select id="summary-scenario" aria-label="Inventario inicial del resumen"></select>
+                        </label>
+                        <button id="conciliation-diffusion" type="button">▤ Difusión conciliación</button>
+                    </div>
+                </div>
+                <div class="summary-toolbar">
+                    <div><h2>Resumen por pieza y MP compartida</h2><p>Las piezas que usan la misma MP se consolidan en una sola línea y una sola ecuación.</p></div>
+                    <div class="summary-filters">
+                        <input id="summary-search" type="search" placeholder="Buscar código, descripción o análisis">
+                        <select id="summary-status" aria-label="Filtrar piezas del resumen">
+                            <option value="ALL">Todas las piezas</option>
+                            <option value="DIFFERENCE">Sólo con desvío</option>
+                            <option value="OK">Sólo conciliación OK</option>
+                            <option value="PENDING">Pendientes de análisis</option>
+                            <option value="NO_CAUSE">Con desvío y sin causa</option>
+                            <option value="RESOLVED">Resueltas</option>
+                        </select>
+                        <select id="summary-sort" aria-label="Ordenar resumen">
+                            <option value="IMPACT">Mayor diferencia</option>
+                            <option value="PERCENTAGE">Mayor desvío porcentual</option>
+                            <option value="CODE">Código</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="summary-table" class="summary-table"></div>
+            </section>
+            <div id="cross-panel" class="hidden">
+                <section id="movements-panel" class="global-audit-panel hidden">
+                    <div class="global-audit-heading">
+                        <div>
+                            <span>AUDITORÍA GLOBAL</span>
+                            <h2>Ingresos y egresos por remito</h2>
+                            <p>Abrí un remito, verificá todas sus piezas y guardalo una sola vez. Sólo se recalcula si modificaste cantidades o períodos.</p>
+                        </div>
+                        <div class="filters audit-filters">
+                            <input id="movement-search" type="search" placeholder="Buscar remito, código u observación" aria-label="Buscar movimiento">
+                            <select id="movement-scenario" aria-label="Filtrar escenario"></select>
+                        </div>
+                    </div>
+                    <div id="audit-warnings" class="audit-warnings"></div>
+                    <div class="remittance-accordions">
+                        <details id="income-register" class="remittance-register">
+                            <summary>
+                                <span class="register-icon income">＋</span>
+                                <span><strong>Ingresos por remito</strong><small>Verificar, corregir cantidad y comentar ingresos</small></span>
+                                <span id="income-register-summary" class="register-summary"></span>
+                            </summary>
+                            <div id="income-movement-results" class="grouped-movements"></div>
+                        </details>
+                        <details id="outcome-register" class="remittance-register">
+                            <summary>
+                                <span class="register-icon outcome">−</span>
+                                <span><strong>Egresos por remito</strong><small>Verificar, corregir cantidad y comentar egresos</small></span>
+                                <span id="outcome-register-summary" class="register-summary"></span>
+                            </summary>
+                            <div id="outcome-movement-results" class="grouped-movements"></div>
+                        </details>
+                        <details class="remittance-register manual-register">
+                            <summary>
+                                <span class="register-icon manual">＋</span>
+                                <span><strong>Agregar ingreso o egreso manual</strong><small>Para remitos ausentes en el origen</small></span>
+                            </summary>
+                            <form id="manual-form" class="manual-form">
+                                <label>Tipo<select name="tipo"><option value="IN">Ingreso</option><option value="OUT">Egreso</option></select></label>
+                                <label>Fecha<input name="fecha" type="date" required></label>
+                                <label>Remito<input name="remito" maxlength="100" required></label>
+                                <label class="manual-code-field">Pieza / material
+                                    <span class="manual-code-search">
+                                        <input id="manual-code-input" name="codigo" maxlength="80" required autocomplete="off" placeholder="Escribí código o descripción">
+                                        <span id="manual-code-results" class="manual-code-results hidden"></span>
+                                    </span>
+                                </label>
+                                <label>Cantidad<input name="cantidad" type="number" min="0.000001" step="any" required></label>
+                                <label>Observación<input name="observacion" maxlength="1500"></label>
+                                <button type="submit">Agregar y recalcular</button>
+                                <p>El movimiento se aplica después de la fecha inicial y hasta la fecha final inclusive. Los egresos de piezas padre se convierten a sus componentes.</p>
+                            </form>
+                        </details>
+                    </div>
+                </section>
+            <section id="analysis-detail-view" class="hidden">
+            <div class="result-toolbar">
+                <div>
+                    <h2>Diagnóstico por pieza</h2>
+                    <p>Compara el conteo directo contra sistema y el conteo explotado contra la evolución esperada.</p>
+                </div>
+                <div class="filters">
+                    <input id="search" type="search" placeholder="Buscar código o descripción">
+                    <select id="diagnosis-filter">
+                        <option value="ALL">Todos los diagnósticos</option>
+                        <option value="SYSTEM">Gestión del sistema</option>
+                        <option value="MOVEMENTS">Documentación y movimientos</option>
+                        <option value="LOCATED">Desvío localizado</option>
+                        <option value="OK">Consistentes</option>
+                        <option value="REVIEW">Revisión completa</option>
+                    </select>
+                    <select id="evidence-filter" aria-label="Filtrar evidencia">
+                        <option value="ALL">Todas las evidencias</option>
+                        <option value="ADJUSTMENTS">Con ajustes del sistema</option>
+                        <option value="UNVERIFIED">Con remitos sin verificar</option>
+                        <option value="CORRECTED">Con correcciones o manuales</option>
+                        <option value="RECURRENT">Diferencia recurrente</option>
+                    </select>
+                    <select id="priority-sort" aria-label="Ordenar piezas">
+                        <option value="PRIORITY">Ordenar por acción recomendada</option>
+                        <option value="QUANTITY">Mayor diferencia en cantidad</option>
+                        <option value="PERCENTAGE">Mayor diferencia porcentual</option>
+                        <option value="RECURRENCE">Mayor recurrencia histórica</option>
+                        <option value="CODE">Código</option>
+                    </select>
+                </div>
+            </div>
+            <div id="piece-results" class="piece-results"></div>
+            </section>
+            </div>
+        </section>
+        </div>
+    </main>
+
+    <div id="toast" class="toast hidden"></div>
+    <script src="/static/js/preconciliation.js?v=27" defer></script>
+</body>
+</html>

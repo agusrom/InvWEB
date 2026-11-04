@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Configuración · {{ app_name }}</title>
+    <link rel="stylesheet" href="/static/css/settings_home.css?v=59">
+</head>
+<body>
+    <header class="settings-topbar">
+        <a href="/inventarios" class="brand-link">
+            <span>CI</span>
+            <div>
+                <strong>Sistema de Inventarios</strong>
+                <small>Configuración</small>
+            </div>
+        </a>
+        <a class="back-link" href="/inventarios">← Volver a inventarios</a>
+    </header>
+
+    <main class="settings-page">
+        <section class="page-heading">
+            <p>CONFIGURACIÓN GENERAL</p>
+            <h1>¿Qué querés configurar?</h1>
+            <span>
+                Cada sección administra un tema distinto del sistema.
+            </span>
+        </section>
+
+        <section class="settings-grid" aria-label="Secciones de configuración">
+            <article class="settings-card">
+                <div class="card-icon catalog-icon" aria-hidden="true">▦</div>
+                <div class="card-copy">
+                    <small>DATOS DEL SISTEMA</small>
+                    <h2>Catálogos</h2>
+                    <p>
+                        Administrá los datos que se reutilizan al preparar y
+                        analizar inventarios.
+                    </p>
+                    <ul>
+                        <li>Tipos de inventario</li>
+                        <li>Personas y sectores</li>
+                        <li>Causas de diferencia</li>
+                    </ul>
+                </div>
+                <div class="card-actions">
+                    <a class="primary" href="/configuracion/catalogos">
+                        Tipos, personas y sectores
+                    </a>
+                    <a class="secondary" href="/configuracion/causas">
+                        Causas de diferencia
+                    </a>
+                </div>
+            </article>
+
+            <article class="settings-card">
+                <div class="card-icon indicator-icon" aria-hidden="true">◎</div>
+                <div class="card-copy">
+                    <small>REGLAS DE ANÁLISIS</small>
+                    <h2>Indicadores</h2>
+                    <p>
+                        Definí los límites que usa el sistema en análisis y
+                        reportes.
+                    </p>
+                    <ul>
+                        <li>Tolerancia del conteo</li>
+                        <li>Objetivo de confiabilidad</li>
+                        <li>Alertas y muestra mínima</li>
+                    </ul>
+                </div>
+                <div class="card-actions">
+                    <a class="primary" href="/configuracion/indicadores">
+                        Configurar indicadores
+                    </a>
+                </div>
+            </article>
+
+            <article class="settings-card">
+                <div class="card-icon print-icon" aria-hidden="true">▤</div>
+                <div class="card-copy">
+                    <small>SALIDA IMPRESA</small>
+                    <h2>Planillas de impresión</h2>
+                    <p>
+                        Personalizá cómo se ven las hojas utilizadas durante el
+                        conteo físico.
+                    </p>
+                    <ul>
+                        <li>Columnas, títulos y anchos</li>
+                        <li>Orientación, márgenes y letra</li>
+                        <li>Diseños guardados por nombre</li>
+                    </ul>
+                </div>
+                <div class="card-actions">
+                    <a class="primary" href="/configuracion/planillas">
+                        Abrir editor de planillas
+                    </a>
+                </div>
+            </article>
+        </section>
+    </main>
+</body>
+</html>
