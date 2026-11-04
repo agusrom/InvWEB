@@ -1,5 +1,5 @@
 """Notas compartidas de preparación, guardadas localmente en SQLite."""
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 
 from app import schedule_notes_store as store
 from app.schemas import NotaCronogramaEntrada
@@ -24,3 +24,10 @@ def crear_nota(datos: NotaCronogramaEntrada):
 @router.put("/{nota_id}")
 def actualizar_nota(nota_id: int, datos: NotaCronogramaEntrada):
     return guardar_nota(datos, nota_id)
+
+
+@router.delete("/{nota_id}", status_code=204)
+def eliminar_nota(nota_id: int):
+    if not store.eliminar_nota(nota_id):
+        raise HTTPException(status_code=404, detail="Nota no encontrada")
+    return Response(status_code=204)

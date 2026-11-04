@@ -5,7 +5,12 @@
 El calendario semanal de la portada y el calendario de Programados permiten
 agregar notas con título, fecha y anotaciones usando **＋ Nota**. Cada tarjeta
 se abre al hacer clic, permite guardar cambios, marcarla como **Cerrada** y
-reabrirla. Antes de descartar cambios sin guardar se pide confirmación.
+reabrirla o eliminarla con confirmación. Antes de descartar cambios sin guardar
+se pide confirmación.
+
+Al crear un inventario, el selector permite buscar plantillas por nombre o
+cliente sin perder la selección múltiple. El listado principal muestra la
+confiabilidad junto al progreso de conteo e indica si el resultado es parcial.
 
 Las notas se guardan automáticamente en `data/notas_cronograma.db` (SQLite).
 No requieren migraciones ni tablas o columnas nuevas en MySQL. Incluí este

@@ -416,6 +416,7 @@ function registrarEventos() {
             renderInventarios();
         });
     });
+    $("#inventario-buscar-plantilla").addEventListener("input", filtrarPlantillasInventario);
     $("#inventario-plantillas-list").addEventListener("change", () => {
         limitarPlantillasPorCliente();
         renderResumenPlantilla();
@@ -478,6 +479,7 @@ function registrarEventos() {
     $("#form-inventario").addEventListener("submit", crearInventario);
     $("#form-programacion").addEventListener("submit", guardarProgramacion);
     $("#form-nota-cronograma").addEventListener("submit", guardarNotaCronograma);
+    $("#schedule-note-delete").addEventListener("click", eliminarNotaCronograma);
     $("#btn-nota-semana").addEventListener("click", () => abrirNotaCronograma());
     $$(".modal-close, .modal-cancel").forEach((boton) => {
         boton.addEventListener("click", cerrarModales);
@@ -932,9 +934,17 @@ function renderInventarios() {
                 </small>
             </td>
             <td>
-                <div class="progress">
-                    <span>${item.progreso}%</span>
-                    <i><b style="width:${item.progreso}%"></b></i>
+                <div class="inventory-count-indicators">
+                    <div><small class="secondary-code">Conteo</small>
+                        <div class="progress" aria-label="Progreso de conteo">
+                            <span>${item.progreso}%</span>
+                            <i><b style="width:${item.progreso}%"></b></i>
+                        </div>
+                    </div>
+                    <div class="inventory-reliability" aria-label="Confiabilidad del inventario">
+                        <small class="secondary-code">Confiabilidad</small>
+                        ${confiabilidadHtml(item)}
+                    </div>
                 </div>
                 <small class="secondary-code">${resumen.contados}/${resumen.total} renglones · ${resumen.pendientes} pendientes</small>
             </td>
@@ -2331,7 +2341,21 @@ function cargarSelectPlantillas() {
             <span><strong>${escapeHtml(plantilla.nombre)}</strong><small>${escapeHtml(plantilla.cliente)} · ${plantilla.items.length} artículos</small></span>
         </label>
     `).join("");
+    filtrarPlantillasInventario();
     renderResumenPlantilla();
+}
+
+function filtrarPlantillasInventario() {
+    const normalizar = (texto) => String(texto || "").normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-AR");
+    const consulta = normalizar($("#inventario-buscar-plantilla").value).trim();
+    let visibles = 0;
+    $$("#inventario-plantillas-list .inventory-template-option").forEach((opcion) => {
+        const coincide = normalizar(opcion.textContent).includes(consulta);
+        opcion.classList.toggle("hidden", !coincide);
+        if (coincide) visibles += 1;
+    });
+    $("#inventario-plantillas-sin-resultados").classList.toggle("hidden", visibles !== 0);
 }
 
 function plantillasInventarioSeleccionadas() {
@@ -5461,6 +5485,8 @@ function mostrarVista(nombre) {
 }
 
 function abrirModalInventario(plantillaId = null) {
+    $("#inventario-buscar-plantilla").value = "";
+    filtrarPlantillasInventario();
     const tienePlantillas = state.plantillas.some(
         (plantilla) => plantilla.activa
     );
@@ -6297,6 +6323,7 @@ function notaCronogramaModificada() {
 function abrirNotaCronograma(id = null, fecha = fechaHoyLocal()) {
     const nota = state.notasCronograma.find((item) => item.id === id);
     notaCronogramaEditor.id = nota?.id || null;
+    $("#schedule-note-delete").classList.toggle("hidden", !nota);
     $("#schedule-note-title").value = nota?.titulo || "";
     $("#schedule-note-date").value = nota?.fecha || fecha;
     $("#schedule-note-content").value = nota?.contenido || "";
@@ -6318,6 +6345,7 @@ async function guardarNotaCronograma(event) {
     }
     notaCronogramaEditor.guardando = true;
     $("#schedule-note-save").disabled = true;
+    $("#schedule-note-delete").disabled = true;
     // Preserve the submitted values if the request fails.
     const controles = $$("#form-nota-cronograma input, #form-nota-cronograma textarea");
     controles.forEach((control) => { control.disabled = true; });
@@ -6337,6 +6365,7 @@ async function guardarNotaCronograma(event) {
     } finally {
         notaCronogramaEditor.guardando = false;
         $("#schedule-note-save").disabled = false;
+        $("#schedule-note-delete").disabled = false;
         controles.forEach((control) => { control.disabled = false; });
     }
 }
@@ -6360,4 +6389,28 @@ function enlazarNotasCronograma(contenedor) {
     contenedor.querySelectorAll("[data-note-date]").forEach((boton) => {
         boton.addEventListener("click", () => abrirNotaCronograma(null, boton.dataset.noteDate));
     });
+}
+
+
+async function eliminarNotaCronograma() {
+    const id = notaCronogramaEditor.id;
+    if (!id || notaCronogramaEditor.guardando) return;
+    if (!window.confirm("¿Eliminar esta nota definitivamente? Esta acción no se puede deshacer.")) return;
+    notaCronogramaEditor.guardando = true;
+    $("#schedule-note-delete").disabled = true;
+    $("#schedule-note-save").disabled = true;
+    try {
+        await api(`/api/notas-cronograma/${id}`, { method: "DELETE" });
+        state.notasCronograma = state.notasCronograma.filter((nota) => nota.id !== id);
+        $("#modal-nota-cronograma").classList.add("hidden");
+        renderInicioOperativo();
+        renderCalendario();
+        toast("Nota eliminada");
+    } catch (error) {
+        $("#schedule-note-error").textContent = error.message;
+    } finally {
+        notaCronogramaEditor.guardando = false;
+        $("#schedule-note-delete").disabled = false;
+        $("#schedule-note-save").disabled = false;
+    }
 }

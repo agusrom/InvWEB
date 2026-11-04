@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 from pathlib import Path
 from app import schedule_notes_store as store
-from app.routers.notes import crear_nota, actualizar_nota
+from app.routers.notes import crear_nota, actualizar_nota, eliminar_nota
 from app.schemas import NotaCronogramaEntrada
 
 
@@ -54,3 +54,18 @@ class ScheduleNotesTests(unittest.TestCase):
             with self.subTest(values=list(values)):
                 with self.assertRaises(ValidationError):
                     NotaCronogramaEntrada(**values)
+
+    def test_delete_closed_note_persists_and_keeps_other_notes(self):
+        first = crear_nota(NotaCronogramaEntrada(fecha=date.today(), titulo="Eliminar", cerrada=True))
+        other = crear_nota(NotaCronogramaEntrada(fecha=date.today(), titulo="Conservar"))
+        response = eliminar_nota(first["id"])
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(store.listar_notas(), [other])
+        with self.assertRaises(HTTPException) as caught:
+            actualizar_nota(first["id"], NotaCronogramaEntrada(fecha=date.today(), titulo="No recrear"))
+        self.assertEqual(caught.exception.status_code, 404)
+
+    def test_delete_unknown_note_is_404(self):
+        with self.assertRaises(HTTPException) as caught:
+            eliminar_nota(999)
+        self.assertEqual(caught.exception.status_code, 404)

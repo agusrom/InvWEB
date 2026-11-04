@@ -4205,3 +4205,8 @@ tbody tr:last-child td { border-bottom: 0; }
 .home-week-events .schedule-note-card strong { font-size: 11px; }
 .home-week-events .schedule-note-add { padding: 5px; font-size: 10px; }
 @media print { .schedule-note-add { display: none; } }
+
+.inventory-count-indicators { display: flex; align-items: flex-start; gap: 18px; }
+.inventory-reliability { min-width: 100px; }
+.inventory-reliability .confidence { min-width: 100px; }
+#schedule-note-delete { color: #b42318; background: #fff0ef; border: 1px solid #f4c8c4; }

@@ -55,3 +55,10 @@ def guardar_nota(datos, nota_id=None):
             if cursor.rowcount == 0:
                 return None
         return nota_dict(db.execute("SELECT * FROM notas_cronograma WHERE id=?", (nota_id,)).fetchone())
+
+
+def eliminar_nota(nota_id: int) -> bool:
+    with connection() as db:
+        return db.execute(
+            "DELETE FROM notas_cronograma WHERE id = ?", (nota_id,),
+        ).rowcount > 0

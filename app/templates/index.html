@@ -755,6 +755,10 @@
                     <strong>Plantillas</strong>
                     <small>Podés combinar varias del mismo cliente.</small>
                 </div>
+                <label>Buscar plantillas
+                    <input id="inventario-buscar-plantilla" type="search" placeholder="Nombre de plantilla o cliente" autocomplete="off">
+                </label>
+                <p id="inventario-plantillas-sin-resultados" class="hidden" role="status">No hay plantillas que coincidan con la búsqueda.</p>
                 <div id="inventario-plantillas-list" class="inventory-template-picker"></div>
                 <div id="plantilla-resumen" class="selection-summary"></div>
             </section>
@@ -1336,6 +1340,7 @@
             <p id="schedule-note-error" class="schedule-note-error" role="alert"></p>
             <div class="modal-actions">
                 <button type="button" class="secondary modal-cancel">Cancelar</button>
+                <button type="button" class="danger hidden" id="schedule-note-delete">Eliminar nota</button>
                 <button type="submit" class="primary" id="schedule-note-save">Guardar nota</button>
             </div>
         </form>
