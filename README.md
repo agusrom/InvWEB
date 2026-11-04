@@ -13,6 +13,11 @@ La migración total a MySQL todavía está en curso. La limpieza de tablas de
 prueba es explícita y no se ejecuta al iniciar la aplicación. Seguí el
 [procedimiento de migración y estandarización](docs/migracion_estandarizacion.md).
 
+Si el usuario de la aplicación no tiene permisos DDL, entregar al administrador
+[el SQL de la etapa 1](sql/etapa1_retirar_modulos_prueba.sql) y sus
+[instrucciones](docs/ADMIN_ETAPA1_MYSQL.md). No requiere ejecutar Python ni
+otorgarle privilegios administrativos al usuario operativo.
+
 El esquema de gestión debe corresponder a una instalación existente v1.16.
 Estas instrucciones no crean una base vacía. Los SQL históricos no constituyen
 un instalador consolidado ni deben ejecutarse nuevamente en bloque.

@@ -17,42 +17,32 @@ Usar exclusivamente la base de gestión de `DATABASE_URL`, nunca la base
 productiva de `PRODUCTION_DATABASE_URL`. Este procedimiento parte de una base
 existente de la versión 1.16; no es un instalador de bases vacías.
 
-1. Detener las instancias del servidor y los procesos que escriban. Tener un
-   respaldo completo de MySQL cuya restauración se haya comprobado, y respaldar
-   también los archivos SQLite/JSON de `data`. El respaldo no lo hace el script.
-2. Con el entorno Python activado, desde la raíz del repositorio, inspeccionar:
+El usuario operativo no necesita permisos para crear o modificar tablas.
+Entregar al administrador el archivo
+[`sql/etapa1_retirar_modulos_prueba.sql`](../sql/etapa1_retirar_modulos_prueba.sql)
+y las [instrucciones de ejecución](ADMIN_ETAPA1_MYSQL.md).
 
-   ```sh
-   python scripts/retirar_modulos_prueba.py
-   ```
+1. Con el código nuevo preparado, detener servidores/procesos de escritura y
+   comprobar un respaldo restaurable de MySQL y de los archivos locales activos.
+2. El administrador selecciona la base de gestión y ejecuta el SQL completo,
+   primero en modo inspección (el valor predeterminado `@invweb_e1_aplicar=0`).
+3. Revisa el plan, modifica las tres variables indicadas en el archivo para
+   confirmar la base y el respaldo, y vuelve a ejecutarlo para aplicar.
+4. Verifica los conteos antes/después y repite la inspección para comprobar que
+   no quedan sentencias de limpieza. Reinicia y prueba un inventario existente,
+   registros, Componentes, Análisis de stock y Excel.
 
-   Es solo lectura: imprime el nombre de la base, los conteos y el SQL exacto.
-   No se debe continuar si la base no es la esperada. Si encuentra claves foráneas
-   inesperadas desde otras tablas, se detiene antes de ejecutar el plan.
-3. Para aplicar, reemplazar `inventarios_web` por el nombre real mostrado:
+Solo se retiran las tablas presentes de esta lista:
+`conciliacion_remito_items`, `conciliacion_ingresos_control`,
+`conciliacion_egresos_control`, `conciliacion_items_excluidos`,
+`conciliacion_remitos`, `conciliacion_items` y `conciliaciones`.
+Si `analisis_stock` tiene el enlace opcional `conciliacion_legacy_id`, lo pone en
+NULL y quita su clave foránea; conserva los análisis y sus cálculos. No crea
+índices ni tablas permanentes, ni desactiva las claves foráneas.
 
-   ```sh
-   python scripts/retirar_modulos_prueba.py --apply --confirm-database inventarios_web --backup-confirmed
-   ```
-
-   Retira únicamente las tablas presentes de esta lista:
-
-   - `conciliacion_remito_items`
-   - `conciliacion_ingresos_control`
-   - `conciliacion_egresos_control`
-   - `conciliacion_items_excluidos`
-   - `conciliacion_remitos`
-   - `conciliacion_items`
-   - `conciliaciones`
-
-   Calcula el orden según las claves foráneas. Si `analisis_stock` tiene el enlace
-   opcional `conciliacion_legacy_id`, lo pone en NULL y quita su clave foránea
-   hacia la tabla retirada; conserva los análisis y sus cálculos. No desactiva
-   `FOREIGN_KEY_CHECKS`. No toca la conexión productiva ni crea catálogos nuevos.
-4. Revisar el resultado: compara las cantidades antes/después de las tablas
-   protegidas de inventarios y conteos. Reiniciar y verificar portada,
-   inventario existente, registros, Componentes, Análisis de stock y Excel.
-   Ejecutar nuevamente la inspección debe producir un plan vacío.
+El script Python `scripts/retirar_modulos_prueba.py` queda como herramienta
+alternativa para desarrollo/administración; no es necesario para ejecutar la
+migración entregada al administrador ni se debe ejecutar con el usuario operativo.
 
 Los `DROP TABLE`/`ALTER TABLE` hacen commit implícito en MySQL. Una falla durante
 la aplicación puede dejar parte del retiro realizado: no se revierte con
