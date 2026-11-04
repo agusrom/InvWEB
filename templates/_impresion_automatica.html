@@ -1,0 +1,14 @@
+{% if auto_print_url %}
+<div class="alert alert-warning hidden no-print" data-auto-print-warning>
+  El navegador bloqueó la ventana de impresión. <a target="_blank" rel="noopener" href="{{ auto_print_url }}">Abrir documento para imprimir</a>
+</div>
+<script>
+window.addEventListener("load", () => {
+  const key = {{ ('impresion-' ~ rol_actual ~ '-' ~ auto_print_revision)|tojson }};
+  if (window.sessionStorage.getItem(key)) return;
+  window.sessionStorage.setItem(key, "abierta");
+  const popup = window.open({{ auto_print_url|tojson }}, "_blank");
+  if (!popup) document.querySelector("[data-auto-print-warning]")?.classList.remove("hidden");
+});
+</script>
+{% endif %}

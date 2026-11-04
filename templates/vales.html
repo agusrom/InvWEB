@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Vales existentes{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <span class="eyebrow">Historial</span>
+    <h1>Vales existentes</h1>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('vale_nuevo') }}">＋ Nuevo vale</a>
+</div>
+
+<section class="panel">
+  {% if vales %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Número</th><th>Fecha</th><th>Célula</th><th>Legajo</th><th>Equipo</th><th>Ítems</th><th></th></tr>
+      </thead>
+      <tbody>
+      {% for vale in vales %}
+        <tr>
+          <td><strong>{{ vale.numero }}</strong></td>
+          <td>{{ vale.fecha.strftime('%d/%m/%Y') }}</td>
+          <td>{{ vale.celula }}</td>
+          <td>{{ vale.legajo }}</td>
+          <td>{{ vale.equipo }}</td>
+          <td><span class="pill">{{ vale.items|length }}</span></td>
+          <td><a class="table-link" href="{{ url_for('vale_detalle', vale_id=vale.id) }}">Ver vale</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">
+    <span>▤</span>
+    <h2>Todavía no hay vales</h2>
+    <p>Creá el primero para comenzar el registro.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
+

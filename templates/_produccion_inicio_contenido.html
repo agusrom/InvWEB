@@ -1,0 +1,16 @@
+<div id="production-live-snapshot"
+     data-pending-count="{{ pendientes|length }}"
+     data-pending-ids="{{ pendientes|map(attribute='id')|join(',') }}">
+  {% if pendientes %}
+  <section class="production-pending">
+    <div>
+      <span>⏱</span>
+      <div>
+        <strong>{{ pendientes|length }} retrabajo{{ 's' if pendientes|length != 1 }} reciente{{ 's' if pendientes|length != 1 }} pendiente{{ 's' if pendientes|length != 1 }}</strong>
+        <small>Podés registrar sus resultados desde la pantalla de seguimiento.</small>
+      </div>
+    </div>
+    <a href="{{ url_for('produccion_retrabajos') }}">Ver pendientes</a>
+  </section>
+  {% endif %}
+</div>

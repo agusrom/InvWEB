@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Motivos agrupados{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">Configuración</span><h1>Grupos y causas detalladas</h1><p>La categoría orienta a Producción; Calidad selecciona el motivo detallado.</p></div></div>
+
+<section class="panel form-section">
+  <h2>Nuevo grupo</h2>
+  <form method="post" class="catalog-add">
+    <label>Código<input name="codigo" required placeholder="D15"></label>
+    <label>Nombre<input name="nombre" required placeholder="Ej. Defectos de pintura"></label>
+    <button class="btn btn-primary">Agregar grupo</button>
+  </form>
+</section>
+
+<section class="motive-groups">
+{% for grupo in grupos %}
+  <details class="motive-group" {{ 'open' if loop.index <= 3 }}>
+    <summary><div><strong>{{ grupo.codigo }} · {{ grupo.nombre }}</strong><small>{{ grupo.motivos|length }} opciones configuradas</small></div><span>Editar contenido</span></summary>
+    <div class="motive-group-body">
+      <form method="post" action="{{ url_for('gestion_grupo_motivo_editar', grupo_id=grupo.id) }}" class="group-edit-form">
+        <label>Código<input name="codigo" value="{{ grupo.codigo }}" required></label>
+        <label>Nombre del grupo<input name="nombre" value="{{ grupo.nombre }}" required></label>
+        <button class="btn btn-light">Guardar grupo</button>
+      </form>
+      <div class="motive-detail-list">
+      {% for motivo in grupo.motivos %}
+        <form method="post" action="{{ url_for('gestion_motivo_editar', motivo_id=motivo.id) }}" class="motive-detail-row">
+          <input name="codigo" value="{{ motivo.codigo }}" required>
+          <input name="nombre" value="{{ motivo.nombre }}" required>
+          <select name="tipo_accion">{% for codigo, nombre in tipos_accion %}<option value="{{ codigo }}" {{ 'selected' if motivo.tipo_accion == codigo }}>{{ nombre }}</option>{% endfor %}</select>
+          <span class="status {{ 'status-cerrada' if motivo.activo }}">{{ 'Activo' if motivo.activo else 'Inactivo' }}</span>
+          <button class="btn btn-light btn-small">Guardar</button>
+          <button class="btn btn-light btn-small" formaction="{{ url_for('gestion_motivo_alternar', motivo_id=motivo.id) }}">{{ 'Desactivar' if motivo.activo else 'Activar' }}</button>
+        </form>
+      {% endfor %}
+      </div>
+      <form method="post" action="{{ url_for('gestion_motivo_detalle_agregar', grupo_id=grupo.id) }}" class="motive-detail-add">
+        <strong>Agregar causa dentro de {{ grupo.nombre }}</strong>
+        <input name="codigo" required placeholder="{{ grupo.codigo }}-01">
+        <input name="nombre" required placeholder="Descripción detallada">
+        <select name="tipo_accion">{% for codigo, nombre in tipos_accion %}<option value="{{ codigo }}">{{ nombre }}</option>{% endfor %}</select>
+        <button class="btn btn-primary btn-small">Agregar</button>
+      </form>
+    </div>
+  </details>
+{% endfor %}
+</section>
+{% endblock %}

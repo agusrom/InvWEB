@@ -1,0 +1,10 @@
+{% extends "base.html" if rol_actual in ['CALIDAD', 'ADMIN'] else "base_produccion.html" %}
+{% block title %}Acceso restringido{% endblock %}
+{% block content %}
+<section class="access-denied">
+  <span>×</span>
+  <h1>No tenés acceso a esta sección</h1>
+  <p>La cuenta {{ usuario_actual.usuario if usuario_actual else '' }} sólo puede utilizar el módulo de {{ nombre_rol_actual }}.</p>
+  <a class="simple-primary" href="/">Volver a mi inicio</a>
+</section>
+{% endblock %}

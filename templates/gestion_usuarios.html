@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Usuarios y accesos{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><span class="eyebrow">CONFIGURACIÓN</span><h1>Usuarios y accesos</h1><p>Las cuentas identifican el sector; los legajos identifican a quien realiza cada acción.</p></div>
+  <a class="btn btn-light" href="{{ url_for('gestion_configuracion') }}">Volver</a>
+</div>
+<section class="user-access-grid">
+  {% for usuario in usuarios %}
+  <article>
+    <header>
+      <span>{{ {'PRODUCCION':'PR', 'CALIDAD':'CA', 'LOGISTICA':'LG', 'ADMIN':'AD'}.get(usuario.rol, 'US') }}</span>
+      <div><small>{{ {'PRODUCCION':'PRODUCCIÓN', 'CALIDAD':'CALIDAD', 'LOGISTICA':'LOGÍSTICA', 'ADMIN':'ADMINISTRACIÓN'}.get(usuario.rol, usuario.rol) }}</small><h2>{{ usuario.nombre }}</h2><p>Usuario: <b>{{ usuario.usuario }}</b></p></div>
+    </header>
+    <form method="post" action="{{ url_for('gestion_usuario_clave', usuario_id=usuario.id) }}">
+      <label>Nueva contraseña<input type="password" name="clave" minlength="4" maxlength="72" required></label>
+      <label>Repetir contraseña<input type="password" name="confirmacion" minlength="4" maxlength="72" required></label>
+      <button class="btn btn-primary">Cambiar contraseña</button>
+    </form>
+  </article>
+  {% endfor %}
+</section>
+{% endblock %}

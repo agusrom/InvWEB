@@ -1,0 +1,23 @@
+{% extends "base_produccion.html" %}
+{% block title %}Nueva declaración{% endblock %}
+{% block content %}
+<section class="production-welcome">
+  <span>{{ empresa }}</span>
+  <h1>Material no conforme</h1>
+  <p>Producción informa el problema. Calidad define el destino del material.</p>
+  <span class="quality-live-status online production-live-status" id="production-live-status">
+    <i></i><span>Actualización automática</span>
+  </span>
+</section>
+
+<section class="production-choices single-choice">
+  <a class="production-choice alert-choice" href="{{ url_for('produccion_alerta') }}">
+    <span class="choice-symbol">!</span>
+    <div><small>NUEVO AVISO</small><h2>Informar material no conforme</h2><p>Registrá las piezas, el HCP y el problema observado.</p></div>
+    <b>Generar alerta →</b>
+  </a>
+</section>
+
+{% include "_produccion_inicio_contenido.html" %}
+<script src="{{ url_for('static', filename='js/produccion-inicio.js') }}"></script>
+{% endblock %}

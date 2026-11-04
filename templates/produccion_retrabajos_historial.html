@@ -1,0 +1,69 @@
+{% extends "base_produccion.html" %}
+{% block title %}Historial de retrabajos{% endblock %}
+{% block body_class %}mode-retrabajo{% endblock %}
+{% block content %}
+<div class="wizard-head">
+  <div>
+    <span class="mode-label">HISTORIAL</span>
+    <h1>Trabajos realizados</h1>
+    <p>Cada registro representa una intervención de retrabajo terminada.</p>
+  </div>
+  <a class="simple-secondary" href="{{ url_for('produccion_retrabajos') }}">Ver pendientes</a>
+</div>
+
+<section class="production-history-metrics">
+  <div><small>TRABAJOS REGISTRADOS</small><strong>{{ intervenciones|length }}</strong></div>
+  <div><small>PIEZAS RECUPERADAS</small><strong>{{ '%g'|format(total_recuperadas) }}</strong></div>
+  <div><small>PIEZAS A SCRAP</small><strong>{{ '%g'|format(total_scrap) }}</strong></div>
+  <div><small>HORAS-HOMBRE</small><strong>{{ '%.1f'|format(total_horas) }}</strong></div>
+</section>
+
+{% if intervenciones %}
+<div class="production-history-tools">
+  <label>Buscar en el historial
+    <input type="search" data-history-search
+      placeholder="Pieza, HCP, célula, legajo o trabajo efectuado">
+  </label>
+  <small>Se muestran hasta los últimos 500 trabajos.</small>
+</div>
+
+<section class="production-history-list">
+  {% for trabajo in intervenciones %}
+  {% set item = trabajo.item %}
+  <article data-history-row data-search="{{ item.codigo_pieza }} {{ item.descripcion }} {{ item.trazabilidad }} {{ trabajo.celula }} {{ trabajo.legajo }} {{ trabajo.operacion }} {{ item.motivo.nombre }}">
+    <header>
+      <div>
+        <small>{{ trabajo.fecha.strftime('%d/%m/%Y') }} · {{ item.declaracion.numero }}</small>
+        <strong>{{ item.codigo_pieza }}</strong>
+        <span>{{ item.descripcion or 'Sin descripción' }}</span>
+      </div>
+      <div class="history-result">
+        <span><small>RECUPERADAS</small><b>{{ '%g'|format(trabajo.cantidad_ok) }}</b></span>
+        <span class="{{ 'has-scrap' if trabajo.cantidad_scrap > 0 }}"><small>SCRAP</small><b>{{ '%g'|format(trabajo.cantidad_scrap) }}</b></span>
+      </div>
+    </header>
+    <div class="production-history-detail">
+      <span><small>HCP / LOTE</small><b>{{ item.trazabilidad }}</b></span>
+      <span><small>PROBLEMA ORIGINAL</small><b>{{ item.motivo.grupo.nombre if item.motivo.grupo else '' }} → {{ item.motivo.nombre }}</b></span>
+      <span class="history-work"><small>TRABAJO EFECTUADO</small><b>{{ trabajo.operacion }}</b></span>
+      <span><small>QUIÉN / DÓNDE</small><b>{{ trabajo.celula }} · Legajo {{ trabajo.legajo }}</b></span>
+      <span><small>RECURSOS</small><b>{{ trabajo.minutos }} min · {{ trabajo.cantidad_personas }} pers. · {{ '%.1f'|format(trabajo.horas_hombre) }} h-h</b></span>
+    </div>
+    {% if item.observacion_calidad %}
+    <footer><small>INDICACIÓN DE CALIDAD</small><span>{{ item.observacion_calidad }}</span></footer>
+    {% endif %}
+  </article>
+  {% endfor %}
+</section>
+<div class="production-items-empty hidden" data-history-empty>No hay trabajos que coincidan con la búsqueda.</div>
+{% else %}
+<section class="success-screen compact-success">
+  <span class="success-check">✓</span>
+  <h1>Todavía no hay trabajos</h1>
+  <p>Los resultados guardados aparecerán en este historial.</p>
+  <a class="simple-primary" href="{{ url_for('produccion_retrabajos') }}">Ver pendientes</a>
+</section>
+{% endif %}
+
+<script src="{{ url_for('static', filename='js/retrabajos-historial.js') }}"></script>
+{% endblock %}

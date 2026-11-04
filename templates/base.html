@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Material no conforme{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="system-sidebar no-print">
+    <a class="sidebar-brand" href="{{ url_for('calidad_bandeja' if rol_actual == 'CALIDAD' else 'inicio') }}">NC</a>
+    <nav>
+      {% if rol_actual == 'CALIDAD' %}
+      <a class="{{ 'active' if request.path == '/calidad' or '/validar' in request.path }}" href="{{ url_for('calidad_bandeja') }}"><span>✓</span><small>Calidad</small></a>
+      <a class="{{ 'active' if request.path.startswith('/calidad/declaraciones') }}" href="{{ url_for('calidad_declaraciones') }}"><span>▤</span><small>Declaraciones</small></a>
+      {% else %}
+      <a class="{{ 'active' if request.path == '/gestion' }}" href="{{ url_for('inicio') }}"><span>⌂</span><small>Inicio</small></a>
+      <a class="{{ 'active' if request.path.startswith('/calidad') }}" href="{{ url_for('calidad_bandeja') }}"><span>✓</span><small>Calidad</small></a>
+      <a class="{{ 'active' if request.path.startswith('/retrabajos') }}" href="{{ url_for('retrabajos') }}"><span>↻</span><small>Retrabajos</small></a>
+      <a class="{{ 'active' if request.path.startswith('/declaraciones') or request.path.startswith('/vales') }}" href="{{ url_for('declaraciones') }}"><span>▤</span><small>Historial</small></a>
+      <a class="{{ 'active' if request.path.startswith('/reportes') }}" href="{{ url_for('reporte_scrap') }}"><span>▥</span><small>Reportes</small></a>
+      <a href="{{ url_for('produccion_inicio') }}"><span>＋</span><small>Producción</small></a>
+      {% endif %}
+    </nav>
+    {% if rol_actual != 'CALIDAD' %}
+    <a class="sidebar-settings {{ 'active' if request.path.startswith('/gestion/') }}" href="{{ url_for('gestion_configuracion') }}">⚙</a>
+    {% endif %}
+  </aside>
+  <div class="main-area">
+    <header class="workspace-topbar no-print">
+      <div>{{ nombre_rol_actual or 'Administración' }} <b>›</b> <span>Material no conforme</span></div>
+      <div class="workspace-user-area">
+        <div class="workspace-profile"><span>{{ 'CA' if rol_actual == 'CALIDAD' else 'AD' }}</span><div><strong>{{ usuario_actual.nombre if usuario_actual else nombre_rol_actual }}</strong><small>{{ 'Validación' if rol_actual == 'CALIDAD' else 'Gestión' }}</small></div></div>
+        {% if usuario_actual %}<form method="post" action="{{ url_for('logout') }}"><button class="session-logout" title="Cerrar sesión">Salir</button></form>{% endif %}
+      </div>
+    </header>
+    <main class="page">
+    {% with mensajes = get_flashed_messages(with_categories=true) %}
+      {% for categoria, mensaje in mensajes %}
+        <div class="alert alert-{{ categoria }}">{{ mensaje }}</div>
+      {% endfor %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/legajos.js') }}"></script>
+</body>
+</html>

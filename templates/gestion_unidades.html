@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Unidades y células{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <span class="eyebrow">Organización productiva</span>
+    <h1>Unidades de gestión y células</h1>
+    <p>Cada célula pertenece a una sola unidad y define el código usado para buscar sus equipos.</p>
+  </div>
+  <a class="btn btn-light" href="{{ url_for('gestion_configuracion') }}">← Configuración</a>
+</div>
+
+<section class="panel form-section">
+  <div class="panel-head"><h2>Nueva unidad de gestión</h2></div>
+  <form method="post" class="catalog-add">
+    <label>Código<input name="codigo" required placeholder="Ej. UG-SOLD"></label>
+    <label>Nombre<input name="nombre" required placeholder="Ej. Soldadura"></label>
+    <button class="btn btn-primary">Agregar unidad</button>
+  </form>
+</section>
+
+<section class="motive-groups">
+{% for unidad in unidades %}
+  <details class="motive-group" {{ 'open' if unidad.activo }}>
+    <summary>
+      <div>
+        <strong>{{ unidad.codigo }} · {{ unidad.nombre }}</strong>
+        <small>{{ unidad.celulas|length }} célula{{ 's' if unidad.celulas|length != 1 }}</small>
+      </div>
+      <span>{{ 'ACTIVA' if unidad.activo else 'INACTIVA' }}</span>
+    </summary>
+    <div class="motive-group-body">
+      <div class="unit-management-head">
+        <form method="post" action="{{ url_for('gestion_unidad_editar', unidad_id=unidad.id) }}" class="group-edit-form">
+          <label>Código<input name="codigo" value="{{ unidad.codigo }}" required></label>
+          <label>Unidad de gestión<input name="nombre" value="{{ unidad.nombre }}" required></label>
+          <button class="btn btn-light btn-small">Guardar</button>
+        </form>
+        <div class="button-group">
+          <form method="post" action="{{ url_for('gestion_unidad_alternar', unidad_id=unidad.id) }}">
+            <button class="btn btn-light btn-small">{{ 'Desactivar' if unidad.activo else 'Activar' }}</button>
+          </form>
+          <form method="post" action="{{ url_for('gestion_unidad_eliminar', unidad_id=unidad.id) }}" onsubmit="return confirm('¿Eliminar esta unidad de gestión? Sólo se podrá si está vacía.')">
+            <button class="btn btn-danger-soft btn-small">Eliminar</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="unit-cell-list">
+      {% for celula in unidad.celulas %}
+        <form method="post" action="{{ url_for('gestion_celula_editar', celula_id=celula.id) }}" class="unit-cell-row">
+          <input name="codigo" value="{{ celula.codigo }}" required aria-label="Código">
+          <input name="nombre" value="{{ celula.nombre }}" required aria-label="Nombre">
+          <input name="codigo_equipos" value="{{ celula.codigo_equipos }}" required aria-label="Código de búsqueda de equipos" title="Código usado para vincular los equipos con esta célula">
+          <select name="unidad_id" required aria-label="Unidad de gestión">
+            {% for destino in unidades %}
+              <option value="{{ destino.id }}" {{ 'selected' if destino.id == unidad.id }}>{{ destino.nombre }}</option>
+            {% endfor %}
+          </select>
+          <span class="status {{ 'status-cerrada' if celula.activo }}">{{ 'Activa' if celula.activo else 'Inactiva' }}</span>
+          <button class="btn btn-light btn-small">Guardar</button>
+          <button class="btn btn-light btn-small" formmethod="post" formaction="{{ url_for('gestion_celula_alternar', celula_id=celula.id) }}">{{ 'Desactivar' if celula.activo else 'Activar' }}</button>
+          <button class="btn btn-danger-soft btn-small" formmethod="post" formaction="{{ url_for('gestion_celula_eliminar', celula_id=celula.id) }}" onclick="return confirm('¿Eliminar la célula {{ celula.nombre }}?')">Eliminar</button>
+        </form>
+      {% else %}
+        <div class="empty compact"><p>Esta unidad todavía no tiene células.</p></div>
+      {% endfor %}
+      </div>
+
+      <form method="post" action="{{ url_for('gestion_celula_agregar', unidad_id=unidad.id) }}" class="unit-cell-add">
+        <strong>Agregar célula</strong>
+        <input name="codigo" required placeholder="Código único">
+        <input name="nombre" required placeholder="Nombre visible">
+        <input name="codigo_equipos" required placeholder="Código de búsqueda de equipos">
+        <button class="btn btn-primary btn-small">Agregar</button>
+      </form>
+    </div>
+  </details>
+{% endfor %}
+</section>
+{% endblock %}

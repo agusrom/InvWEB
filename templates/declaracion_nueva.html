@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Nueva declaración{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <span class="eyebrow">Nueva carga</span>
+    <h1>Declarar material no conforme</h1>
+    <p>Un mismo registro puede contener scrap directo, retrabajo o ambos.</p>
+  </div>
+</div>
+
+<form method="post" id="declaracion-form" data-hoy="{{ hoy.isoformat() }}">
+  <section class="panel form-section">
+    <div class="section-title"><span>1</span><div><h2>¿Qué se va a declarar?</h2><p>La elección prepara automáticamente las cantidades de cada ítem.</p></div></div>
+    <div class="choice-grid" id="modo-selector">
+      <label class="choice-card selected">
+        <input type="radio" name="modo" value="SCRAP" checked>
+        <b>Scrap directo</b><small>Todo el material se descarta.</small>
+      </label>
+      <label class="choice-card">
+        <input type="radio" name="modo" value="RETRABAJO">
+        <b>Enviar a retrabajo</b><small>Se resolverá en una carga posterior.</small>
+      </label>
+      <label class="choice-card">
+        <input type="radio" name="modo" value="MIXTO">
+        <b>Declaración mixta</b><small>Una parte va a scrap y otra a retrabajo.</small>
+      </label>
+    </div>
+  </section>
+
+  <section class="panel form-section">
+    <div class="section-title"><span>2</span><div><h2>Quién y dónde detectó</h2><p>Estos datos identifican al declarante, no al origen del defecto.</p></div></div>
+    <div class="form-grid four">
+      <label>Fecha<input type="date" name="fecha" value="{{ request.form.get('fecha', hoy.isoformat()) }}" required></label>
+      <label>Sector que declara
+        <select name="sector_declara" required>
+          {% for sector in sectores %}<option>{{ sector }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Célula que detecta<input name="celula_detecta" value="{{ request.form.get('celula_detecta', '') }}" placeholder="Ej. 0001" required></label>
+      <label>Legajo declarante<input name="legajo_declara" data-legajo value="{{ request.form.get('legajo_declara', '') }}" placeholder="Ej. 12345" required></label>
+      <label>Equipo / turno<input name="equipo" value="{{ request.form.get('equipo', '') }}" placeholder="Ej. Turno A" required></label>
+      <label>Cliente<input name="cliente" value="{{ request.form.get('cliente', '') }}" placeholder="Opcional"></label>
+      <label class="span-2">Lugar donde se detectó<input name="lugar_detectado" value="{{ request.form.get('lugar_detectado', '') }}" placeholder="Ej. Línea, control final, dársena" required></label>
+      <label class="span-4">Observaciones generales<textarea name="observaciones" rows="2">{{ request.form.get('observaciones', '') }}</textarea></label>
+    </div>
+  </section>
+
+  <section class="panel form-section origin-common">
+    <div class="section-title"><span>3</span><div><h2>Origen común</h2><p>Completalo una vez y se copiará a las piezas que agregues. Después podés modificar excepciones.</p></div></div>
+    <div class="form-grid five">
+      <label>Sector de origen
+        <select id="origen-comun-sector">{% for sector in sectores %}<option>{{ sector }}</option>{% endfor %}</select>
+      </label>
+      <label>Célula de origen<input id="origen-comun-celula" placeholder="Ej. Soldadura 2"></label>
+      <label>Operación de origen<input id="origen-comun-operacion" class="operacion-comun" list="operaciones-origen" placeholder="Código o nombre"></label>
+      <label>Tipo de imputación
+        <select id="origen-comun-imputacion">{% for valor, etiqueta in tipos_imputacion %}<option value="{{ valor }}">{{ etiqueta }}</option>{% endfor %}</select>
+      </label>
+      <label>Legajo de origen<input id="origen-comun-legajo" data-legajo placeholder="Opcional"></label>
+    </div>
+    <div class="inline-action">
+      <button type="button" class="btn btn-light" id="aplicar-origen">Aplicar origen a todas las piezas cargadas</button>
+    </div>
+  </section>
+
+  <section class="panel form-section">
+    <div class="section-title"><span>4</span><div><h2>Buscar pieza o material</h2><p>Buscá por código o descripción.</p></div></div>
+    <div class="search-row">
+      <label>Tipo de material
+        <select id="tipo-material">
+          {% for valor, etiqueta in tipos_material %}<option value="{{ valor }}">{{ etiqueta }}</option>{% endfor %}
+        </select>
+      </label>
+      <div class="search-box">
+        <span class="search-icon">⌕</span>
+        <input type="search" id="buscador-pieza" placeholder="Código, descripción o material" autocomplete="off">
+      </div>
+      <button type="button" class="btn btn-light" id="agregar-manual">＋ Sin código</button>
+    </div>
+    <div id="resultados-piezas" class="search-results"></div>
+  </section>
+
+  <section class="panel form-section hidden" id="estructura-panel">
+    <div class="section-title">
+      <span>5</span>
+      <div><h2>Elegir componentes</h2><p id="estructura-subtitulo">Seleccioná los componentes afectados.</p></div>
+    </div>
+    <div class="tree-toolbar">
+      <button type="button" class="btn btn-light" id="seleccionar-todos">Seleccionar todos</button>
+      <button type="button" class="btn btn-light" id="limpiar-seleccion">Limpiar</button>
+      <button type="button" class="btn btn-primary" id="agregar-seleccion">Agregar seleccionados</button>
+    </div>
+    <div id="estructura-lista" class="tree-list"></div>
+  </section>
+
+  <section class="panel form-section">
+    <div class="section-title items-section-title">
+      <span>6</span>
+      <div><h2>Material afectado</h2><p>Cada pieza queda resumida en una fila. Abrila solamente cuando necesites editarla.</p></div>
+      <div class="items-tools">
+        <button type="button" class="btn btn-light btn-small" id="expandir-todos">Expandir</button>
+        <button type="button" class="btn btn-light btn-small" id="contraer-todos">Contraer</button>
+      </div>
+    </div>
+    <div id="items-vacios" class="empty compact">
+      <span>＋</span><p>Todavía no agregaste material.</p>
+    </div>
+    <div id="items-lista" class="item-list"></div>
+    <input type="hidden" name="items_json" id="items-json" value="{{ request.form.get('items_json', '[]') }}">
+  </section>
+
+  <div class="form-actions">
+    <a class="btn btn-light" href="{{ url_for('inicio') }}">Cancelar</a>
+    <button class="btn btn-primary btn-large" type="submit">Guardar e imprimir</button>
+  </div>
+</form>
+
+<template id="motivos-options">
+  <option value="">Seleccionar motivo…</option>
+  {% for motivo in motivos %}<option value="{{ motivo.id }}">{{ motivo.codigo }} · {{ motivo.nombre }}</option>{% endfor %}
+</template>
+<template id="sectores-options">
+  {% for sector in sectores %}<option>{{ sector }}</option>{% endfor %}
+</template>
+<template id="imputacion-options">
+  {% for valor, etiqueta in tipos_imputacion %}<option value="{{ valor }}">{{ etiqueta }}</option>{% endfor %}
+</template>
+<template id="tipos-options">
+  {% for valor, etiqueta in tipos_material %}<option value="{{ valor }}">{{ etiqueta }}</option>{% endfor %}
+</template>
+<datalist id="operaciones-origen"></datalist>
+<script src="{{ url_for('static', filename='js/declaracion_nueva.js') }}"></script>
+{% endblock %}

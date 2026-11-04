@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}{{ vale.numero }}{% endblock %}
+{% block content %}
+<div class="detail-actions no-print">
+  <a class="btn btn-light" href="{{ url_for('vales') }}">← Volver</a>
+  <button class="btn btn-primary" onclick="window.print()">Imprimir vale</button>
+</div>
+
+<article class="print-sheet">
+  <header class="voucher-header">
+    <div class="company">
+      <div class="company-logo">C.G.R. <span>S.A.</span></div>
+      <small>GESTIÓN CALIDAD</small>
+    </div>
+    <div>
+      <span class="document-type">VALE DE SCRAP</span>
+      <h1>{{ vale.numero }}</h1>
+    </div>
+    <div class="document-meta">
+      <span>FECHA</span><strong>{{ vale.fecha.strftime('%d/%m/%Y') }}</strong>
+      <span>CÉLULA</span><strong>{{ vale.celula }}</strong>
+    </div>
+  </header>
+
+  <section class="voucher-grid">
+    <div><span>Cliente</span><strong>{{ vale.cliente or '—' }}</strong></div>
+    <div><span>Legajo operador</span><strong>{{ vale.legajo }}</strong></div>
+    <div><span>Equipo</span><strong>{{ vale.equipo }}</strong></div>
+    <div><span>Unidad de gestión</span><strong>{{ vale.unidad_gestion or '—' }}</strong></div>
+    <div><span>Operación</span><strong>{{ vale.operacion or '—' }}</strong></div>
+    <div><span>HCP / Lote</span><strong>{{ vale.hcp_lote or '—' }}</strong></div>
+    <div class="wide"><span>Detectado en</span><strong>{{ vale.detectado_en or '—' }}</strong></div>
+  </section>
+
+  <section class="voucher-items">
+    <h2>Componentes enviados a scrap</h2>
+    <table>
+      <thead><tr><th>Código</th><th>Descripción</th><th>Trazabilidad</th><th>Cant.</th><th>Motivo</th></tr></thead>
+      <tbody>
+      {% for item in vale.items %}
+        <tr>
+          <td><strong>{{ item.codigo_pieza }}</strong><small>Conjunto: {{ item.codigo_padre }}</small></td>
+          <td>{{ item.descripcion or '—' }}{% if item.observacion %}<small>{{ item.observacion }}</small>{% endif %}</td>
+          <td>{{ item.trazabilidad }}</td>
+          <td>{{ '%g'|format(item.cantidad) }}</td>
+          <td><strong>{{ item.motivo.codigo }}</strong><small>{{ item.motivo.nombre }}</small></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="voucher-notes">
+    <span>Observaciones</span>
+    <p>{{ vale.observaciones or 'Sin observaciones.' }}</p>
+  </section>
+
+  <footer class="signatures">
+    <div><span></span><strong>SUPERVISOR DE CÉLULA</strong></div>
+    <div><span></span><strong>LOGÍSTICA</strong></div>
+    <div><span></span><strong>ASEGURAMIENTO CALIDAD</strong></div>
+  </footer>
+</article>
+{% endblock %}
+

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Nuevo vale de scrap{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <span class="eyebrow">Carga</span>
+    <h1>Nuevo vale de scrap</h1>
+    <p>Completá el encabezado y después agregá las piezas afectadas.</p>
+  </div>
+</div>
+
+<form method="post" id="vale-form">
+  <section class="panel form-section">
+    <div class="section-title"><span>1</span><div><h2>Datos del vale</h2><p>Información general del evento.</p></div></div>
+    <div class="form-grid four">
+      <label>Fecha<input type="date" name="fecha" value="{{ request.form.get('fecha', hoy.isoformat()) }}" required></label>
+      <label>Célula<input name="celula" value="{{ request.form.get('celula', '') }}" placeholder="Ej. 0001" required></label>
+      <label>Legajo operador<input name="legajo" value="{{ request.form.get('legajo', '') }}" placeholder="Ej. 12345" required></label>
+      <label>Equipo<input name="equipo" value="{{ request.form.get('equipo', '') }}" placeholder="Ej. Turno A" required></label>
+      <label>Cliente<input name="cliente" value="{{ request.form.get('cliente', '') }}"></label>
+      <label>Unidad de gestión<input name="unidad_gestion" value="{{ request.form.get('unidad_gestion', '') }}"></label>
+      <label>Operación<input name="operacion" value="{{ request.form.get('operacion', '') }}"></label>
+      <label>HCP / Lote<input name="hcp_lote" value="{{ request.form.get('hcp_lote', '') }}"></label>
+      <label class="span-2">Detectado en<input name="detectado_en" value="{{ request.form.get('detectado_en', '') }}"></label>
+      <label class="span-2">Observaciones generales<textarea name="observaciones" rows="2">{{ request.form.get('observaciones', '') }}</textarea></label>
+    </div>
+  </section>
+
+  <section class="panel form-section">
+    <div class="section-title"><span>2</span><div><h2>Buscar pieza o conjunto</h2><p>La búsqueda consulta el maestro de piezas.</p></div></div>
+    <div class="search-box">
+      <span class="search-icon">⌕</span>
+      <input type="search" id="buscador-pieza" placeholder="Escribí código o descripción (mínimo 2 caracteres)" autocomplete="off">
+    </div>
+    <div id="resultados-piezas" class="search-results"></div>
+  </section>
+
+  <section class="panel form-section hidden" id="estructura-panel">
+    <div class="section-title">
+      <span>3</span>
+      <div><h2>Elegir componentes</h2><p id="estructura-subtitulo">Seleccioná las piezas que irán al vale.</p></div>
+    </div>
+    <div class="tree-toolbar">
+      <button type="button" class="btn btn-light" id="seleccionar-todos">Seleccionar todos</button>
+      <button type="button" class="btn btn-light" id="limpiar-seleccion">Limpiar</button>
+      <button type="button" class="btn btn-primary" id="agregar-seleccion">Agregar seleccionados</button>
+    </div>
+    <div id="estructura-lista" class="tree-list"></div>
+  </section>
+
+  <section class="panel form-section">
+    <div class="section-title"><span>4</span><div><h2>Piezas a scrapear</h2><p>Cada fila guarda su propia trazabilidad, cantidad y motivo.</p></div></div>
+    <div id="items-vacios" class="empty compact">
+      <span>＋</span><p>Todavía no agregaste componentes.</p>
+    </div>
+    <div id="items-lista" class="item-list"></div>
+    <input type="hidden" name="items_json" id="items-json" value="{{ request.form.get('items_json', '[]') }}">
+  </section>
+
+  <div class="form-actions">
+    <a class="btn btn-light" href="{{ url_for('inicio') }}">Cancelar</a>
+    <button class="btn btn-primary btn-large" type="submit">Guardar vale</button>
+  </div>
+</form>
+
+<template id="motivos-options">
+  <option value="">Seleccionar motivo…</option>
+  {% for motivo in motivos %}
+  <option value="{{ motivo.id }}">{{ motivo.codigo }} · {{ motivo.nombre }}</option>
+  {% endfor %}
+</template>
+<script src="{{ url_for('static', filename='js/vale_nuevo.js') }}"></script>
+{% endblock %}
+

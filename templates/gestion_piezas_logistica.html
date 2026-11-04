@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Piezas con control de Logística{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><span class="eyebrow">CONFIGURACIÓN</span><h1>Validación de scrap por Logística</h1><p>Sólo estas piezas pasarán a Logística cuando Calidad les asigne una cantidad a scrap.</p></div>
+  <a class="btn btn-light" href="{{ url_for('gestion_configuracion') }}">← Volver</a>
+</div>
+
+{% if base_demostracion %}<div class="alert alert-warning"><b>Modo de prueba:</b> esta lista pertenece únicamente a la demostración. Al iniciar la versión productiva se utiliza su propia configuración.</div>{% endif %}
+
+<section class="logistics-rule-summary">
+  <div><small>PIEZAS ACTIVAS</small><strong>{{ activas }}</strong></div>
+  <div><small>PIEZAS INACTIVAS</small><strong>{{ inactivas }}</strong></div>
+  <p>La regla se aplica cuando <b>Calidad guarda su decisión</b>. Agregar un código no crea por sí solo una tarea en Logística y no modifica declaraciones que Calidad ya había validado.</p>
+</section>
+
+<section class="panel form-section">
+  <h2>Agregar pieza</h2>
+  <form method="post" class="logistics-piece-config-form" data-piece-config-form autocomplete="off">
+    <label>Código o descripción
+      <input type="search" data-piece-config-search placeholder="Escribí al menos 2 caracteres" required>
+      <input type="hidden" name="codigo" data-piece-config-code>
+    </label>
+    <button class="btn btn-primary" data-piece-config-submit disabled>Agregar al control</button>
+    <div class="search-results hidden" data-piece-config-results></div>
+  </form>
+</section>
+
+<section class="panel">
+  <div class="section-head"><div><h2>Piezas configuradas</h2><p>{{ piezas|length }} código{{ 's' if piezas|length != 1 }} guardado{{ 's' if piezas|length != 1 }}. Las inactivas se conservan para poder reactivarlas.</p></div></div>
+  {% if piezas %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Código</th><th>Descripción</th><th>Estado</th><th>Acciones</th></tr></thead>
+    <tbody>{% for pieza in piezas %}<tr>
+      <td><strong>{{ pieza.codigo }}</strong></td><td>{{ pieza.descripcion or 'Sin descripción' }}</td>
+      <td><span class="status {{ 'status-cerrada' if pieza.activo else 'status-pendiente' }}">{{ 'Activa' if pieza.activo else 'Inactiva' }}</span></td>
+      <td><div class="button-group">
+        <form method="post" action="{{ url_for('gestion_pieza_control_logistica_alternar', pieza_id=pieza.id) }}"><button class="btn btn-light">{{ 'Desactivar' if pieza.activo else 'Activar' }}</button></form>
+        <form method="post" action="{{ url_for('gestion_pieza_control_logistica_eliminar', pieza_id=pieza.id) }}" onsubmit="return confirm('¿Eliminar esta pieza del control de Logística?')"><button class="btn btn-danger-soft">Eliminar</button></form>
+      </div></td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}
+  <div class="empty"><span>✓</span><h2>No hay piezas configuradas</h2><p>Hasta que agregues códigos, las decisiones de Calidad no requerirán validación logística.</p></div>
+  {% endif %}
+</section>
+<script src="{{ url_for('static', filename='js/gestion-piezas-logistica.js') }}"></script>
+{% endblock %}

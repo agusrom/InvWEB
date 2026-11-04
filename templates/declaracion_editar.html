@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Editar {{ declaracion.numero }}{% endblock %}
+{% block content %}
+<div class="page-head admin-edit-head">
+  <div>
+    <span class="eyebrow">Administración · Edición</span>
+    <h1>{{ declaracion.numero }}</h1>
+    <p>El número y las fechas de validación se conservan como trazabilidad.</p>
+  </div>
+  <a class="btn btn-light" href="{{ url_for('declaracion_detalle', declaracion_id=declaracion.id) }}">← Cancelar</a>
+</div>
+
+<form method="post" class="admin-declaration-form">
+  <section class="panel form-section">
+    <div class="section-title"><span>1</span><div><h2>Datos generales</h2><p>Corregí dónde, cuándo y quién informó el material.</p></div></div>
+    <div class="form-grid four">
+      <label>Fecha<input type="date" name="fecha" value="{{ declaracion.fecha.isoformat() }}" required></label>
+      <label>Sector declarante<input name="sector_declara" value="{{ declaracion.sector_declara }}" required></label>
+      <label>Unidad de gestión<input name="unidad_gestion" value="{{ declaracion.unidad_gestion or '' }}"></label>
+      <label>Célula<input name="celula_detecta" value="{{ declaracion.celula_detecta }}" required></label>
+      <label>Legajo declarante<input name="legajo_declara" data-legajo value="{{ declaracion.legajo_declara }}" required></label>
+      <label>Turno<input name="turno" value="{{ declaracion.turno or '' }}"></label>
+      <label>Equipo<input name="equipo" value="{{ declaracion.equipo }}" required></label>
+      <label>Descripción del equipo<input name="equipo_descripcion" value="{{ declaracion.equipo_descripcion or '' }}"></label>
+      <label>Cliente<input name="cliente" value="{{ declaracion.cliente or '' }}"></label>
+      <label>Legajo de Calidad<input name="legajo_calidad" data-legajo value="{{ declaracion.legajo_calidad or '' }}"></label>
+      <label class="span-2">Observaciones de Producción<textarea name="observaciones" rows="2">{{ declaracion.observaciones or '' }}</textarea></label>
+      <label class="span-2">Observaciones generales de Calidad<textarea name="observaciones_calidad" rows="2">{{ declaracion.observaciones_calidad or '' }}</textarea></label>
+    </div>
+  </section>
+
+  <section class="panel form-section">
+    <div class="section-title"><span>2</span><div><h2>Renglones de la declaración</h2><p>Las cantidades se validan nuevamente antes de guardar.</p></div></div>
+    <div class="admin-edit-items">
+    {% for item in declaracion.items %}
+      {% set p = 'item_' ~ item.id ~ '_' %}
+      <details class="admin-edit-item" {{ 'open' if loop.first }}>
+        <summary>
+          <span>RENGLÓN {{ loop.index }}</span>
+          <strong>{{ item.codigo_pieza }}</strong>
+          <b>{{ '%g'|format(item.cantidad_detectada) }} {{ item.unidad }}</b>
+          <small>{{ item.estado }}</small>
+        </summary>
+        <div class="admin-edit-item-body">
+          <fieldset>
+            <legend>Pieza y trazabilidad</legend>
+            <div class="admin-edit-grid four">
+              <label>Tipo de material<select name="{{ p }}tipo_material" required>{% for valor, etiqueta in tipos_material %}<option value="{{ valor }}" {{ 'selected' if item.tipo_material == valor }}>{{ etiqueta }}</option>{% endfor %}</select></label>
+              <label>Código<input name="{{ p }}codigo_pieza" value="{{ item.codigo_pieza }}" required></label>
+              <label class="span-2">Descripción<input name="{{ p }}descripcion" value="{{ item.descripcion or '' }}"></label>
+              <label>Operación<input name="{{ p }}operacion_codigo" value="{{ item.operacion_codigo or '' }}"></label>
+              <label>Descripción operación<input name="{{ p }}operacion_descripcion" value="{{ item.operacion_descripcion or '' }}"></label>
+              <label>HCP / lote<input name="{{ p }}trazabilidad" inputmode="numeric" value="{{ item.trazabilidad }}" required></label>
+              <label>Unidad<input name="{{ p }}unidad" value="{{ item.unidad }}" required></label>
+              <label>Cantidad informada<input type="number" min="1" step="1" name="{{ p }}cantidad_detectada" value="{{ '%g'|format(item.cantidad_detectada) }}" required></label>
+              {% if declaracion.fecha_validacion %}
+              <label>Scrap<input type="number" min="0" step="1" name="{{ p }}cantidad_scrap_directo" value="{{ '%g'|format(item.cantidad_scrap_directo) }}" required></label>
+              <label>Retrabajo<input type="number" min="0" step="1" name="{{ p }}cantidad_a_retrabajo" value="{{ '%g'|format(item.cantidad_a_retrabajo) }}" required></label>
+              <label>Liberadas<input type="number" min="0" step="1" name="{{ p }}cantidad_liberada" value="{{ '%g'|format(item.cantidad_liberada) }}" required></label>
+              {% endif %}
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Problema y elemento afectado</legend>
+            <div class="admin-edit-grid four">
+              <label class="span-2">Motivo<select name="{{ p }}motivo_id" required>{% for motivo in motivos %}<option value="{{ motivo.id }}" {{ 'selected' if item.motivo_id == motivo.id }}>{{ motivo.grupo.codigo if motivo.grupo else 'SIN GRUPO' }} · {{ motivo.codigo }} · {{ motivo.nombre }}{{ ' (inactivo)' if not motivo.activo }}</option>{% endfor %}</select></label>
+              <label>Tipo afectado<input name="{{ p }}afectado_tipo" value="{{ item.afectado_tipo or '' }}" placeholder="COMPONENTE / MATERIA_PRIMA"></label>
+              <label>Código afectado<input name="{{ p }}afectado_codigo" value="{{ item.afectado_codigo or '' }}"></label>
+              <label class="span-2">Descripción afectada<input name="{{ p }}afectado_descripcion" value="{{ item.afectado_descripcion or '' }}"></label>
+              <label class="span-2">Componente asociado a la MP<input name="{{ p }}afectado_componente_codigo" value="{{ item.afectado_componente_codigo or '' }}"></label>
+              <label class="span-2">Observación de Producción<textarea name="{{ p }}observacion" rows="2">{{ item.observacion or '' }}</textarea></label>
+              <label class="span-2">Indicación de Calidad<textarea name="{{ p }}observacion_calidad" rows="2">{{ item.observacion_calidad or '' }}</textarea></label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Origen y responsabilidad</legend>
+            <div class="admin-edit-grid four">
+              <label>Tipo de origen<select name="{{ p }}tipo_origen"><option value="INTERNO" {{ 'selected' if item.tipo_origen == 'INTERNO' }}>Interno</option><option value="PROVEEDOR" {{ 'selected' if item.tipo_origen == 'PROVEEDOR' }}>Proveedor</option><option value="DESCONOCIDO" {{ 'selected' if item.tipo_origen == 'DESCONOCIDO' }}>No determinado</option></select></label>
+              <label>Tipo de imputación<select name="{{ p }}tipo_imputacion">{% for valor, etiqueta in tipos_imputacion %}<option value="{{ valor }}" {{ 'selected' if item.tipo_imputacion == valor }}>{{ etiqueta }}</option>{% endfor %}</select></label>
+              <label>Sector de origen<input name="{{ p }}sector_origen" value="{{ item.sector_origen }}" required></label>
+              <label>Célula de origen<input name="{{ p }}celula_origen" value="{{ item.celula_origen }}" required></label>
+              <label>Operación de origen<input name="{{ p }}operacion_origen" value="{{ item.operacion_origen }}" required></label>
+              <label>Legajo de origen<input name="{{ p }}legajo_origen" data-legajo value="{{ item.legajo_origen or '' }}"></label>
+              <label>Número de proveedor<input name="{{ p }}proveedor_numero" value="{{ item.proveedor_numero or '' }}"></label>
+              <label>Proveedor<input name="{{ p }}proveedor" value="{{ item.proveedor or '' }}"></label>
+              <label>Remito<input name="{{ p }}remito" value="{{ item.remito or '' }}"></label>
+              <label>Conclusión<select name="{{ p }}responsabilidad_estado"><option value="PENDIENTE" {{ 'selected' if item.responsabilidad_estado == 'PENDIENTE' }}>Pendiente</option><option value="PROBABLE" {{ 'selected' if item.responsabilidad_estado == 'PROBABLE' }}>Probable</option><option value="CONFIRMADA" {{ 'selected' if item.responsabilidad_estado == 'CONFIRMADA' }}>Confirmada</option><option value="NO_ATRIBUIBLE" {{ 'selected' if item.responsabilidad_estado == 'NO_ATRIBUIBLE' }}>No atribuible</option></select></label>
+              <label>Tipo responsable<input name="{{ p }}responsable_tipo" value="{{ item.responsable_tipo or '' }}" placeholder="INTERNO / PROVEEDOR"></label>
+              <label>Sector responsable<input name="{{ p }}responsable_sector" value="{{ item.responsable_sector or '' }}"></label>
+              <label>Célula responsable<input name="{{ p }}responsable_celula" value="{{ item.responsable_celula or '' }}"></label>
+              <label>Operación responsable<input name="{{ p }}responsable_operacion" value="{{ item.responsable_operacion or '' }}"></label>
+              <label>Legajo responsable<input name="{{ p }}responsable_legajo" data-legajo value="{{ item.responsable_legajo or '' }}"></label>
+              <label>N.º proveedor responsable<input name="{{ p }}responsable_proveedor_numero" value="{{ item.responsable_proveedor_numero or '' }}"></label>
+              <label>Proveedor responsable<input name="{{ p }}responsable_proveedor" value="{{ item.responsable_proveedor or '' }}"></label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Control de Logística</legend>
+            <label class="admin-check"><input type="checkbox" name="{{ p }}requiere_validacion_logistica" value="1" {{ 'checked' if item.requiere_validacion_logistica }}> Este renglón requiere validación de Logística</label>
+            <div class="admin-edit-grid three">
+              <label>Cantidad validada<input type="number" min="0" step="1" name="{{ p }}cantidad_scrap_validada_logistica" value="{{ '%g'|format(item.cantidad_scrap_validada_logistica) if item.cantidad_scrap_validada_logistica is not none else '' }}"></label>
+              <label>Legajo de Logística<input name="{{ p }}legajo_logistica" data-legajo value="{{ item.legajo_logistica or '' }}"></label>
+              <label>Observación<input name="{{ p }}observacion_logistica" value="{{ item.observacion_logistica or '' }}"></label>
+            </div>
+          </fieldset>
+        </div>
+      </details>
+    {% endfor %}
+    </div>
+  </section>
+
+  <div class="form-actions admin-save-actions">
+    <a class="btn btn-light" href="{{ url_for('declaracion_detalle', declaracion_id=declaracion.id) }}">Cancelar</a>
+    <button class="btn btn-primary btn-large" type="submit">Guardar modificaciones</button>
+  </div>
+</form>
+
+<section class="panel admin-danger-zone">
+  <div><span>ELIMINACIÓN DEFINITIVA</span><h2>Eliminar {{ declaracion.numero }}</h2><p>También se eliminarán sus renglones y los retrabajos registrados.</p></div>
+  <form method="post" action="{{ url_for('declaracion_eliminar', declaracion_id=declaracion.id) }}" onsubmit="return confirm('¿Eliminar definitivamente {{ declaracion.numero }}? Esta acción no se puede deshacer.');">
+    <label>Escribí <b>{{ declaracion.numero }}</b> para confirmar<input name="confirmacion" autocomplete="off" required></label>
+    <button class="btn btn-danger-soft" type="submit">Eliminar declaración</button>
+  </form>
+</section>
+{% endblock %}

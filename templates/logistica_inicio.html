@@ -1,0 +1,25 @@
+{% extends "base_produccion.html" %}
+{% block title %}Logística · Material no conforme{% endblock %}
+{% block content %}
+<section class="production-welcome">
+  <span>{{ empresa }}</span>
+  <h1>Control de scrap</h1>
+  <p>Confirmá las cantidades que Calidad envía a scrap y registrá cualquier diferencia.</p>
+  <span class="quality-live-status online production-live-status" id="logistics-live-status">
+    <i></i><span>Actualización automática</span>
+  </span>
+</section>
+<section class="production-choices logistics-home-actions">
+  <a class="production-choice alert-choice" href="{{ url_for('logistica_informe') }}">
+    <span class="choice-symbol">!</span>
+    <div><small>NUEVO AVISO</small><h2>Informar material no conforme</h2><p>Registrá la pieza o material, su trazabilidad, proveedor y problema observado.</p></div>
+    <b>Generar alerta →</b>
+  </a>
+</section>
+
+<section id="validaciones">
+  {% include "_logistica_validaciones.html" %}
+</section>
+{% include "_impresion_automatica.html" %}
+<script src="{{ url_for('static', filename='js/logistica-inicio.js') }}"></script>
+{% endblock %}

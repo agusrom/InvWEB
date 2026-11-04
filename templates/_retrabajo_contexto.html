@@ -1,0 +1,81 @@
+<section class="rework-context-card" aria-label="Datos del retrabajo">
+  <header class="rework-context-head">
+    <div>
+      <span>DATOS DEL PROBLEMA ORIGINAL</span>
+      <h2>Qué pieza hay que retrabajar</h2>
+    </div>
+    <div class="rework-context-quantity">
+      <small>PENDIENTES</small>
+      <strong>{{ '%g'|format(item.cantidad_retrabajo_pendiente) }} {{ item.unidad }}</strong>
+    </div>
+  </header>
+
+  <div class="rework-piece-summary">
+    <div class="rework-piece-name">
+      <small>{{ item.tipo_material|replace('_', ' ') }}</small>
+      <strong>{{ item.codigo_pieza }}</strong>
+      <span>{{ item.descripcion or 'Sin descripción' }}</span>
+      {% if item.codigo_cliente %}<em>Cód. cliente: {{ item.codigo_cliente }}</em>{% endif %}
+    </div>
+    <div class="rework-trace-data">
+      <span><small>HCP / LOTE</small><strong>{{ item.trazabilidad }}</strong></span>
+      <span>
+        <small>OPERACIÓN DETECTADA</small>
+        <strong>
+          {% if item.operacion_codigo %}
+            {{ item.operacion_codigo }}{% if item.operacion_descripcion %} · {{ item.operacion_descripcion }}{% endif %}
+          {% else %}
+            No aplica
+          {% endif %}
+        </strong>
+      </span>
+      <span><small>ENVIADAS A RETRABAJO</small><strong>{{ '%g'|format(item.cantidad_a_retrabajo) }} {{ item.unidad }}</strong></span>
+    </div>
+  </div>
+
+  <div class="rework-original-problem">
+    <div class="rework-defect">
+      <small>DEFECTO INFORMADO</small>
+      <strong>
+        {% if item.motivo.grupo %}
+          {{ item.motivo.grupo.codigo }} · {{ item.motivo.grupo.nombre }} →
+        {% endif %}
+        {{ item.motivo.codigo }} · {{ item.motivo.nombre }}
+      </strong>
+      {% if item.afectado_codigo %}
+        <span>
+          {{ {'MATERIA_PRIMA': 'Materia prima', 'COMPONENTE': 'Componente', 'PROCESO': 'Proceso'}.get(item.afectado_tipo, item.afectado_tipo|replace('_', ' ')|title) }}:
+          <b>{{ item.afectado_codigo }}</b>{% if item.afectado_descripcion %} · {{ item.afectado_descripcion }}{% endif %}
+          {% if item.afectado_componente_codigo and item.afectado_tipo == 'MATERIA_PRIMA' %} · usada en {{ item.afectado_componente_codigo }}{% endif %}
+        </span>
+      {% endif %}
+      {% if item.observacion %}<em>Producción informó: {{ item.observacion }}</em>{% endif %}
+    </div>
+    <div class="rework-quality-instruction">
+      <small>INDICACIÓN DE CALIDAD</small>
+      <strong>{{ item.observacion_calidad or 'Sin indicación adicional registrada.' }}</strong>
+    </div>
+  </div>
+
+  <div class="rework-origin-summary">
+    <span><small>INFORME</small><b>{{ item.declaracion.numero }} · {{ item.declaracion.fecha.strftime('%d/%m/%Y') }}</b></span>
+    <span><small>DETECTADO EN</small><b>{{ item.declaracion.celula_detecta }}{% if item.declaracion.equipo %} · Equipo {{ item.declaracion.equipo }}{% endif %}</b></span>
+    <span><small>INFORMÓ</small><b>Legajo {{ item.declaracion.legajo_declara }}{% if item.declaracion.turno %} · {{ item.declaracion.turno }}{% endif %}</b></span>
+    <span>
+      <small>RESPONSABILIDAD</small>
+      <b>
+        {% if item.responsabilidad_estado == 'PENDIENTE' %}
+          Pendiente de investigación
+        {% elif item.responsable_tipo == 'PROVEEDOR' %}
+          Proveedor {{ item.responsable_proveedor_numero }} · {{ item.responsable_proveedor }}
+        {% elif item.responsable_celula or item.responsable_operacion %}
+          {{ item.responsable_celula or item.responsable_sector or 'Proceso interno' }}{% if item.responsable_operacion %} · {{ item.responsable_operacion }}{% endif %}
+        {% elif item.tipo_origen == 'PROVEEDOR' %}
+          Proveedor {{ item.proveedor_numero }} · {{ item.proveedor }}
+        {% else %}
+          {{ item.celula_origen }} · {{ item.operacion_origen }}
+        {% endif %}
+      </b>
+    </span>
+  </div>
+</section>

@@ -1,0 +1,223 @@
+{% extends "base_produccion.html" %}
+{% block title %}{{ 'Alerta de material no conforme' if modo == 'ALERTA' else ('Scrap' if modo == 'SCRAP' else 'Retrabajo') }}{% endblock %}
+{% block body_class %}mode-{{ modo|lower }}{% endblock %}
+{% block content %}
+<div class="wizard-head">
+  <div>
+    <span class="mode-label">{{ 'ALERTA' if modo == 'ALERTA' else ('SCRAP' if modo == 'SCRAP' else 'RETRABAJO') }}</span>
+    <h1>{{ 'Informar material no conforme' if modo == 'ALERTA' else ('Declarar material para scrap' if modo == 'SCRAP' else 'Declarar material para retrabajo') }}</h1>
+  </div>
+  <div class="step-counter">Paso <strong id="paso-actual">1</strong> de 4</div>
+</div>
+<div class="progress-track"><span id="progreso"></span></div>
+
+{% if modo_demostracion_productivo or modo_demostracion_auxiliar %}
+<div class="alert alert-warning">
+  <b>Modo de prueba activo.</b>
+  {% if modo_demostracion_productivo and modo_demostracion_auxiliar %}
+    Los códigos, turnos, equipos y proveedores son datos de ejemplo.
+  {% elif modo_demostracion_productivo %}
+    Los códigos y datos productivos son de ejemplo.
+  {% else %}
+    Los turnos y equipos son datos de ejemplo.
+  {% endif %}
+  Avisá al administrador antes de cargar un informe real.
+</div>
+{% endif %}
+
+<form method="post" id="production-form" data-modo="{{ modo }}" data-hoy="{{ hoy.isoformat() }}" data-digitos="{{ config.TRAZABILIDAD_DIGITOS }}">
+  <section class="wizard-step active" data-step="1">
+    <div class="wizard-section-title"><span>1</span><div><h2>¿Quién encontró el problema?</h2><p>Completá los datos de la declaración.</p></div></div>
+    <div class="production-form-grid">
+      <label>Fecha<input type="date" name="fecha" value="{{ hoy.isoformat() }}" required></label>
+      <label>Turno
+        <select name="turno_id" id="prod-turno" data-searchable required>
+          <option value="">Elegir turno…</option>
+          {% for x in turnos %}<option value="{{ x.id }}">{{ x.turno }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Célula
+        <select name="celula_detecta" id="prod-celula" data-searchable data-no-auto-next required disabled>
+          <option value="">Primero elegí el turno</option>
+          {% for x in celulas %}<option value="{{ x.nombre }}" data-unidad="{{ x.unidad_gestion.nombre }}" data-codigo-equipos="{{ x.codigo_equipos }}">{{ x.nombre }}</option>{% endfor %}
+        </select>
+        <small id="prod-unidad" class="field-help">Unidad de gestión: —</small>
+      </label>
+      <label>Número de equipo
+        <select name="equipo" id="prod-equipo" data-searchable required disabled>
+          <option value="">Primero elegí la célula</option>
+        </select>
+        <small id="prod-equipo-info" class="field-help">Se muestran los equipos disponibles para la célula.</small>
+      </label>
+      <label>Legajo<input name="legajo_declara" data-legajo required placeholder="Número de legajo"></label>
+      {% if config.MOSTRAR_CLIENTE == 'SI' %}<label class="production-span-2">Cliente<input name="cliente" placeholder="Opcional"></label>{% endif %}
+      <label class="production-span-2">Observación general<textarea name="observaciones" rows="2" placeholder="Opcional"></textarea></label>
+    </div>
+  </section>
+
+  <section class="wizard-step" data-step="2">
+    <div class="wizard-section-title"><span>2</span><div><h2>¿Qué material tiene el problema?</h2><p>Agregá las piezas y completá la causa de cada renglón.</p></div></div>
+    <div id="material-load">
+    <div class="material-section-heading"><h3>Agregá las piezas</h3><p>Podés agregar la misma pieza más de una vez si tiene distintas causas.</p></div>
+    <div class="production-search">
+      <span>⌕</span><input id="prod-buscador" type="search" placeholder="Escribí código, descripción o material" autocomplete="off">
+      {% if config.PERMITIR_SIN_CODIGO == 'SI' %}<button type="button" class="simple-secondary" id="prod-manual">Sin código</button>{% endif %}
+    </div>
+    <div id="prod-resultados" class="search-results"></div>
+    <div id="prod-estructura" class="production-tree hidden"></div>
+
+    <div class="bulk-bar hidden" id="bulk-bar">
+      <label>Grupo para todas
+        <select id="grupo-comun" data-searchable><option value="">Elegir grupo…</option>{% for grupo in grupos_motivo %}<option value="{{ grupo.id }}">{{ grupo.codigo }} · {{ grupo.nombre }}</option>{% endfor %}</select>
+      </label>
+      <label>Causa para todas
+        <select id="motivo-comun" data-searchable disabled><option value="">Primero elegí un grupo</option></select>
+      </label>
+      <button type="button" class="simple-secondary" id="aplicar-motivo" data-flow-next disabled>Aplicar</button>
+      <small>Después podés cambiar cualquier renglón.</small>
+    </div>
+    <div class="production-items-empty" id="prod-vacio">Todavía no agregaste material.</div>
+    <div class="production-items-table hidden" id="prod-items">
+      <div id="prod-items-body"></div>
+    </div>
+    </div>
+  </section>
+
+  <section class="wizard-step" data-step="3">
+    <div class="wizard-section-title"><span>3</span><div><h2>¿A quién corresponde el problema?</h2><p>Ahora que ya están los renglones, asigná un responsable común o uno por pieza.</p></div></div>
+    <div class="responsibility-mode-grid">
+      <label class="responsibility-mode">
+        <input type="radio" name="responsabilidad_modo" value="COMUN">
+        <span>GENERAL</span><b>El mismo para todas</b>
+        <small>Cargás el responsable una sola vez.</small>
+      </label>
+      <label class="responsibility-mode">
+        <input type="radio" name="responsabilidad_modo" value="POR_PIEZA">
+        <span>INDIVIDUAL</span><b>Definir pieza por pieza</b>
+        <small>Cada renglón puede tener uno diferente.</small>
+      </label>
+    </div>
+
+    <div class="conditional-box hidden" id="responsable-comun-box">
+      <h3>Responsable para todos los renglones</h3>
+      <div class="origin-simple-grid compact-origin-grid">
+        <label class="origin-simple"><input type="radio" name="origen_simple" value="MISMA"><b>Esta célula</b><small>Donde se detectó.</small></label>
+        <label class="origin-simple"><input type="radio" name="origen_simple" value="OTRA"><b>Otra célula</b><small>Proceso anterior.</small></label>
+        <label class="origin-simple supplier-origin"><input type="radio" name="origen_simple" value="PROVEEDOR"><b>Proveedor</b><small>Material recibido.</small></label>
+        <label class="origin-simple selected"><input type="radio" name="origen_simple" value="DESCONOCIDO" checked><b>No asignar todavía</b><small>Queda pendiente.</small></label>
+      </div>
+      <div class="conditional-box nested-box hidden" id="otra-origen">
+        <div class="production-form-grid">
+          <label>Célula de origen<select id="origen-celula" data-searchable><option value="">Elegir…</option>{% for x in celulas %}<option value="{{ x.nombre }}">{{ x.nombre }}</option>{% endfor %}</select></label>
+          <label>Operación<input id="origen-operacion" list="prod-operaciones" placeholder="Código o nombre"></label>
+          <label>Legajo relacionado<input id="origen-legajo" data-legajo placeholder="Opcional"></label>
+        </div>
+      </div>
+      <div class="conditional-box supplier-box nested-box hidden" id="proveedor-origen">
+        <div class="production-form-grid">
+          <label class="provider-search-field">Buscar proveedor
+            <input id="proveedor-busqueda" autocomplete="off" placeholder="Número o nombre">
+            <input id="proveedor-numero" type="hidden">
+            <div class="autocomplete-results hidden" id="proveedor-resultados"></div>
+          </label>
+          <label class="production-span-2">Proveedor<input id="proveedor-descripcion" readonly placeholder="Se completa al seleccionar un proveedor"></label>
+          <label>Remito<input id="remito" placeholder="Número de remito"></label>
+        </div>
+        <small class="provider-validation" id="proveedor-estado">Ingresá el número para validarlo.</small>
+      </div>
+    </div>
+    <div id="responsibility-items" class="responsibility-items hidden"></div>
+  </section>
+
+  <section class="wizard-step" data-step="4">
+    <div class="wizard-section-title"><span>4</span><div><h2>{{ 'Resultado del retrabajo' if modo == 'RETRABAJO' else 'Revisar y guardar' }}</h2><p>Confirmá los datos antes de generar el vale.</p></div></div>
+
+    {% if modo == 'RETRABAJO' %}
+    <div class="rework-simple">
+      <div><h3>¿El retrabajo ya se realizó?</h3><p>Si todavía no se hizo, quedará pendiente para completar después.</p></div>
+      <div class="yes-no">
+        <label class="selected"><input type="radio" name="retrabajo_simple" value="PENDIENTE" checked> Todavía no</label>
+        <label><input type="radio" name="retrabajo_simple" value="REALIZADO"> Sí, ya terminó</label>
+      </div>
+    </div>
+    <div class="conditional-box rework-result hidden" id="resultado-retrabajo">
+      <h3>Tiempo utilizado</h3>
+      <div class="production-form-grid">
+        <label>Fecha<input id="rt-fecha" type="date" value="{{ hoy.isoformat() }}"></label>
+        <label>Trabajo realizado<input id="rt-operacion" list="prod-operaciones" placeholder="Ej. Corrección de soldadura"></label>
+        <label>Célula<input id="rt-celula"></label>
+        <label>Legajo<input id="rt-legajo" data-legajo></label>
+        <label>Tiempo total (min)<input id="rt-minutos" type="number" min="1"></label>
+        <label>Personas<input id="rt-personas" type="number" min="1" value="1"></label>
+      </div>
+      <h3>Resultado por pieza</h3>
+      <div id="prod-resultados-retrabajo"></div>
+    </div>
+    {% endif %}
+
+    <div class="production-review-summary">
+      <div class="review-metrics">
+        <div><small>RENGLONES</small><strong id="review-row-count">0</strong><span>Piezas informadas</span></div>
+        <div><small>CANTIDAD TOTAL</small><strong id="review-unit-count">0</strong><span id="review-unit-label">Unidades informadas</span></div>
+        <div><small>CÓDIGOS</small><strong id="review-code-count">0</strong><span>Códigos diferentes</span></div>
+        <div><small>RESPONSABILIDAD</small><strong id="review-responsibility-mode">—</strong><span id="review-responsibility-detail">—</span></div>
+      </div>
+
+      <div class="review-context-card">
+        <div><small>FECHA</small><b id="review-date">—</b></div>
+        <div><small>TURNO</small><b id="review-shift">—</b></div>
+        <div><small>UNIDAD DE GESTIÓN</small><b id="review-unit">—</b></div>
+        <div><small>CÉLULA</small><b id="review-cell">—</b></div>
+        <div><small>EQUIPO</small><b id="review-equipment">—</b></div>
+        <div><small>LEGAJO</small><b id="review-employee">—</b></div>
+      </div>
+
+      <div class="review-general-observation hidden" id="review-general-observation">
+        <small>OBSERVACIÓN GENERAL</small>
+        <p id="review-general-observation-text"></p>
+      </div>
+
+      <div class="review-items-card">
+        <div class="review-items-title">
+          <div><h3>Material informado</h3><p>Detalle que recibirá Calidad.</p></div>
+          <strong id="resumen-final"></strong>
+        </div>
+        <div class="review-table-head">
+          <span>PIEZA / MATERIAL</span>
+          <span>OPERACIÓN Y HCP</span>
+          <span>CANT.</span>
+          <span>DEFECTO</span>
+          <span>AFECTADO</span>
+          <span>RESPONSABLE</span>
+        </div>
+        <div id="review-items-body"></div>
+      </div>
+    </div>
+  </section>
+
+  <input type="hidden" name="items_json" id="prod-items-json">
+  <div class="wizard-actions">
+    <button type="button" class="simple-secondary hidden" id="anterior">← Atrás</button>
+    <button type="button" class="simple-primary" id="siguiente">Continuar →</button>
+    <button type="submit" class="simple-primary finish hidden" id="guardar">{{ 'Enviar alerta a Calidad' if modo == 'ALERTA' else ('Generar vale de scrap' if modo == 'SCRAP' else 'Guardar retrabajo') }}</button>
+  </div>
+</form>
+<datalist id="prod-operaciones"></datalist>
+<template id="prod-motivos-options"><option value="" data-action="NINGUNA">Elegir…</option>{% for m in motivos %}{% if modo != 'ALERTA' or (m.grupo and m.codigo == m.grupo.codigo) %}<option value="{{ m.id }}" data-action="{{ m.tipo_accion }}">{{ m.grupo.nombre if modo == 'ALERTA' and m.grupo else (m.codigo ~ ' · ' ~ m.nombre) }}</option>{% endif %}{% endfor %}</template>
+<script id="prod-catalogos-data" type="application/json">{{ {
+  "celulas": celulas|map(attribute="nombre")|list,
+  "proveedores": proveedores|map(attribute="nombre")|list,
+  "grupos": grupos_motivo|map(attribute="id")|list
+}|tojson }}</script>
+<script id="prod-motivos-data" type="application/json">[
+{% for grupo in grupos_motivo %}
+  {"id": {{ grupo.id }}, "codigo": {{ grupo.codigo|tojson }}, "nombre": {{ grupo.nombre|tojson }}, "causas": [
+  {% for motivo in grupo.motivos if motivo.activo %}
+    {"id": {{ motivo.id }}, "codigo": {{ motivo.codigo|tojson }}, "nombre": {{ motivo.nombre|tojson }}, "accion": {{ motivo.tipo_accion|tojson }}}{{ "," if not loop.last }}
+  {% endfor %}
+  ]}{{ "," if not loop.last }}
+{% endfor %}
+]</script>
+<script src="{{ url_for('static', filename='js/searchable-select.js') }}"></script>
+<script src="{{ url_for('static', filename='js/produccion.js') }}"></script>
+{% endblock %}

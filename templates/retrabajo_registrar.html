@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Registrar retrabajo · {{ item.codigo_pieza }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><span class="eyebrow">{{ item.declaracion.numero }}</span><h1>Registrar resultado</h1><p>{{ item.codigo_pieza }} · {{ item.descripcion or '' }}</p></div>
+  <a class="btn btn-light" href="{{ url_for('retrabajos') }}">Volver</a>
+</div>
+
+<section class="summary-grid">
+  <div class="metric"><span>Enviado a retrabajo</span><strong>{{ '%g'|format(item.cantidad_a_retrabajo) }}</strong><small>{{ item.unidad }}</small></div>
+  <div class="metric success"><span>Ya recuperado</span><strong>{{ '%g'|format(item.cantidad_recuperada) }}</strong><small>{{ item.unidad }}</small></div>
+  <div class="metric danger"><span>Scrap posterior</span><strong>{{ '%g'|format(item.cantidad_scrap_retrabajo) }}</strong><small>{{ item.unidad }}</small></div>
+  <div class="metric warning"><span>Pendiente</span><strong>{{ '%g'|format(item.cantidad_retrabajo_pendiente) }}</strong><small>{{ item.unidad }}</small></div>
+</section>
+
+{% include "_retrabajo_contexto.html" %}
+
+<form method="post" id="rework-form" data-pending="{{ '%g'|format(item.cantidad_retrabajo_pendiente) }}">
+  <section class="panel form-section">
+    <div class="section-title"><span>1</span><div><h2>Trabajo realizado</h2><p>Podés hacer cargas parciales hasta completar la tanda.</p></div></div>
+    <div class="form-grid four">
+      <label>Fecha<input type="date" name="fecha" value="{{ request.form.get('fecha', hoy.isoformat()) }}" max="{{ hoy.isoformat() }}" required></label>
+      <label>Célula que retrabaja
+        <select name="celula" data-searchable required><option value="">Buscar célula…</option>{% for celula in celulas %}<option value="{{ celula.nombre }}" data-search="{{ celula.codigo }} {{ celula.codigo_equipos }} {{ celula.unidad_gestion.nombre }}" {{ 'selected' if request.form.get('celula') == celula.nombre }}>{{ celula.nombre }} · {{ celula.unidad_gestion.nombre }}</option>{% endfor %}</select>
+      </label>
+      <label>Legajo operador<input name="legajo" value="{{ request.form.get('legajo', '') }}" data-legajo inputmode="numeric" maxlength="5" required></label>
+      <label>Tiempo utilizado (min)<input type="number" name="minutos" min="1" step="1" value="{{ request.form.get('minutos', 1) }}" required></label>
+      <label>Personas involucradas<input type="number" name="cantidad_personas" min="1" step="1" value="{{ request.form.get('cantidad_personas', 1) }}" required></label>
+      <label>Piezas recuperadas<input type="number" name="cantidad_ok" min="0" step="1" inputmode="numeric" value="{{ request.form.get('cantidad_ok', item.cantidad_retrabajo_pendiente|int) }}" required></label>
+      <label>Piezas a scrap<input type="number" name="cantidad_scrap" min="0" step="1" inputmode="numeric" value="{{ request.form.get('cantidad_scrap', 0) }}" required></label>
+      <div class="quantity-check span-2" data-rework-total></div>
+      <label class="span-2">Trabajo efectuado / resultado<input name="operacion" value="{{ request.form.get('operacion', '') }}" maxlength="120" placeholder="Describí qué se hizo y cómo quedó" required></label>
+    </div>
+  </section>
+  <div class="form-actions"><a class="btn btn-light" href="{{ url_for('retrabajos') }}">Cancelar</a><button class="btn btn-primary btn-large" data-rework-submit disabled>Guardar resultado</button></div>
+</form>
+<script src="{{ url_for('static', filename='js/searchable-select.js') }}"></script>
+<script src="{{ url_for('static', filename='js/retrabajo.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Reporte de scrap por componente{% endblock %}
+{% block content %}
+<div class="page-head report-head">
+  <div>
+    <span class="eyebrow">Análisis administrativo</span>
+    <h1>Scrap por componente final</h1>
+    <p>Explosión al último nivel de estructura, consolidada y trazable hasta cada DNC.</p>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('reporte_scrap_excel', **request.args.to_dict()) }}">↓ Exportar Excel</a>
+</div>
+
+<form class="panel report-filters" method="get">
+  <div class="report-filter-grid">
+    <label>Mes
+      <input type="month" name="mes" value="{{ filtros.mes }}">
+    </label>
+    <label>Desde
+      <input type="date" name="desde" value="{{ filtros.desde.isoformat() }}">
+    </label>
+    <label>Hasta
+      <input type="date" name="hasta" value="{{ filtros.hasta.isoformat() }}">
+    </label>
+    <label>Cliente
+      <input name="cliente" list="clientes-reporte" value="{{ filtros.cliente }}" placeholder="Todos">
+    </label>
+    <label>Pieza origen
+      <input name="pieza" list="piezas-reporte" value="{{ filtros.pieza }}" placeholder="Código o descripción">
+    </label>
+    <label>Componente final
+      <input name="componente" value="{{ filtros.componente }}" placeholder="Código, material o descripción">
+    </label>
+    <label>Célula que detecta
+      <input name="celula" list="celulas-reporte" value="{{ filtros.celula }}" placeholder="Todas">
+    </label>
+    <label>Equipo
+      <input name="equipo" list="equipos-reporte" value="{{ filtros.equipo }}" placeholder="Todos">
+    </label>
+    <label>Motivo
+      <select name="motivo">
+        <option value="">Todos</option>
+        {% for motivo in opciones.motivos %}
+        <option value="{{ motivo.codigo }}" {{ 'selected' if filtros.motivo == motivo.codigo }}>{{ motivo.codigo }} · {{ motivo.nombre }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Estado de la DNC
+      <select name="estado">
+        <option value="">Todos</option>
+        {% for estado in opciones.estados %}
+        <option value="{{ estado }}" {{ 'selected' if filtros.estado == estado }}>{{ estado.replace('_', ' ') }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Origen del scrap
+      <select name="origen_scrap">
+        <option value="TODOS" {{ 'selected' if filtros.origen_scrap == 'TODOS' }}>Directo + retrabajo</option>
+        <option value="DIRECTO" {{ 'selected' if filtros.origen_scrap == 'DIRECTO' }}>Sólo directo de Calidad</option>
+        <option value="RETRABAJO" {{ 'selected' if filtros.origen_scrap == 'RETRABAJO' }}>Sólo final de retrabajo</option>
+      </select>
+    </label>
+    <label>Proveedor
+      <input name="proveedor" list="proveedores-reporte" value="{{ filtros.proveedor }}" placeholder="Todos">
+    </label>
+    <label>Número DNC
+      <input name="dnc" value="{{ filtros.dnc }}" placeholder="Ej. DNC-000123">
+    </label>
+  </div>
+  <div class="report-filter-actions">
+    <a class="btn btn-light" href="{{ url_for('reporte_scrap') }}">Limpiar</a>
+    <button class="btn btn-primary" type="submit">Aplicar filtros</button>
+  </div>
+</form>
+
+<datalist id="clientes-reporte">{% for x in opciones.clientes %}<option value="{{ x }}">{% endfor %}</datalist>
+<datalist id="piezas-reporte">{% for x in opciones.piezas %}<option value="{{ x }}">{% endfor %}</datalist>
+<datalist id="celulas-reporte">{% for x in opciones.celulas %}<option value="{{ x }}">{% endfor %}</datalist>
+<datalist id="equipos-reporte">{% for x in opciones.equipos %}<option value="{{ x }}">{% endfor %}</datalist>
+<datalist id="proveedores-reporte">{% for x in opciones.proveedores %}<option value="{{ x }}">{% endfor %}</datalist>
+
+<div class="summary-grid report-metrics">
+  <div class="metric danger"><span>Scrap explotado</span><strong>{{ '%.3f'|format(metricas.scrap_total) }}</strong><small>unidades comp.</small></div>
+  <div class="metric"><span>Componentes finales</span><strong>{{ metricas.componentes }}</strong><small>códigos</small></div>
+  <div class="metric"><span>Declaraciones</span><strong>{{ metricas.dnc }}</strong><small>DNC</small></div>
+  <div class="metric"><span>Piezas origen</span><strong>{{ metricas.piezas }}</strong><small>códigos</small></div>
+</div>
+
+<section class="panel">
+  <div class="panel-head">
+    <div><span class="eyebrow">Resumen consolidado</span><h2>Scrap por componente final</h2></div>
+    <span class="report-count">{{ resumen|length }} componentes</span>
+  </div>
+  {% if resumen %}
+  <div class="table-wrap">
+    <table class="report-table">
+      <thead><tr><th>Componente</th><th>Descripción / material</th><th>Directo</th><th>Retrabajo</th><th>Total</th><th>DNC</th><th>Piezas origen</th></tr></thead>
+      <tbody>
+      {% for fila in resumen %}
+        <tr>
+          <td><strong>{{ fila.componente }}</strong><small class="cell-sub">{{ fila.unidad }}</small></td>
+          <td>{{ fila.descripcion or 'Sin descripción' }}{% if fila.material %}<small class="cell-sub">Material: {{ fila.material }}</small>{% endif %}</td>
+          <td>{{ '%.3f'|format(fila.scrap_directo) }}</td>
+          <td>{{ '%.3f'|format(fila.scrap_retrabajo) }}</td>
+          <td><strong class="report-total">{{ '%.3f'|format(fila.scrap_total) }}</strong></td>
+          <td>{{ fila.cantidad_dnc }}</td>
+          <td>{{ fila.cantidad_piezas }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty"><span>⌕</span><h2>No hay scrap para estos filtros</h2><p>Probá ampliar el rango o limpiar alguno de los filtros.</p></div>
+  {% endif %}
+</section>
+
+{% if detalle %}
+<details class="panel report-detail">
+  <summary><div><span class="eyebrow">Trazabilidad</span><strong>Ver detalle por DNC y pieza origen</strong></div><span>{{ detalle|length }} renglones explotados</span></summary>
+  <div class="table-wrap">
+    <table class="report-table compact">
+      <thead><tr><th>Fecha / DNC</th><th>Cliente</th><th>Pieza origen</th><th>Componente final</th><th>Factor</th><th>Scrap</th><th>Motivo</th></tr></thead>
+      <tbody>
+      {% for fila in detalle %}
+        <tr>
+          <td>{{ fila.fecha.strftime('%d/%m/%Y') }}<a class="cell-sub table-link" href="{{ url_for('declaracion_detalle', declaracion_id=fila.declaracion_id) }}">{{ fila.dnc }}</a></td>
+          <td>{{ fila.cliente or '—' }}</td>
+          <td><strong>{{ fila.pieza }}</strong><small class="cell-sub">{{ fila.pieza_descripcion }}</small></td>
+          <td><strong>{{ fila.componente }}</strong><small class="cell-sub">{{ fila.componente_descripcion }}</small></td>
+          <td>{{ '%.4f'|format(fila.factor) }}</td>
+          <td><strong>{{ '%.3f'|format(fila.scrap_total) }}</strong><small class="cell-sub">D {{ '%.3f'|format(fila.scrap_directo) }} · R {{ '%.3f'|format(fila.scrap_retrabajo) }}</small></td>
+          <td>{{ fila.motivo }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</details>
+{% endif %}
+<script>
+  const monthFilter = document.querySelector('[name="mes"]');
+  const dateFilters = [...document.querySelectorAll('[name="desde"], [name="hasta"]')];
+  monthFilter.addEventListener('input', () => {
+    if (monthFilter.value) dateFilters.forEach(input => input.value = '');
+  });
+  dateFilters.forEach(input => input.addEventListener('input', () => {
+    if (input.value) monthFilter.value = '';
+  }));
+</script>
+{% endblock %}

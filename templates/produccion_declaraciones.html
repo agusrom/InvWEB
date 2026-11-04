@@ -1,0 +1,58 @@
+{% extends base_historial|default("base_produccion.html") %}
+{% block title %}{{ titulo_historial|default('Declaraciones informadas') }}{% endblock %}
+{% block content %}
+<div class="wizard-head">
+  <div>
+    <span class="mode-label">HISTORIAL</span>
+    <h1>{{ titulo_historial|default('Declaraciones informadas') }}</h1>
+    <p>{{ descripcion_historial|default('Consultá el material declarado y volvé a imprimir cualquier informe.') }}</p>
+  </div>
+  {% if endpoint_nuevo %}<a class="simple-primary" href="{{ url_for(endpoint_nuevo) }}">{{ texto_nuevo or '＋ Nuevo informe' }}</a>{% endif %}
+</div>
+
+{% if declaraciones %}
+<div class="production-history-tools">
+  <label>Buscar una declaración
+    <input type="search" data-history-search
+      placeholder="Número, fecha, célula, equipo, pieza o HCP">
+  </label>
+  <small>Se muestran las últimas 500 declaraciones.</small>
+</div>
+
+<section class="panel production-declarations-panel">
+  <div class="table-wrap">
+    <table class="production-declarations-table">
+      <thead>
+        <tr><th>Número</th><th>Fecha</th><th>Célula / equipo</th><th>Piezas</th><th>Cantidad</th><th>Estado</th><th>Acciones</th></tr>
+      </thead>
+      <tbody>
+      {% for declaracion in declaraciones %}
+        <tr data-history-row data-search="{{ declaracion.numero }} {{ declaracion.fecha.strftime('%d/%m/%Y') }} {{ declaracion.unidad_gestion or '' }} {{ declaracion.celula_detecta }} {{ declaracion.equipo }} {{ declaracion.equipo_descripcion or '' }} {% for item in declaracion.items %}{{ item.codigo_pieza }} {{ item.descripcion or '' }} {{ item.trazabilidad }} {% endfor %}">
+          <td><strong>{{ declaracion.numero }}</strong><small>{{ declaracion.items|length }} renglón{{ 'es' if declaracion.items|length != 1 }}</small></td>
+          <td>{{ declaracion.fecha.strftime('%d/%m/%Y') }}</td>
+          <td><strong>{{ declaracion.celula_detecta }}</strong><small>{{ declaracion.equipo }}{% if declaracion.equipo_descripcion %} · {{ declaracion.equipo_descripcion }}{% endif %}</small></td>
+          <td>{% for item in declaracion.items[:3] %}<small><b>{{ item.codigo_pieza }}</b> · {{ item.descripcion or 'Sin descripción' }}</small>{% endfor %}{% if declaracion.items|length > 3 %}<small>＋ {{ declaracion.items|length - 3 }} más</small>{% endif %}</td>
+          <td><strong>{{ '%g'|format(declaracion.cantidad_detectada) }}</strong></td>
+          <td><span class="status status-{{ declaracion.estado|lower }}">{{ declaracion.estado|replace('_', ' ') }}</span></td>
+          <td class="production-declaration-actions">
+            <a class="simple-secondary" href="{{ url_for(endpoint_detalle, declaracion_id=declaracion.id) }}">Ver</a>
+            <a class="simple-primary" target="_blank" rel="noopener" href="{{ url_for(endpoint_detalle, declaracion_id=declaracion.id, imprimir=1) }}">Imprimir</a>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+<div class="production-items-empty hidden" data-history-empty>No hay declaraciones que coincidan con la búsqueda.</div>
+{% else %}
+<section class="success-screen compact-success">
+  <span class="success-check">✓</span>
+  <h1>Todavía no hay declaraciones</h1>
+  <p>Los informes que genere Producción aparecerán acá.</p>
+  {% if endpoint_nuevo %}<a class="simple-primary" href="{{ url_for(endpoint_nuevo) }}">Generar el primer informe</a>{% endif %}
+</section>
+{% endif %}
+
+<script src="{{ url_for('static', filename='js/retrabajos-historial.js') }}"></script>
+{% endblock %}

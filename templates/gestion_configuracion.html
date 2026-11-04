@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Configuración{% endblock %}
+{% block content %}
+<div class="settings-hub-heading">
+  <span class="eyebrow">CONFIGURACIÓN GENERAL</span>
+  <h1>¿Qué querés configurar?</h1>
+  <p>Cada sección administra un tema distinto de la plataforma.</p>
+</div>
+<section class="settings-hub-grid">
+  <article>
+    <span class="settings-hub-icon">▦</span>
+    <small>DATOS DEL SISTEMA</small>
+    <h2>Catálogos</h2>
+    <p>Unidades de gestión, células y lugares utilizados en los formularios.</p>
+    <div>
+      <a class="btn btn-primary" href="{{ url_for('gestion_unidades') }}">Unidades y células</a>
+      <span class="settings-source-note">Turnos, equipos y proveedores se sincronizan con el sistema productivo.</span>
+      <a class="btn btn-light" href="{{ url_for('gestion_catalogo', tipo='LUGAR') }}">Lugares</a>
+    </div>
+  </article>
+  <article>
+    <span class="settings-hub-icon">◎</span>
+    <small>ANÁLISIS DE CALIDAD</small>
+    <h2>Grupos y causas</h2>
+    <p>Configurá las familias de defectos, sus causas internas y los datos que exige cada una.</p>
+    <div><a class="btn btn-primary" href="{{ url_for('gestion_motivos') }}">Configurar motivos</a></div>
+  </article>
+  <article>
+    <span class="settings-hub-icon">✓</span>
+    <small>CONTROL DE SCRAP</small>
+    <h2>Validación de Logística</h2>
+    <p>Elegí qué códigos deben ser recibidos y confirmados por Logística después de Calidad.</p>
+    <div><a class="btn btn-primary" href="{{ url_for('gestion_piezas_control_logistica') }}">Configurar piezas</a></div>
+  </article>
+  <article>
+    <span class="settings-hub-icon">⚙</span>
+    <small>REGLAS GENERALES</small>
+    <h2>Parámetros</h2>
+    <p>HCP, prefijos, campos opcionales y comportamiento de impresión.</p>
+    <div><a class="btn btn-primary" href="{{ url_for('gestion_parametros') }}">Abrir parámetros</a></div>
+  </article>
+  <article>
+    <span class="settings-hub-icon">♙</span>
+    <small>ACCESO AL SISTEMA</small>
+    <h2>Usuarios y contraseñas</h2>
+    <p>Administrá las cuatro cuentas compartidas de Producción, Calidad, Logística y Administración.</p>
+    <div><a class="btn btn-primary" href="{{ url_for('gestion_usuarios') }}">Administrar accesos</a></div>
+  </article>
+</section>
+{% endblock %}

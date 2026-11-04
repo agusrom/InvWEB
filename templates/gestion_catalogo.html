@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">Catálogo</span><h1>{{ titulo }}</h1><p>Estas opciones aparecen en la carga de Producción.</p></div></div>
+<section class="panel form-section">
+  <form method="post" class="catalog-add"><label>Código<input name="codigo" required></label><label>Nombre<input name="nombre" required></label><button class="btn btn-primary">Agregar</button></form>
+</section>
+<section class="panel">
+  <div class="table-wrap"><table><thead><tr><th>Código</th><th>Nombre</th><th>Estado</th><th></th></tr></thead><tbody>
+    {% for x in opciones %}<tr><td><strong>{{ x.codigo }}</strong></td><td>{{ x.nombre }}</td><td><span class="status {{ 'status-cerrada' if x.activo }}">{{ 'Activo' if x.activo else 'Inactivo' }}</span></td><td><form method="post" action="{{ url_for('gestion_catalogo_alternar', catalogo_id=x.id) }}"><button class="btn btn-light btn-small">{{ 'Desactivar' if x.activo else 'Activar' }}</button></form></td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endblock %}

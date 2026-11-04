@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Inicio · Material no conforme{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <span class="eyebrow">Panel de Gestión</span>
+    <h1>Material no conforme</h1>
+    <p>Seguimiento, configuración y análisis de declaraciones.</p>
+  </div>
+  <div class="hero-badge">
+    <strong>{{ pendientes|length }}</strong>
+    <span>retrabajos próximos</span>
+  </div>
+</section>
+
+<section class="management-links">
+  <a href="{{ url_for('gestion_motivos') }}"><span>⚑</span><b>Motivos</b><small>Defectos disponibles</small></a>
+  <a href="{{ url_for('gestion_unidades') }}"><span>▦</span><b>Unidades y células</b><small>Estructura productiva</small></a>
+  <a href="{{ url_for('gestion_catalogo', tipo='LUGAR') }}"><span>⌖</span><b>Lugares</b><small>Puntos de detección</small></a>
+  <a href="{{ url_for('gestion_configuracion') }}"><span>⚙</span><b>Parámetros</b><small>Reglas generales</small></a>
+</section>
+
+<section class="action-grid action-grid-three">
+  <a class="action-card action-primary" href="{{ url_for('declaracion_nueva') }}">
+    <span class="action-icon">＋</span>
+    <div>
+      <h2>Nueva declaración</h2>
+      <p>Declarar scrap directo, retrabajo o una combinación.</p>
+    </div>
+    <span class="arrow">→</span>
+  </a>
+  <a class="action-card" href="{{ url_for('retrabajos') }}">
+    <span class="action-icon">↻</span>
+    <div>
+      <h2>Registrar retrabajo</h2>
+      <p>Informar tiempo, piezas recuperadas y scrap final.</p>
+    </div>
+    <span class="arrow">→</span>
+  </a>
+  <a class="action-card" href="{{ url_for('declaraciones') }}">
+    <span class="action-icon">▤</span>
+    <div>
+      <h2>Ver declaraciones</h2>
+      <p>Consultar el historial y volver a imprimir.</p>
+    </div>
+    <span class="arrow">→</span>
+  </a>
+</section>
+
+{% if pendientes %}
+<section class="panel">
+  <div class="panel-head">
+    <h2>Retrabajos pendientes</h2>
+    <a href="{{ url_for('retrabajos') }}">Ver todos</a>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Declaración</th><th>Pieza</th><th>HCP</th><th>Pendiente</th><th></th></tr></thead>
+      <tbody>
+      {% for item in pendientes %}
+        <tr>
+          <td><strong>{{ item.declaracion.numero }}</strong></td>
+          <td><strong>{{ item.codigo_pieza }}</strong><small class="cell-sub">{{ item.descripcion or '' }}</small></td>
+          <td>{{ item.trazabilidad }}</td>
+          <td><span class="pill pill-warning">{{ '%g'|format(item.cantidad_retrabajo_pendiente) }} {{ item.unidad }}</span></td>
+          <td><a class="table-link" href="{{ url_for('registrar_retrabajo', item_id=item.id) }}">Registrar resultado</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+{% if ultimos %}
+<section class="panel">
+  <div class="panel-head">
+    <h2>Últimas declaraciones</h2>
+    <a href="{{ url_for('declaraciones') }}">Ver todas</a>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Número</th><th>Fecha</th><th>Sector</th><th>Célula</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+      {% for declaracion in ultimos %}
+        <tr>
+          <td><strong>{{ declaracion.numero }}</strong></td>
+          <td>{{ declaracion.fecha.strftime('%d/%m/%Y') }}</td>
+          <td>{{ declaracion.sector_declara }}</td>
+          <td>{{ declaracion.celula_detecta }}</td>
+          <td><span class="status status-{{ declaracion.estado|lower }}">{{ declaracion.estado|replace('_', ' ') }}</span></td>
+          <td><a class="table-link" href="{{ url_for('declaracion_detalle', declaracion_id=declaracion.id) }}">Abrir</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

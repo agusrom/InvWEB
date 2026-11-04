@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Bandeja de Calidad{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><span class="eyebrow">Calidad</span><h1>Material no conforme</h1><p>Primero resolvé el material; la responsabilidad puede investigarse después.</p></div>
+  <div class="quality-live-tools">
+    <span class="quality-counter" id="quality-counter">{{ alertas|length }} por decidir</span>
+    <span class="quality-live-status online" id="quality-live-status"><i></i><span>Actualización automática</span></span>
+    <button type="button" class="simple-secondary quality-refresh-button" id="quality-refresh">Actualizar ahora</button>
+  </div>
+</div>
+
+{% include "_calidad_bandeja_contenido.html" %}
+{% include "_impresion_automatica.html" %}
+<script src="{{ url_for('static', filename='js/calidad-bandeja.js') }}"></script>
+{% endblock %}

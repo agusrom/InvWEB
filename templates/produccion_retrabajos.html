@@ -1,0 +1,22 @@
+{% extends "base_produccion.html" %}
+{% block title %}Retrabajos pendientes{% endblock %}
+{% block body_class %}mode-retrabajo{% endblock %}
+{% block content %}
+<div class="wizard-head">
+  <div><span class="mode-label">RETRABAJO</span><h1>Trabajos pendientes</h1><p>Elegí una pieza para registrar el resultado.</p></div>
+  <a class="simple-secondary" href="{{ url_for('produccion_retrabajos_historial') }}">Ver historial</a>
+</div>
+{% if pendientes %}
+<section class="production-pending-list">
+  {% for item in pendientes %}
+  <a href="/produccion/retrabajos/{{ item.id }}/registrar">
+    <div><small>{{ item.declaracion.numero }}</small><b>{{ item.codigo_pieza }}</b><span>{{ item.descripcion }}</span></div>
+    <div><small>Pendiente</small><strong>{{ '%g'|format(item.cantidad_retrabajo_pendiente) }} {{ item.unidad }}</strong></div>
+    <b>Completar →</b>
+  </a>
+  {% endfor %}
+</section>
+{% else %}
+<section class="success-screen compact-success"><span class="success-check">✓</span><h1>No hay pendientes</h1><p>Todos los retrabajos están completos.</p><a class="simple-primary" href="{{ url_for('produccion_inicio') }}">Volver al inicio</a></section>
+{% endif %}
+{% endblock %}

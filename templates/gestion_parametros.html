@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Parámetros{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">Configuración</span><h1>Parámetros generales</h1><p>Reglas que modifican la experiencia de Producción.</p></div><a class="btn btn-light" href="{{ url_for('gestion_configuracion') }}">← Volver</a></div>
+<form method="post">
+  <section class="numbering-preview">
+    <div><small>FORMATO DE LAS NUEVAS DECLARACIONES</small><strong data-numbering-preview>{{ config_por_clave['PREFIJO_DECLARACION'].valor }}-{{ '1'.zfill(config_por_clave['DIGITOS_DECLARACION'].valor|int) }}</strong></div>
+    <p>El correlativo usa el identificador incremental de la declaración. Los números ya emitidos no se modifican.</p>
+  </section>
+  <section class="panel form-section">
+    <div class="settings-list">
+      {% for x in configuraciones %}
+      <label>
+        <span><b>{{ x.clave|replace('_', ' ')|title }}</b><small>{{ x.descripcion }}</small></span>
+        {% if x.valor in ['SI', 'NO'] %}
+        <select name="{{ x.clave }}"><option {{ 'selected' if x.valor == 'SI' }}>SI</option><option {{ 'selected' if x.valor == 'NO' }}>NO</option></select>
+        {% else %}<input name="{{ x.clave }}" value="{{ x.valor }}" required>{% endif %}
+      </label>
+      {% endfor %}
+    </div>
+  </section>
+  <div class="form-actions"><button class="btn btn-primary btn-large">Guardar configuración</button></div>
+</form>
+<script src="{{ url_for('static', filename='js/gestion-parametros.js') }}"></script>
+{% endblock %}

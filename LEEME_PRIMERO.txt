@@ -1,0 +1,33 @@
+INSTALACION MYSQL DEL SISTEMA DNC
+=================================
+
+No borres la carpeta anterior hasta comprobar que la nueva funciona.
+
+La aplicacion ya no crea ni utiliza una base SQLite local al arrancar.
+
+Primera instalacion o actualizacion:
+
+1. Cerra la version anterior.
+2. Copia .env.example como .env y completa DATABASE_URL y las conexiones de lectura.
+3. Si faltan tablas, un administrador debe ejecutar estructura_mysql.sql.
+4. Ejecuta migrar_a_mysql.bat.
+5. Para conservar datos, elegi la opcion 2 e indica el archivo .db anterior.
+6. Cuando termine, ejecuta run.bat.
+
+El migrador NO crea bases, tablas ni columnas: solamente verifica la estructura
+existente. Si elegis copiar SQLite:
+
+- Los registros con diferencias solamente de mayúsculas, acentos o espacios se
+  consolidan antes de insertar en MySQL y se actualizan sus referencias.
+- El migrador no vuelve a insertar catálogos de ejemplo luego de la copia.
+- Declaraciones y renglones.
+- Motivos, celulas, usuarios y configuraciones.
+- Retrabajos y validaciones de Logistica.
+
+run.bat solamente verifica MySQL. Si falta algo, se detiene sin modificar datos.
+NOVEDAD V48 - REPORTES DE SCRAP
+--------------------------------
+Administración dispone de Reportes > Scrap por componente final. La pantalla
+explota cada pieza hasta la última hoja de su estructura productiva, permite
+filtrar el período y exporta un Excel con resumen, detalle y filtros aplicados.
+

@@ -1,0 +1,32 @@
+{% extends "base_produccion.html" %}
+{% block title %}Declaración guardada{% endblock %}
+{% block content %}
+<section class="success-screen">
+  <span class="success-check">✓</span>
+  <small>{{ 'ALERTA ENVIADA A CALIDAD' if declaracion.estado == 'PENDIENTE_CALIDAD' else 'DECLARACIÓN GUARDADA' }}</small>
+  <h1>{{ declaracion.numero }}</h1>
+  <p>{% if declaracion.estado == 'PENDIENTE_CALIDAD' %}Calidad revisará {{ declaracion.items|length }} renglón{{ 'es' if declaracion.items|length != 1 else '' }} y definirá su disposición.{% else %}Se registraron {{ declaracion.items|length }} pieza{{ 's' if declaracion.items|length != 1 else '' }} correctamente.{% endif %}</p>
+  <div>
+    {% if endpoint_impresion %}<a class="simple-primary" target="_blank" rel="noopener" href="{{ url_for(endpoint_impresion, declaracion_id=declaracion.id, imprimir=1) }}">Imprimir declaración</a>{% endif %}
+    <a class="simple-primary" href="{{ url_for(endpoint_nuevo) }}">Informar otro material</a>
+    <a class="simple-secondary" href="{{ url_for(endpoint_inicio) }}">Volver al inicio</a>
+  </div>
+  {% if impresion_automatica and endpoint_impresion %}
+  <p class="automatic-print-warning hidden" data-print-warning>El navegador bloqueó la ventana de impresión. Usá el botón “Imprimir declaración”.</p>
+  {% endif %}
+</section>
+{% if impresion_automatica and endpoint_impresion %}
+<script>
+window.addEventListener("load", () => {
+  const clave = "impresion-declaracion-{{ declaracion.id }}";
+  if (window.sessionStorage.getItem(clave)) return;
+  window.sessionStorage.setItem(clave, "abierta");
+  const ventana = window.open(
+    {{ url_for(endpoint_impresion, declaracion_id=declaracion.id, imprimir=1)|tojson }},
+    "_blank"
+  );
+  if (!ventana) document.querySelector("[data-print-warning]")?.classList.remove("hidden");
+});
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Declaraciones{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body class="production-body {% block body_class %}{% endblock %}">
+<div class="app-shell">
+  <aside class="system-sidebar production-sidebar no-print">
+    <a class="sidebar-brand" href="{{ url_for('logistica_inicio' if rol_actual == 'LOGISTICA' else 'produccion_inicio') }}">NC</a>
+    <nav>
+      {% if rol_actual == 'LOGISTICA' %}
+      <a class="{{ 'active' if request.path == '/logistica' }}" href="{{ url_for('logistica_inicio') }}"><span>⌂</span><small>Inicio</small></a>
+      <a class="{{ 'active' if request.path.startswith('/logistica/validaciones') }}" href="{{ url_for('logistica_inicio') }}#validaciones"><span>✓</span><small>Validar scrap</small></a>
+      <a class="{{ 'active' if request.path == '/logistica/informe' }}" href="{{ url_for('logistica_informe') }}"><span>＋</span><small>Informar</small></a>
+      <a class="{{ 'active' if request.path == '/logistica/piezas-control' }}" href="{{ url_for('logistica_piezas_control') }}"><span>≡</span><small>Piezas control</small></a>
+      <a class="{{ 'active' if request.path.startswith('/logistica/declaraciones') }}" href="{{ url_for('logistica_declaraciones') }}"><span>▤</span><small>Declaraciones</small></a>
+      {% else %}
+      <a class="{{ 'active' if request.path == '/produccion' }}" href="{{ url_for('produccion_inicio') }}"><span>⌂</span><small>Inicio</small></a>
+      <a class="{{ 'active' if request.path == '/produccion/alerta' }}" href="{{ url_for('produccion_alerta') }}"><span>＋</span><small>Informar</small></a>
+      <a class="{{ 'active' if request.path.startswith('/produccion/retrabajos') and request.path != '/produccion/retrabajos/historial' }}" href="{{ url_for('produccion_retrabajos') }}"><span>↻</span><small>Retrabajos</small></a>
+      <a class="{{ 'active' if request.path.startswith('/produccion/declaraciones') }}" href="{{ url_for('produccion_declaraciones') }}"><span>▤</span><small>Declaraciones</small></a>
+      {% endif %}
+    </nav>
+  </aside>
+  <div class="main-area">
+    <header class="workspace-topbar no-print">
+      <div>{{ nombre_rol_actual or 'Producción' }} <b>›</b> <span>Material no conforme</span></div>
+      <div class="workspace-user-area">
+        <div class="workspace-profile"><span>{{ 'LG' if rol_actual == 'LOGISTICA' else 'PR' }}</span><div><strong>{{ usuario_actual.nombre if usuario_actual else nombre_rol_actual }}</strong><small>{{ 'Recepción y logística' if rol_actual == 'LOGISTICA' else 'Carga operativa' }}</small></div></div>
+        {% if usuario_actual %}<form method="post" action="{{ url_for('logout') }}"><button class="session-logout" title="Cerrar sesión">Salir</button></form>{% endif %}
+      </div>
+    </header>
+    <main class="production-page">
+    {% with mensajes = get_flashed_messages(with_categories=true) %}
+      {% for categoria, mensaje in mensajes %}
+        <div class="alert alert-{{ categoria }}">{{ mensaje }}</div>
+      {% endfor %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/legajos.js') }}"></script>
+</body>
+</html>

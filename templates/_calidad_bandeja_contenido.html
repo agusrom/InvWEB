@@ -1,0 +1,44 @@
+<div id="quality-live-snapshot"
+     data-alert-count="{{ alertas|length }}"
+     data-alert-ids="{{ alertas|map(attribute='id')|join(',') }}">
+  <div class="queue-section-title">
+    <div><h2>Nuevas alertas</h2><p>Requieren causa validada y una disposición.</p></div>
+    <b>{{ alertas|length }}</b>
+  </div>
+  <section class="quality-queue">
+  {% for declaracion in alertas %}
+    <a class="quality-alert-card"
+       data-alert-id="{{ declaracion.id }}"
+       href="{{ url_for('calidad_validar', declaracion_id=declaracion.id) }}">
+      <div><small>{{ declaracion.numero }}</small><strong>{{ declaracion.celula_detecta }}</strong><span>{{ declaracion.fecha.strftime('%d/%m/%Y') }} · Legajo {{ declaracion.legajo_declara }}</span></div>
+      <div><small>Material informado</small><strong>{{ '%g'|format(declaracion.cantidad_detectada) }}</strong><span>{{ declaracion.items|length }} renglón{{ 'es' if declaracion.items|length != 1 }}</span></div>
+      <b>Analizar →</b>
+    </a>
+  {% else %}
+    <div class="empty compact"><h2>No hay alertas pendientes</h2><p>Todo lo informado por Producción ya fue validado.</p></div>
+  {% endfor %}
+  </section>
+
+  {% if investigaciones %}
+  <div class="queue-section-title investigation-title"><div><h2>Investigaciones pendientes</h2><p>El destino ya fue resuelto; falta cerrar la atribución.</p></div><b>{{ investigaciones|length }}</b></div>
+  <section class="quality-queue">
+  {% for declaracion in investigaciones %}
+    <a class="quality-alert-card investigation-card" href="{{ url_for('calidad_validar', declaracion_id=declaracion.id) }}">
+      <div><small>{{ declaracion.numero }}</small><strong>{{ declaracion.celula_detecta }}</strong><span>{{ declaracion.fecha.strftime('%d/%m/%Y') }} · {{ declaracion.items|length }} renglón{{ 'es' if declaracion.items|length != 1 }}</span></div>
+      <div><small>PENDIENTES DE ATRIBUIR</small><strong>{{ declaracion.items|selectattr('responsabilidad_estado', 'equalto', 'PENDIENTE')|list|length }}</strong><span>La disposición no se modifica si no hace falta.</span></div>
+      <b>Continuar →</b>
+    </a>
+  {% endfor %}
+  </section>
+  {% endif %}
+
+  {% if validadas %}
+  <section class="panel">
+    <div class="panel-head"><h2>Últimas validaciones</h2></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Alerta</th><th>Célula</th><th>Validó</th><th>Fecha</th><th>Estado</th></tr></thead>
+      <tbody>{% for x in validadas %}<tr><td><a class="table-link" href="{{ url_for('declaracion_detalle', declaracion_id=x.id) }}">{{ x.numero }}</a></td><td>{{ x.celula_detecta }}</td><td>{{ x.legajo_calidad }}</td><td>{{ x.fecha_validacion.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ x.estado|replace('_', ' ') }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+  {% endif %}
+</div>

@@ -1,0 +1,22 @@
+{% extends "base_produccion.html" %}
+{% block title %}Piezas bajo control · Logística{% endblock %}
+{% block content %}
+<div class="wizard-head">
+  <div><span class="mode-label">CONSULTA</span><h1>Piezas con validación logística</h1><p>Estos códigos generan una tarea cuando Calidad les asigna scrap.</p></div>
+  <a class="simple-secondary" href="{{ url_for('logistica_inicio') }}">← Volver</a>
+</div>
+
+{% if piezas %}
+<section class="panel logistics-controlled-pieces">
+  <div class="section-head"><div><h2>{{ piezas|length }} pieza{{ 's' if piezas|length != 1 }} activa{{ 's' if piezas|length != 1 }}</h2><p>Lista de sólo lectura. La configuración se modifica desde Administración.</p></div></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Código</th><th>Descripción</th><th>Regla</th></tr></thead>
+    <tbody>{% for pieza in piezas %}<tr><td><strong>{{ pieza.codigo }}</strong></td><td>{{ pieza.descripcion or 'Sin descripción' }}</td><td><span class="status status-cerrada">Requiere validación</span></td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% else %}
+<section class="success-screen compact-success logistics-no-config">
+  <span class="success-check">!</span><h1>No hay piezas configuradas</h1><p>Administración todavía no activó códigos para este control.</p>
+</section>
+{% endif %}
+{% endblock %}

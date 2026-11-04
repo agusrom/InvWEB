@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Retrabajos{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><span class="eyebrow">Seguimiento</span><h1>Retrabajos</h1><p>Resultados pendientes y trabajos ya cerrados.</p></div>
+</div>
+<section class="panel">
+  <div class="panel-head"><h2>Pendientes</h2><span class="pill pill-warning">{{ pendientes|length }}</span></div>
+  {% if pendientes %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Declaración</th><th>Pieza</th><th>HCP</th><th>Enviado</th><th>Recuperado</th><th>Pendiente</th><th></th></tr></thead>
+      <tbody>
+      {% for item in pendientes %}
+        <tr>
+          <td><a class="table-link" href="{{ url_for('declaracion_detalle', declaracion_id=item.declaracion_id) }}">{{ item.declaracion.numero }}</a></td>
+          <td><strong>{{ item.codigo_pieza }}</strong><small class="cell-sub">{{ item.descripcion or '' }}</small></td>
+          <td>{{ item.trazabilidad }}</td>
+          <td>{{ '%g'|format(item.cantidad_a_retrabajo) }} {{ item.unidad }}</td>
+          <td>{{ '%g'|format(item.cantidad_recuperada) }}</td>
+          <td><span class="pill pill-warning">{{ '%g'|format(item.cantidad_retrabajo_pendiente) }}</span></td>
+          <td><a class="btn btn-primary btn-small" href="{{ url_for('registrar_retrabajo', item_id=item.id) }}">Registrar resultado</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<div class="empty compact"><p>No hay retrabajos pendientes.</p></div>{% endif %}
+</section>
+
+{% if cerrados %}
+<section class="panel">
+  <div class="panel-head"><h2>Cerrados</h2></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Declaración</th><th>Pieza</th><th>Enviado</th><th>Recuperado</th><th>Scrap final</th><th></th></tr></thead>
+      <tbody>
+      {% for item in cerrados %}
+        <tr>
+          <td>{{ item.declaracion.numero }}</td><td><strong>{{ item.codigo_pieza }}</strong></td>
+          <td>{{ '%g'|format(item.cantidad_a_retrabajo) }}</td><td>{{ '%g'|format(item.cantidad_recuperada) }}</td>
+          <td>{{ '%g'|format(item.cantidad_scrap_retrabajo) }}</td>
+          <td><a class="table-link" href="{{ url_for('declaracion_detalle', declaracion_id=item.declaracion_id) }}">Ver</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

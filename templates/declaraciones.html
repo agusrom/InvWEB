@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Declaraciones{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><span class="eyebrow">Historial</span><h1>Declaraciones</h1></div>
+  <a class="btn btn-primary" href="{{ url_for('declaracion_nueva') }}">＋ Nueva declaración</a>
+</div>
+<section class="panel">
+  {% if declaraciones %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Número</th><th>Fecha</th><th>Detectado por</th><th>Ítems</th><th>Scrap</th><th>Retrabajo pendiente</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+      {% for declaracion in declaraciones %}
+        <tr>
+          <td><strong>{{ declaracion.numero }}</strong></td>
+          <td>{{ declaracion.fecha.strftime('%d/%m/%Y') }}</td>
+          <td>{{ declaracion.sector_declara }} · {{ declaracion.celula_detecta }}</td>
+          <td>{{ declaracion.items|length }}</td>
+          <td>{{ '%g'|format(declaracion.cantidad_scrap) }}</td>
+          <td>{{ '%g'|format(declaracion.cantidad_retrabajo_pendiente) }}</td>
+          <td><span class="status status-{{ declaracion.estado|lower }}">{{ declaracion.estado|replace('_', ' ') }}</span></td>
+          <td class="admin-history-actions"><a class="table-link" href="{{ url_for('declaracion_detalle', declaracion_id=declaracion.id) }}">Abrir</a><a class="table-link" href="{{ url_for('declaracion_editar', declaracion_id=declaracion.id) }}">Editar</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty"><span>▤</span><h2>Todavía no hay declaraciones</h2><p>Creá la primera para comenzar.</p></div>
+  {% endif %}
+</section>
+{% endblock %}

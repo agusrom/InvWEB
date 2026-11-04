@@ -1,0 +1,31 @@
+{% extends "base_produccion.html" %}
+{% block title %}Completar retrabajo{% endblock %}
+{% block body_class %}mode-retrabajo{% endblock %}
+{% block content %}
+<div class="wizard-head"><div><span class="mode-label">{{ item.declaracion.numero }}</span><h1>Completar retrabajo</h1><p>{{ item.codigo_pieza }} · {{ item.descripcion }}</p></div><div class="step-counter">Pendiente <strong>{{ '%g'|format(item.cantidad_retrabajo_pendiente) }}</strong></div></div>
+{% include "_retrabajo_contexto.html" %}
+<form method="post" id="rework-form" data-pending="{{ '%g'|format(item.cantidad_retrabajo_pendiente) }}">
+  <section class="wizard-step active">
+    <div class="wizard-section-title"><span>1</span><div><h2>¿Cuál fue el resultado?</h2><p>Informá el tiempo y las cantidades obtenidas.</p></div></div>
+    <div class="production-form-grid">
+      <label>Fecha<input type="date" name="fecha" value="{{ request.form.get('fecha', hoy.isoformat()) }}" max="{{ hoy.isoformat() }}" required></label>
+      <label>Célula
+        <select name="celula" data-searchable required>
+          <option value="">Buscar célula…</option>
+          {% for celula in celulas %}<option value="{{ celula.nombre }}" data-search="{{ celula.codigo }} {{ celula.codigo_equipos }} {{ celula.unidad_gestion.nombre }}" {{ 'selected' if request.form.get('celula') == celula.nombre }}>{{ celula.nombre }} · {{ celula.unidad_gestion.nombre }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Legajo<input name="legajo" value="{{ request.form.get('legajo', '') }}" data-legajo inputmode="numeric" maxlength="5" required></label>
+      <label>Tiempo (minutos)<input type="number" name="minutos" min="1" step="1" value="{{ request.form.get('minutos', 1) }}" required></label>
+      <label>Personas<input type="number" name="cantidad_personas" min="1" step="1" value="{{ request.form.get('cantidad_personas', 1) }}" required></label>
+      <label>Piezas recuperadas<input type="number" name="cantidad_ok" min="0" step="1" inputmode="numeric" value="{{ request.form.get('cantidad_ok', item.cantidad_retrabajo_pendiente|int) }}" required></label>
+      <label>Piezas a scrap<input type="number" name="cantidad_scrap" min="0" step="1" inputmode="numeric" value="{{ request.form.get('cantidad_scrap', 0) }}" required></label>
+      <div class="rework-quantity-status production-span-2" data-rework-total></div>
+      <label class="production-span-2">Trabajo efectuado / resultado<input name="operacion" value="{{ request.form.get('operacion', '') }}" maxlength="120" placeholder="Ej.: se repasó el agujero y quedó dentro de medida" required></label>
+    </div>
+  </section>
+  <div class="wizard-actions"><a class="simple-secondary" href="{{ url_for('produccion_retrabajos') }}">Cancelar</a><button class="simple-primary" data-rework-submit disabled>Guardar resultado</button></div>
+</form>
+<script src="{{ url_for('static', filename='js/searchable-select.js') }}"></script>
+<script src="{{ url_for('static', filename='js/retrabajo.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,112 @@
+{% extends base_detalle|default("base.html") %}
+{% block title %}{{ declaracion.numero }}{% endblock %}
+{% block content %}
+<div class="detail-actions no-print">
+  <a class="btn btn-light" href="{{ url_for(endpoint_volver|default('declaraciones')) }}">← Volver</a>
+  <div class="button-group">
+    {% if rol_actual == 'ADMIN' %}<a class="btn btn-light" href="{{ url_for('declaracion_editar', declaracion_id=declaracion.id) }}">Editar declaración</a>{% endif %}
+    {% if mostrar_retrabajo|default(true) and declaracion.cantidad_retrabajo_pendiente > 0 %}<a class="btn btn-light" href="{{ url_for(endpoint_retrabajo|default('retrabajos')) }}">Registrar retrabajo</a>{% endif %}
+    <button class="btn btn-primary" onclick="window.print()">Imprimir versión actual</button>
+  </div>
+</div>
+
+<article class="print-sheet compact-voucher">
+  <header class="voucher-header compact-voucher-header">
+    <div class="company"><div class="company-logo">C.G.R. <span>S.A.</span></div><small>GESTIÓN DE MATERIAL NO CONFORME</small></div>
+    <div class="voucher-title"><span class="document-type">DECLARACIÓN DE MATERIAL NO CONFORME</span><h1>{{ declaracion.numero }}</h1><b>{{ etapa_impresion }}</b></div>
+    <div class="document-meta">
+      <span>FECHA DNC</span><strong>{{ declaracion.fecha.strftime('%d/%m/%Y') }}</strong>
+      <span>ESTADO</span><strong>{{ declaracion.estado|replace('_', ' ') }}</strong>
+      <span>IMPRESO</span><strong>{{ impreso_en.strftime('%d/%m/%Y %H:%M') }}</strong>
+    </div>
+  </header>
+
+  <section class="voucher-grid compact-voucher-grid">
+    <div><span>Unidad / célula</span><strong>{{ declaracion.unidad_gestion or declaracion.sector_declara }} · {{ declaracion.celula_detecta }}</strong></div>
+    <div><span>Turno / equipo</span><strong>{{ declaracion.turno or '—' }} · {{ declaracion.equipo }}{% if declaracion.equipo_descripcion %} · {{ declaracion.equipo_descripcion }}{% endif %}</strong></div>
+    <div><span>Informó</span><strong>Legajo {{ declaracion.legajo_declara }}</strong></div>
+    <div><span>Cliente</span><strong>{{ declaracion.cliente or '—' }}</strong></div>
+    <div><span>Calidad</span><strong>{% if declaracion.fecha_validacion %}Legajo {{ declaracion.legajo_calidad }} · {{ declaracion.fecha_validacion.strftime('%d/%m/%Y %H:%M') }}{% else %}Pendiente{% endif %}</strong></div>
+    <div><span>Renglones / cantidad</span><strong>{{ declaracion.items|length }} · {{ '%g'|format(declaracion.cantidad_detectada) }} unidades</strong></div>
+  </section>
+
+  <section class="voucher-items compact-voucher-items">
+    <h2 class="print-section-title">Material informado y disposición</h2>
+    <div class="print-piece-list">
+      {% for item in declaracion.items %}
+      <article class="print-piece-card">
+        <header class="print-piece-header">
+          <div class="print-piece-identity"><span>RENGLÓN {{ loop.index }}</span><strong>{{ item.codigo_pieza }}</strong><p>{{ item.descripcion or 'Sin descripción' }}</p></div>
+          <div class="print-piece-total"><span>CANTIDAD INFORMADA</span><strong>{{ '%g'|format(item.cantidad_detectada) }} {{ item.unidad }}</strong><small class="print-piece-state">{{ item.estado|replace('_', ' ') }}</small></div>
+        </header>
+        <div class="print-piece-grid">
+          <section class="print-trace-block">
+            <span>OPERACIÓN Y TRAZABILIDAD</span>
+            <strong class="print-operation-value">Op. {{ item.operacion_codigo or 'No aplica' }}{% if item.operacion_descripcion %} · {{ item.operacion_descripcion }}{% endif %}</strong>
+            <p class="print-hcp-value">HCP / Lote: <b>{{ item.trazabilidad }}</b></p>
+            {% if item.codigo_padre %}<p>Referencia: {{ item.codigo_padre }} · Uso {{ '%g'|format(item.uso_estructura) }}</p>{% endif %}
+          </section>
+          <section>
+            <span>PROBLEMA INFORMADO POR PRODUCCIÓN</span>
+            <strong>{{ item.motivo.grupo.nombre if item.motivo.grupo else item.motivo.codigo }}</strong>
+            <p>{{ item.motivo.codigo }} · {{ item.motivo.nombre }}</p>
+            {% if item.afectado_codigo %}<p><b>{{ {'MATERIA_PRIMA': 'MP', 'COMPONENTE': 'Componente', 'PROCESO': 'Proceso'}.get(item.afectado_tipo, item.afectado_tipo) }}: {{ item.afectado_codigo }}</b></p>{% endif %}
+            {% if item.afectado_componente_codigo and item.afectado_tipo == 'MATERIA_PRIMA' %}<p>Utilizada en: {{ item.afectado_componente_codigo }}</p>{% endif %}
+            {% if item.observacion %}<p class="print-piece-comment">{{ item.observacion }}</p>{% endif %}
+          </section>
+          <section class="print-quality-block">
+            <span>DECISIÓN E INDICACIÓN DE CALIDAD</span>
+            {% if declaracion.fecha_validacion %}
+              <div class="print-disposition">
+                <b>SCRAP <strong>{{ '%g'|format(item.cantidad_scrap_directo) }}</strong></b>
+                <b>RETRABAJO <strong>{{ '%g'|format(item.cantidad_a_retrabajo) }}</strong></b>
+                <b>LIBERADAS <strong>{{ '%g'|format(item.cantidad_liberada) }}</strong></b>
+              </div>
+              <p class="print-piece-comment"><b>{{ item.observacion_calidad }}</b></p>
+              <p>Motivo confirmado: {{ item.motivo.codigo }} · {{ item.motivo.nombre }}</p>
+            {% else %}<strong>Pendiente de Calidad</strong><p>Calidad debe definir scrap, retrabajo o liberación.</p>{% endif %}
+          </section>
+          <section>
+            <span>RESPONSABILIDAD Y CONTROL LOGÍSTICO</span>
+            <strong>{{ item.responsabilidad_estado|replace('_', ' ') }}</strong>
+            {% if item.responsabilidad_estado in ['CONFIRMADA', 'PROBABLE'] %}
+              {% if item.responsable_tipo == 'PROVEEDOR' %}<p>Proveedor {{ item.responsable_proveedor_numero }} · {{ item.responsable_proveedor }}</p>
+              {% else %}<p>{{ item.responsable_celula or item.responsable_sector or 'Proceso interno' }}{% if item.responsable_operacion %} · {{ item.responsable_operacion }}{% endif %}{% if item.responsable_legajo %} · Leg. {{ item.responsable_legajo }}{% endif %}</p>{% endif %}
+            {% elif item.responsabilidad_estado == 'PENDIENTE' %}<p>Origen sugerido: {% if item.tipo_origen == 'PROVEEDOR' %}Proveedor {{ item.proveedor_numero }} · {{ item.proveedor }}{% else %}{{ item.celula_origen }} · {{ item.operacion_origen }}{% endif %}</p>
+            {% else %}<p>No atribuible.</p>{% endif %}
+            {% if item.requiere_validacion_logistica %}
+              {% if item.fecha_validacion_logistica %}<p class="logistics-print-ok"><b>Logística: {{ '%g'|format(item.cantidad_scrap_validada_logistica) }} {{ item.unidad }}</b> · Leg. {{ item.legajo_logistica }} · {{ item.fecha_validacion_logistica.strftime('%d/%m %H:%M') }}</p>{% if item.observacion_logistica %}<p>{{ item.observacion_logistica }}</p>{% endif %}
+              {% else %}<p class="logistics-print-pending"><b>Pendiente de validar por Logística</b></p>{% endif %}
+            {% endif %}
+          </section>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% set intervenciones = [] %}
+  {% for item in declaracion.items %}{% for intervencion in item.intervenciones %}{% if intervenciones.append((item, intervencion)) %}{% endif %}{% endfor %}{% endfor %}
+  {% if intervenciones %}
+  <section class="voucher-items compact-voucher-items compact-rework-results">
+    <h2>Resultados de retrabajo</h2>
+    <table><thead><tr><th>Pieza / fecha</th><th>Trabajo efectuado</th><th>Recursos</th><th>Recuperadas</th><th>Scrap final</th></tr></thead><tbody>
+      {% for item, intervencion in intervenciones %}<tr><td><strong>{{ item.codigo_pieza }}</strong><small>{{ intervencion.fecha.strftime('%d/%m/%Y') }}</small></td><td>{{ intervencion.operacion }}<small>{{ intervencion.celula }} · Leg. {{ intervencion.legajo }}</small></td><td>{{ intervencion.minutos }} min · {{ intervencion.cantidad_personas }} pers.<small>{{ '%.2f'|format(intervencion.horas_hombre) }} h-h</small></td><td>{{ '%g'|format(intervencion.cantidad_ok) }}</td><td>{{ '%g'|format(intervencion.cantidad_scrap) }}</td></tr>{% endfor %}
+    </tbody></table>
+  </section>
+  {% endif %}
+
+  <section class="compact-document-notes">
+    <div><span>Observación general de Producción</span><p>{{ declaracion.observaciones or 'Sin observaciones.' }}</p></div>
+    <div><span>Observación general de Calidad</span><p>{{ declaracion.observaciones_calidad or ('Pendiente de validación.' if not declaracion.fecha_validacion else 'Sin observaciones generales.') }}</p></div>
+  </section>
+
+  <footer class="signatures compact-signatures">
+    <div><span></span><strong>SUPERVISOR DE CÉLULA</strong></div>
+    <div><span></span><strong>LOGÍSTICA</strong></div>
+    <div><span></span><strong>ASEGURAMIENTO CALIDAD</strong></div>
+  </footer>
+  <div class="print-document-footer">{{ declaracion.numero }} · {{ etapa_impresion }} · Documento actualizado al {{ impreso_en.strftime('%d/%m/%Y %H:%M') }}</div>
+</article>
+{% if imprimir_automaticamente|default(false) %}<script>window.addEventListener("load", () => window.setTimeout(() => window.print(), 250));</script>{% endif %}
+{% endblock %}

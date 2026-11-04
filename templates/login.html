@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ingresar · Material no conforme</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body class="login-body">
+  <main class="login-card">
+    <div class="login-brand">NC</div>
+    <span>CONTROL DE MATERIAL NO CONFORME</span>
+    <h1>Ingresar al sistema</h1>
+    <p>Usá la cuenta correspondiente a esta computadora.</p>
+    {% with mensajes = get_flashed_messages(with_categories=true) %}
+      {% for categoria, mensaje in mensajes %}<div class="alert alert-{{ categoria }}">{{ mensaje }}</div>{% endfor %}
+    {% endwith %}
+    <form method="post">
+      <label>Usuario<input name="usuario" value="{{ usuario }}" autocomplete="username" autofocus required></label>
+      <label>Contraseña<input type="password" name="clave" autocomplete="current-password" required></label>
+      <button class="simple-primary">Ingresar</button>
+    </form>
+    <small>La sesión permanece abierta en esta PC hasta cerrar sesión.</small>
+  </main>
+</body>
+</html>

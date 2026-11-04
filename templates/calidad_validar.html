@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+{% block title %}Analizar {{ declaracion.numero }}{% endblock %}
+{% block content %}
+<div class="page-head quality-page-head">
+  <div>
+    <span class="eyebrow">Decisión de Calidad</span>
+    <h1>{{ declaracion.numero }}</h1>
+    <p>{{ declaracion.celula_detecta }} · {{ declaracion.fecha.strftime('%d/%m/%Y') }} · informó legajo {{ declaracion.legajo_declara }}</p>
+  </div>
+  <a class="btn btn-light" href="{{ url_for('calidad_bandeja') }}">← Volver</a>
+</div>
+
+<form method="post" id="quality-form">
+  <section class="panel quality-context">
+    <div><small>DETECTADO EN</small><b>{{ declaracion.lugar_detectado }}</b></div>
+    <div><small>TURNO</small><b>{{ declaracion.turno or 'Sin dato' }}</b></div>
+    <div><small>EQUIPO</small><b>{{ declaracion.equipo }}{% if declaracion.equipo_descripcion %} · {{ declaracion.equipo_descripcion }}{% endif %}</b></div>
+    <div><small>RENGLONES</small><b>{{ declaracion.items|length }}</b></div>
+    <div><small>CANTIDAD TOTAL</small><b>{{ '%g'|format(declaracion.cantidad_detectada) }}</b></div>
+    {% if declaracion.observaciones %}<p>{{ declaracion.observaciones }}</p>{% endif %}
+  </section>
+
+  <section class="quality-bulk panel">
+    <div><small>ACCIONES MASIVAS</small><strong>Aplicar a todos los renglones</strong></div>
+    <div class="quality-bulk-actions">
+      <button type="button" class="btn btn-light btn-small" data-bulk-disposition="SCRAP">Todo scrap</button>
+      <button type="button" class="btn btn-light btn-small" data-bulk-disposition="RETRABAJO">Todo retrabajo</button>
+      <button type="button" class="btn btn-light btn-small" data-bulk-disposition="LIBERADA">Liberar todo</button>
+      <button type="button" class="btn btn-light btn-small" id="bulk-proposed">Usar origen informado</button>
+      <button type="button" class="btn btn-light btn-small" id="bulk-pending">Investigar después</button>
+    </div>
+  </section>
+
+  <section class="quality-review-list">
+  {% for item in declaracion.items %}
+    {% set scrap_inicial = item.cantidad_scrap_directo if declaracion.fecha_validacion else item.cantidad_detectada %}
+    {% set retrabajo_inicial = item.cantidad_a_retrabajo if declaracion.fecha_validacion else 0 %}
+    {% set liberada_inicial = item.cantidad_liberada if declaracion.fecha_validacion else 0 %}
+    <article class="quality-review-item quality-row"
+      data-item-id="{{ item.id }}"
+      data-quantity="{{ item.cantidad_detectada }}"
+      data-proposed-type="{{ 'PROVEEDOR' if item.tipo_origen == 'PROVEEDOR' else 'INTERNO' }}"
+      data-proposed-sector="{{ item.sector_origen }}"
+      data-proposed-cell="{{ item.celula_origen }}"
+      data-proposed-operation="{{ item.operacion_origen }}"
+      data-proposed-legajo="{{ item.legajo_origen or '' }}"
+      data-proposed-provider-number="{{ item.proveedor_numero or '' }}"
+      data-proposed-provider="{{ item.proveedor or '' }}"
+      data-hcp-digits="{{ hcp_digitos }}"
+      data-material-type="{{ item.tipo_material }}"
+      data-piece-code="{{ item.codigo_pieza }}"
+      data-hcp-validated="{{ 'true' if hcp_validado_por_item[item.id] else 'false' }}">
+      <header class="quality-row-summary">
+        <div class="quality-piece-identity">
+          <small>RENGLÓN {{ loop.index }}</small>
+          <h2>{{ item.codigo_pieza }}</h2>
+          <p>{{ item.descripcion or 'Sin descripción' }}</p>
+        </div>
+        <div class="quality-card-cause">
+          <span>MOTIVO</span>
+          <b data-row-cause-summary>
+            {{ item.motivo.grupo.codigo if item.motivo.grupo else '' }} ·
+            {{ item.motivo.grupo.nombre if item.motivo.grupo else item.motivo.nombre }}
+            → {{ item.motivo.nombre }}
+          </b>
+          <small>
+            {% if item.afectado_codigo %}
+              {{ item.afectado_tipo|replace('_', ' ')|title }}: {{ item.afectado_codigo }}
+            {% else %}
+              Sin componente, MP o proceso específico
+            {% endif %}
+          </small>
+        </div>
+        <div class="quality-card-trace">
+          <label class="quality-operation-field">
+            <span>OPERACIÓN</span>
+            {% if operaciones_por_item[item.id] %}
+            <b class="quality-readonly-value">
+              {{ item.operacion_codigo or 'Sin operación registrada' }}
+              {% if item.operacion_descripcion %} · {{ item.operacion_descripcion }}{% endif %}
+            </b>
+            {% else %}
+            <b class="quality-operation-na">No aplica</b>
+            {% endif %}
+          </label>
+          <label class="quality-hcp-field">
+            <span>{{ 'LOTE MP' if item.tipo_material == 'MATERIA_PRIMA' else 'HCP' }}</span>
+            <input data-quality-hcp readonly
+              value="{{ item.trazabilidad }}" inputmode="numeric"
+              maxlength="{{ hcp_digitos }}" pattern="\d{ {{- hcp_digitos -}} }"
+              autocomplete="off">
+            <small data-hcp-status>
+              {{ 'HCP validado' if hcp_validado_por_item[item.id] else 'Requiere validación' }}
+            </small>
+          </label>
+        </div>
+        <div class="quality-piece-quantity">
+          <span>CANTIDAD</span>
+          <strong>{{ '%g'|format(item.cantidad_detectada) }} {{ item.unidad }}</strong>
+        </div>
+        <div class="quality-card-state">
+          <span class="quality-row-status" data-row-status>Revisar</span>
+          <b data-row-destination>Todo scrap</b>
+          <button type="button" data-toggle-quality-row aria-expanded="false"
+            title="Desplegar renglón"><span>Ver detalle</span><i>⌄</i></button>
+        </div>
+        <div class="quality-item-comment quality-summary-comment">
+          <label data-quality-comment-field>
+            <span>Indicación de Calidad <em data-quality-comment-required>Obligatoria</em></span>
+            <textarea name="obs_item_{{ item.id }}" rows="1" maxlength="255"
+              data-quality-item-comment required
+              placeholder="Ej.: retrabajar agujero a Ø10 mm">{{ item.observacion_calidad or '' }}</textarea>
+            <small data-quality-comment-help>Indicá qué debe hacerse o por qué se toma la decisión.</small>
+          </label>
+        </div>
+      </header>
+
+      <div class="quality-row-details hidden" data-quality-row-details>
+      <div class="quality-suggestion">
+        <div>
+          <small>INFORMÓ PRODUCCIÓN</small>
+          <b>{{ item.motivo.grupo.nombre if item.motivo.grupo else item.motivo.nombre }} → {{ item.motivo.nombre }}</b>
+          <span>
+            {% if item.afectado_codigo %}
+              {{ item.afectado_tipo|replace('_', ' ')|title }}: {{ item.afectado_codigo }}
+            {% else %}
+              Sin componente, MP o proceso específico
+            {% endif %}
+          </span>
+          {% if item.observacion %}<em>Observación: {{ item.observacion }}</em>{% endif %}
+        </div>
+        <div>
+          <small>ORIGEN SUGERIDO</small>
+          <b>
+            {% if item.tipo_origen == 'PROVEEDOR' %}
+              N.º {{ item.proveedor_numero }} · {{ item.proveedor or item.celula_origen }}
+            {% elif item.tipo_imputacion == 'NO_DETERMINADA' %}
+              No informado
+            {% else %}
+              {{ item.celula_origen }}
+            {% endif %}
+          </b>
+          <span>{{ item.operacion_origen if item.tipo_imputacion != 'NO_DETERMINADA' else 'Calidad debe definirlo o dejarlo pendiente' }}</span>
+        </div>
+      </div>
+
+      <div class="quality-block quality-cause-review"
+        data-original-group="{{ item.motivo.grupo_id }}"
+        data-original-cause="{{ item.motivo_id }}">
+        <div class="quality-block-title"><span>1</span><div><b>Confirmar defecto</b><small>Corregí solamente si Producción eligió mal.</small></div></div>
+        <div class="quality-cause-content">
+          <div class="quality-cause-confirmed" data-quality-cause-confirmed>
+            <div>
+              <small data-quality-cause-caption>INFORMADO POR PRODUCCIÓN</small>
+              <b data-quality-cause-summary>
+                {{ item.motivo.grupo.codigo if item.motivo.grupo else '' }} ·
+                {{ item.motivo.grupo.nombre if item.motivo.grupo else item.motivo.nombre }}
+                → {{ item.motivo.codigo }} · {{ item.motivo.nombre }}
+              </b>
+              <span>No hace falta volver a seleccionarlo si es correcto.</span>
+            </div>
+            <button type="button" class="btn btn-light btn-small" data-edit-quality-cause>Modificar motivo</button>
+          </div>
+          <div class="quality-cause-editor hidden" data-quality-cause-editor>
+            <div class="quality-cause-grid">
+              <label>Grupo
+                <select name="grupo_{{ item.id }}" data-quality-group data-searchable required>
+                  <option value="">Elegir grupo…</option>
+                  {% for grupo in grupos %}
+                    <option value="{{ grupo.id }}" {{ 'selected' if item.motivo.grupo_id == grupo.id }}>{{ grupo.codigo }} · {{ grupo.nombre }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>Causa detallada
+                <select name="motivo_{{ item.id }}" data-quality-cause data-searchable required>
+                  <option value="">Primero elegí un grupo</option>
+                </select>
+              </label>
+            </div>
+            <div class="quality-cause-actions">
+              <button type="button" class="btn btn-light btn-small" data-cancel-quality-cause>Cancelar</button>
+              <button type="button" class="btn btn-primary btn-small" data-apply-quality-cause>Aplicar corrección</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="quality-block">
+        <div class="quality-block-title"><span>2</span><div><b>Definir destino</b><small>La suma debe ser {{ '%g'|format(item.cantidad_detectada) }}.</small></div></div>
+        <div class="disposition-shortcuts">
+          <button type="button" data-disposition="SCRAP">Todo scrap</button>
+          <button type="button" data-disposition="RETRABAJO">Todo retrabajo</button>
+          <button type="button" data-disposition="LIBERADA">Liberar</button>
+          <button type="button" data-disposition="DIVIDIR">Dividir cantidades</button>
+        </div>
+        <div class="disposition-fields">
+          <label>Scrap<input name="scrap_{{ item.id }}" data-qty="SCRAP" type="number" min="0" step="0.001" value="{{ '%g'|format(scrap_inicial) }}" required></label>
+          <label>Retrabajo<input name="retrabajo_{{ item.id }}" data-qty="RETRABAJO" type="number" min="0" step="0.001" value="{{ '%g'|format(retrabajo_inicial) }}" required></label>
+          <label>Liberar<input name="liberada_{{ item.id }}" data-qty="LIBERADA" type="number" min="0" step="0.001" value="{{ '%g'|format(liberada_inicial) }}" required></label>
+          <div class="quantity-check" data-quantity-check></div>
+        </div>
+      </div>
+
+      <div class="quality-block responsibility-review">
+        <div class="quality-block-title"><span>3</span><div><b>Responsabilidad</b><small>No bloquea la decisión: puede quedar en investigación.</small></div></div>
+        <div class="responsibility-toolbar">
+          <button type="button" class="btn btn-light btn-small" data-use-proposed>Usar origen informado</button>
+        </div>
+        <div class="quality-responsibility-grid">
+          <label>Conclusión
+            <select name="resp_estado_{{ item.id }}" data-resp-state data-searchable>
+              <option value="PENDIENTE" {{ 'selected' if item.responsabilidad_estado == 'PENDIENTE' }}>Pendiente de investigación</option>
+              <option value="PROBABLE" {{ 'selected' if item.responsabilidad_estado == 'PROBABLE' }}>Responsable probable</option>
+              <option value="CONFIRMADA" {{ 'selected' if item.responsabilidad_estado == 'CONFIRMADA' }}>Responsabilidad confirmada</option>
+              <option value="NO_ATRIBUIBLE" {{ 'selected' if item.responsabilidad_estado == 'NO_ATRIBUIBLE' }}>No atribuible</option>
+            </select>
+          </label>
+          <label>Tipo
+            <select name="resp_tipo_{{ item.id }}" data-resp-type data-searchable>
+              <option value="">Elegir…</option>
+              <option value="INTERNO" {{ 'selected' if item.responsable_tipo == 'INTERNO' }}>Proceso interno</option>
+              <option value="PROVEEDOR" {{ 'selected' if item.responsable_tipo == 'PROVEEDOR' }}>Proveedor</option>
+            </select>
+          </label>
+          <label data-internal-field>Sector<input name="resp_sector_{{ item.id }}" value="{{ item.responsable_sector or '' }}"></label>
+          <label data-internal-field>Célula<input name="resp_celula_{{ item.id }}" value="{{ item.responsable_celula or '' }}"></label>
+          <label data-internal-field>Proceso / operación<input name="resp_operacion_{{ item.id }}" list="quality-operations" value="{{ item.responsable_operacion or '' }}"></label>
+          <label data-internal-field>Legajo relacionado<input name="resp_legajo_{{ item.id }}" data-legajo value="{{ item.responsable_legajo or '' }}" placeholder="Opcional"></label>
+          <label data-provider-field class="provider-search-field">Buscar proveedor
+            <input data-quality-provider-search autocomplete="off" value="{% if item.responsable_proveedor_numero %}{{ item.responsable_proveedor_numero }} · {{ item.responsable_proveedor }}{% endif %}" placeholder="Número o nombre">
+            <input type="hidden" name="resp_proveedor_numero_{{ item.id }}" data-quality-provider-number value="{{ item.responsable_proveedor_numero or '' }}">
+            <div class="autocomplete-results hidden" data-quality-provider-results></div>
+          </label>
+          <label data-provider-field>Proveedor<input data-quality-provider-description readonly value="{{ item.responsable_proveedor or '' }}" placeholder="Se completa al seleccionar un proveedor"></label>
+        </div>
+      </div>
+      </div>
+    </article>
+  {% endfor %}
+  </section>
+
+  <section class="panel form-section quality-signoff">
+    <div class="form-grid">
+      <label>Legajo de Calidad<input name="legajo_calidad" data-legajo value="{{ declaracion.legajo_calidad or '' }}" required></label>
+      <label class="span-3">Observación general<textarea name="observaciones_calidad" rows="2">{{ declaracion.observaciones_calidad or '' }}</textarea></label>
+    </div>
+  </section>
+  <div class="form-actions">
+    <a class="btn btn-light btn-large" href="{{ url_for('calidad_bandeja') }}">Cancelar</a>
+    <button class="btn btn-primary btn-large" id="quality-submit">Guardar decisión</button>
+  </div>
+</form>
+
+<datalist id="quality-operations"></datalist>
+<script id="quality-causes-data" type="application/json">[
+{% for grupo in grupos %}
+  {"id": {{ grupo.id }}, "causas": [
+  {% for motivo in grupo.motivos if motivo.activo %}
+    {"id": {{ motivo.id }}, "codigo": {{ motivo.codigo|tojson }}, "nombre": {{ motivo.nombre|tojson }}}{{ "," if not loop.last }}
+  {% endfor %}
+  ]}{{ "," if not loop.last }}
+{% endfor %}
+]</script>
+<script id="quality-selected-data" type="application/json">{
+{% for item in declaracion.items %}
+  "{{ item.id }}": {{ item.motivo_id }}{{ "," if not loop.last }}
+{% endfor %}
+}</script>
+<script src="{{ url_for('static', filename='js/searchable-select.js') }}"></script>
+<script src="{{ url_for('static', filename='js/calidad.js') }}"></script>
+{% endblock %}

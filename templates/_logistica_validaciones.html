@@ -1,0 +1,61 @@
+<div id="logistics-live-snapshot"
+     data-pending-count="{{ pendientes|length }}"
+     data-pending-ids="{{ pendientes|map(attribute='id')|join(',') }}">
+  <div class="logistics-section-head">
+    <div><span class="mode-label">VALIDACIÓN LOGÍSTICA</span><h2>Scrap pendiente de recibir</h2></div>
+    <strong>{{ pendientes|length }} pendiente{{ 's' if pendientes|length != 1 }}</strong>
+  </div>
+
+  <div class="logistics-config-state">
+    <span><b>{{ piezas_configuradas|length }}</b> pieza{{ 's' if piezas_configuradas|length != 1 }} configurada{{ 's' if piezas_configuradas|length != 1 }}</span>
+    <p>Esta bandeja muestra tareas sólo después de que Calidad asigna scrap a uno de esos códigos.</p>
+    <a href="{{ url_for('logistica_piezas_control') }}">Consultar códigos →</a>
+  </div>
+
+  {% if pendientes %}
+  <section class="logistics-validation-list">
+    {% for item in pendientes %}
+    <article>
+      <header>
+        <div><small>{{ item.declaracion.numero }} · {{ item.declaracion.fecha.strftime('%d/%m/%Y') }}</small><h3>{{ item.codigo_pieza }}</h3><span>{{ item.descripcion or 'Sin descripción' }}</span></div>
+        <div><small>SCRAP DEFINIDO POR CALIDAD</small><strong>{{ '%g'|format(item.cantidad_scrap_directo) }} {{ item.unidad }}</strong></div>
+      </header>
+      <div class="logistics-item-context">
+        <span><small>HCP / LOTE</small><b>{{ item.trazabilidad }}</b></span>
+        <span><small>OPERACIÓN</small><b>{{ item.operacion_codigo or 'No aplica' }}{% if item.operacion_descripcion %} · {{ item.operacion_descripcion }}{% endif %}</b></span>
+        <span><small>CAUSA VALIDADA</small><b>{{ item.motivo.grupo.nombre if item.motivo.grupo else '' }} → {{ item.motivo.nombre }}</b></span>
+        <span><small>INDICACIÓN DE CALIDAD</small><b>{{ item.observacion_calidad or 'Sin comentario' }}</b></span>
+      </div>
+      <form method="post" action="{{ url_for('logistica_validar_scrap', item_id=item.id) }}" data-logistics-form>
+        <label>Cantidad recibida
+          <input type="number" name="cantidad" min="0" step="1" value="{{ '%g'|format(item.cantidad_scrap_directo) }}" required>
+        </label>
+        <label>Legajo de Logística
+          <input name="legajo" inputmode="numeric" maxlength="5" data-legajo required>
+        </label>
+        <label class="logistics-observation">Observación
+          <input name="observacion" maxlength="255" placeholder="Obligatoria solamente si la cantidad es diferente">
+        </label>
+        <button class="simple-primary">Confirmar cantidad</button>
+      </form>
+    </article>
+    {% endfor %}
+  </section>
+  {% else %}
+  <section class="logistics-empty"><span>✓</span><div><h3>No hay scrap pendiente de validar</h3><p>La configuración está guardada. Una pieza aparecerá acá únicamente cuando Calidad le asigne una cantidad a scrap.</p></div></section>
+  {% endif %}
+
+  {% if validados %}
+  <section class="logistics-recent">
+    <div class="logistics-section-head"><div><span class="mode-label">ÚLTIMOS CONTROLES</span><h2>Validados recientemente</h2></div></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Declaración</th><th>Pieza</th><th>Calidad</th><th>Logística</th><th>Legajo</th><th>Fecha</th><th>Observación</th></tr></thead>
+      <tbody>{% for item in validados %}<tr>
+        <td>{{ item.declaracion.numero }}</td><td><strong>{{ item.codigo_pieza }}</strong></td>
+        <td>{{ '%g'|format(item.cantidad_scrap_directo) }}</td><td><strong>{{ '%g'|format(item.cantidad_scrap_validada_logistica) }}</strong></td>
+        <td>{{ item.legajo_logistica }}</td><td>{{ item.fecha_validacion_logistica.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ item.observacion_logistica or 'Sin diferencia' }}</td>
+      </tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+  {% endif %}
+</div>
