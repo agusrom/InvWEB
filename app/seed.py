@@ -5,8 +5,6 @@ from sqlalchemy.orm import Session
 
 from app.models import (
     CausaDiferencia,
-    Conciliacion,
-    ConciliacionItem,
     Inventario,
     InventarioItem,
     Plantilla,
@@ -114,34 +112,4 @@ def cargar_datos_demo(db: Session) -> None:
         inventarios[codigo] = inventario
 
     db.flush()
-    conciliacion = Conciliacion(
-        codigo="CON-2026-001",
-        nombre="Ejemplo visita Cliente Delta",
-        inventario_inicial_id=inventarios["INV-2026-011"].id,
-        inventario_final_id=inventarios["INV-2026-012"].id,
-        inventario_inicial_codigo="INV-2026-011",
-        inventario_final_codigo="INV-2026-012",
-        fecha_inicial=date(2026, 7, 11),
-        fecha_final=date(2026, 7, 18),
-    )
-    movimientos = [(10, 6), (8, 3), (5, 1)]
-    conciliacion.items = [
-        ConciliacionItem(
-            codigo=item.codigo,
-            descripcion=item.descripcion,
-            stock_inicial=float(conteo_inicial),
-            detalle_inicial=f"{item.codigo}: {conteo_inicial} × 1 = {conteo_inicial}",
-            ingresos=float(movimientos[indice][0]),
-            egresos=float(movimientos[indice][1]),
-            stock_final=float(conteo_final),
-            detalle_final=f"{item.codigo}: {conteo_final} × 1 = {conteo_final}",
-        )
-        for indice, (item, conteo_inicial, conteo_final) in enumerate(zip(
-            plantillas[2].items,
-            [70, 115, 60],
-            [74, 120, 63],
-        ))
-    ]
-    db.add(conciliacion)
-
     db.commit()

@@ -12,11 +12,6 @@ TABLAS_AUXILIARES = {
     "conteo_cajas",
     "conteo_bases",
     "conteo_revisiones",
-    "conciliacion_remitos",
-    "conciliacion_remito_items",
-    "conciliacion_ingresos_control",
-    "conciliacion_egresos_control",
-    "conciliacion_items_excluidos",
     "inventarios_relaciones",
 }
 

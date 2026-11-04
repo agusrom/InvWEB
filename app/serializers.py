@@ -1,14 +1,15 @@
 from datetime import date
 
 from app.models import (
-    Conciliacion,
     Inventario,
     Plantilla,
     ProgramacionInventario,
 )
 from app.local_count_store import obtener_revision
-from app.inventory_aux_store import plantillas_inventario, tipos_items_plantilla
-from app.local_reconciliation_store import listar_codigos_excluidos, obtener_auditoria
+from app.inventory_aux_store import (
+    plantillas_inventario,
+    tipos_items_plantilla,
+)
 from app.local_recount_store import relaciones_de_inventario
 from app.services.indicator_settings import configuracion_actual
 
@@ -269,83 +270,4 @@ def programacion_dict(programacion: ProgramacionInventario) -> dict:
             else None
         ),
         "ejecuciones": len(programacion.inventarios),
-    }
-
-
-def conciliacion_dict(conciliacion: Conciliacion) -> dict:
-    auditoria = obtener_auditoria(conciliacion.id)
-    codigos_excluidos = listar_codigos_excluidos(conciliacion.id)
-    auditoria_items = auditoria["items"]
-    items = []
-    correctos = 0
-    for item in conciliacion.items:
-        if item.codigo.strip().upper() in codigos_excluidos:
-            continue
-        auditoria_item = auditoria_items.get(item.id, {})
-        scrap = float(auditoria_item.get("scrap", 0))
-        esperado = item.stock_inicial + item.ingresos - item.egresos - scrap
-        diferencia = item.stock_final - esperado
-        if esperado == 0:
-            relacion = 100.0 if item.stock_final == 0 else None
-            desvio = 0.0 if item.stock_final == 0 else None
-            dentro = item.stock_final == 0
-        else:
-            relacion = item.stock_final * 100 / esperado
-            desvio = diferencia * 100 / esperado
-            dentro = abs(desvio) <= 5.000000001
-        correctos += dentro
-        items.append({
-            "id": item.id,
-            "codigo": item.codigo,
-            "descripcion": item.descripcion,
-            "stock_inicial": item.stock_inicial,
-            "detalle_inicial": item.detalle_inicial,
-            "ingresos": item.ingresos,
-            "egresos": item.egresos,
-            "ingresos_calculados": auditoria_item.get(
-                "ingresos_calculados",
-                0,
-            ),
-            "egresos_calculados": auditoria_item.get(
-                "egresos_calculados",
-                0,
-            ),
-            "scrap": scrap,
-            "detalle_ingresos": auditoria_item.get("detalle_ingresos", []),
-            "detalle_egresos": auditoria_item.get("detalle_egresos", []),
-            "stock_esperado": esperado,
-            "stock_final": item.stock_final,
-            "detalle_final": item.detalle_final,
-            "diferencia": diferencia,
-            "relacion_porcentaje": relacion,
-            "desvio_porcentaje": desvio,
-            "dentro_tolerancia": dentro,
-        })
-    total = len(items)
-    return {
-        "id": conciliacion.id,
-        "codigo": conciliacion.codigo,
-        "nombre": conciliacion.nombre,
-        "inventario_inicial_id": conciliacion.inventario_inicial_id,
-        "inventario_final_id": conciliacion.inventario_final_id,
-        "inventario_inicial_codigo": conciliacion.inventario_inicial_codigo,
-        "inventario_final_codigo": conciliacion.inventario_final_codigo,
-        "fecha_inicial": conciliacion.fecha_inicial.isoformat(),
-        "fecha_final": conciliacion.fecha_final.isoformat(),
-        "remito_ingreso_inicial": conciliacion.remito_ingreso_inicial,
-        "remito_ingreso_final": conciliacion.remito_ingreso_final,
-        "remito_egreso_inicial": conciliacion.remito_egreso_inicial,
-        "remito_egreso_final": conciliacion.remito_egreso_final,
-        "remitos_ingreso": auditoria["remitos_ingreso"],
-        "remitos_egreso": auditoria["remitos_egreso"],
-        "criterio_ingreso": auditoria["criterio_ingreso"],
-        "criterio_egreso": auditoria["criterio_egreso"],
-        "advertencias_movimientos": auditoria["advertencias_movimientos"],
-        "movimientos_calculados_en": auditoria["movimientos_calculados_en"],
-        "creada_en": conciliacion.creada_en.isoformat(timespec="seconds"),
-        "items_ok": correctos,
-        "items_total": total,
-        "confiabilidad": correctos * 100 / total if total else None,
-        "diferencia_total": sum(item["diferencia"] for item in items),
-        "items": items,
     }

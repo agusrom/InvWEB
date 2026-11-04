@@ -14,7 +14,6 @@ from app.schema_validation import validar_esquema_mysql
 from app.local_count_store import inicializar_conteo_local
 from app.inventory_aux_store import inicializar_inventarios_auxiliares
 from app.preconciliation_store import notas_inventario
-from app.local_reconciliation_store import inicializar_conciliaciones_local
 from app.local_recount_store import inicializar_reconteos_local
 from app.local_closing_store import (
     inicializar_cierres_local,
@@ -49,7 +48,6 @@ async def lifespan(app: FastAPI):
     validar_esquema_mysql()
     inicializar_inventarios_auxiliares()
     inicializar_conteo_local()
-    inicializar_conciliaciones_local()
     inicializar_reconteos_local()
     inicializar_cierres_local()
     with SessionLocal() as db:
@@ -148,7 +146,6 @@ async def evitar_cache_local(request: Request, call_next):
             "/inventarios",
             "/programados",
             "/plantillas",
-            "/conciliaciones",
             "/analisis-stock",
             "/reportes",
             "/configuracion",
@@ -386,13 +383,6 @@ def pagina_plantillas(request: Request):
     return pagina_operativa(request, "plantillas")
 
 
-@app.get(
-    "/conciliaciones",
-    response_class=HTMLResponse,
-    include_in_schema=False,
-)
-def pagina_conciliaciones(request: Request):
-    return pagina_operativa(request, "conciliaciones")
 
 
 @app.get("/reportes", response_class=HTMLResponse, include_in_schema=False)

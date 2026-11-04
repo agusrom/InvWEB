@@ -262,10 +262,6 @@ class InventarioDatosEntrada(BaseModel):
     observaciones: str = Field(default="", max_length=4000)
 
 
-class ConciliacionEntrada(BaseModel):
-    nombre: str = Field(min_length=1, max_length=150)
-    inventario_inicial_id: int
-    inventario_final_id: int
 
 
 class PreconciliacionCalculoEntrada(BaseModel):
@@ -327,52 +323,16 @@ class PreconciliacionNotaEntrada(BaseModel):
     controles: dict[str, bool] = Field(default_factory=dict)
 
 
-class ConciliacionItemEntrada(BaseModel):
-    item_id: int
-    ingresos: float = Field(default=0, ge=0)
-    egresos: float = Field(default=0, ge=0)
-    scrap: float = Field(default=0, ge=0)
 
 
-class ConciliacionIngresoControlEntrada(BaseModel):
-    movimiento_clave: str = Field(min_length=1, max_length=300)
-    cantidad: float = Field(ge=0)
-    verificado: bool = False
-    observacion: str = Field(default="", max_length=1000)
 
 
-class ConciliacionIngresoManualEntrada(BaseModel):
-    item_id: int
-    codigo_material: str = Field(min_length=1, max_length=80)
-    remito: str = Field(default="MANUAL", min_length=1, max_length=80)
-    fecha: date
-    cantidad: float = Field(gt=0)
-    observacion: str = Field(default="", max_length=1000)
 
 
-class ConciliacionEgresoControlEntrada(BaseModel):
-    movimiento_clave: str = Field(min_length=1, max_length=300)
-    cantidad: float = Field(ge=0)
-    verificado: bool = False
-    observacion: str = Field(default="", max_length=1000)
 
 
-class ConciliacionEgresoManualEntrada(BaseModel):
-    item_id: int
-    remito: str = Field(default="MANUAL", min_length=1, max_length=80)
-    fecha: date
-    cantidad: float = Field(gt=0)
-    observacion: str = Field(default="", max_length=1000)
 
 
-class ConciliacionMovimientosEntrada(BaseModel):
-    items: list[ConciliacionItemEntrada]
-    controles_ingreso: list[ConciliacionIngresoControlEntrada] = Field(
-        default_factory=list,
-    )
-    controles_egreso: list[ConciliacionEgresoControlEntrada] = Field(
-        default_factory=list,
-    )
 
 
 class NotaCronogramaEntrada(BaseModel):

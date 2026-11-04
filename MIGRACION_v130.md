@@ -1,3 +1,7 @@
+> Documento histórico. El migrador v130 fue retirado por incompatibilidad con
+> el almacenamiento actual. No seguir este procedimiento. Ver
+> [migración vigente](docs/migracion_estandarizacion.md).
+
 # Migración completa a MySQL — v1.30.1
 
 Esta migración conserva los IDs históricos y copia a MySQL los datos que las

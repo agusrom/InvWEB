@@ -6,3 +6,8 @@ __pycache__/
 *.db
 backups/
 .pytest_cache/
+
+# Archivos operativos: no deben formar parte del código publicado.
+*.db-wal
+*.db-shm
+*.log

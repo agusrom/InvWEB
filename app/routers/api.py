@@ -2,7 +2,11 @@ import calendar
 import hmac
 import re
 import unicodedata
-from datetime import date, datetime, timedelta
+from datetime import (
+    date,
+    datetime,
+    timedelta,
+)
 
 from fastapi import (
     APIRouter,
@@ -13,9 +17,19 @@ from fastapi import (
     Query,
     UploadFile,
 )
-from fastapi.responses import Response, StreamingResponse
-from sqlalchemy import func, select, update
-from sqlalchemy.orm import Session, selectinload
+from fastapi.responses import (
+    Response,
+    StreamingResponse,
+)
+from sqlalchemy import (
+    func,
+    select,
+    update,
+)
+from sqlalchemy.orm import (
+    Session,
+    selectinload,
+)
 
 from app.config import settings
 from app import preconciliation_audit
@@ -26,8 +40,14 @@ from app.schemas import (
     PreconciliacionRemitoEntrada,
     PreconciliacionScrapEntrada,
 )
-from app.services.movements import _materiales_por_pieza, _componentes_terminales
-from app.services.system_adjustments import obtener_ajustes_sistema, resumen_ajustes
+from app.services.movements import (
+    _materiales_por_pieza,
+    _componentes_terminales,
+)
+from app.services.system_adjustments import (
+    obtener_ajustes_sistema,
+    resumen_ajustes,
+)
 from app.services.preconciliation_excel import crear_excel_preconciliacion
 from app.services.preconciliation_indicators import calcular_indicadores_preconciliacion
 from app.database import get_db
@@ -48,20 +68,6 @@ from app.inventory_aux_store import (
     guardar_tipos_items_plantilla,
     tipos_items_plantilla,
 )
-from app.local_reconciliation_store import (
-    actualizar_controles_egreso,
-    actualizar_controles_ingreso,
-    agregar_egreso_manual,
-    agregar_ingreso_manual,
-    eliminar_egreso_manual,
-    eliminar_auditoria,
-    eliminar_ingreso_manual,
-    excluir_item,
-    guardar_auditoria,
-    guardar_scrap,
-    listar_codigos_excluidos,
-    obtener_auditoria,
-)
 from app.local_recount_store import (
     crear_relacion,
     eliminar_relaciones_inventario,
@@ -76,8 +82,6 @@ from app.local_closing_store import (
 )
 from app.models import (
     CausaDiferencia,
-    Conciliacion,
-    ConciliacionItem,
     Inventario,
     InventarioItem,
     Persona,
@@ -92,10 +96,6 @@ from app.schemas import (
     AgregarLoteMaterialEntrada,
     ArticuloInventarioEntrada,
     CausaDiferenciaEntrada,
-    ConciliacionEntrada,
-    ConciliacionEgresoManualEntrada,
-    ConciliacionIngresoManualEntrada,
-    ConciliacionMovimientosEntrada,
     PreconciliacionCalculoEntrada,
     PreconciliacionExportacionEntrada,
     PreconciliacionGuardarEntrada,
@@ -118,7 +118,6 @@ from app.schemas import (
     TipoInventarioEntrada,
 )
 from app.serializers import (
-    conciliacion_dict,
     inventario_dict,
     metricas_conteo_item,
     plantilla_dict,
@@ -159,7 +158,10 @@ from app.services.catalogs import (
     sector_dict,
     tipo_dict,
 )
-from app.preconciliation_store import guardar_nota, notas_inventario
+from app.preconciliation_store import (
+    guardar_nota,
+    notas_inventario,
+)
 
 
 router = APIRouter(prefix="/api", tags=["Inventarios"])
@@ -235,21 +237,6 @@ def buscar_programacion(
     return programacion
 
 
-def buscar_conciliacion(
-    db: Session,
-    conciliacion_id: int,
-) -> Conciliacion:
-    conciliacion = db.scalar(
-        select(Conciliacion)
-        .where(Conciliacion.id == conciliacion_id)
-        .options(selectinload(Conciliacion.items))
-    )
-    if conciliacion is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Conciliación no encontrada",
-        )
-    return conciliacion
 
 
 def sumar_un_mes(fecha_base: date, dia_mes: int) -> date:
@@ -672,11 +659,6 @@ def obtener_inicio(db: Session = Depends(get_db)):
             ProgramacionInventario.fecha_proxima,
         )
     ).all()
-    conciliaciones = db.scalars(
-        select(Conciliacion)
-        .options(selectinload(Conciliacion.items))
-        .order_by(Conciliacion.id.desc())
-    ).all()
     return {
         "notas_cronograma": listar_notas(),
         "plantillas": [plantilla_dict(item) for item in plantillas],
@@ -693,10 +675,6 @@ def obtener_inicio(db: Session = Depends(get_db)):
         "programaciones": [
             programacion_dict(item)
             for item in programaciones
-        ],
-        "conciliaciones": [
-            conciliacion_dict(item)
-            for item in conciliaciones
         ],
         "tipos_inventario": [
             tipo_dict(item)
@@ -720,7 +698,7 @@ def obtener_inicio(db: Session = Depends(get_db)):
 
 @router.get("/inicio-movil")
 def obtener_inicio_movil(db: Session = Depends(get_db)):
-    """Datos mínimos del portal móvil; evita cargar reportes y conciliaciones."""
+    """Datos mínimos del portal móvil; evita cargar reportes y análisis completos."""
     plantillas = db.scalars(
         select(Plantilla)
         .options(selectinload(Plantilla.items))
@@ -1343,18 +1321,6 @@ def numero_traza(valor: float) -> str:
     return f"{valor:.4f}".rstrip("0").rstrip(".")
 
 
-def codigos_presentes_inventarios(
-    inventario_inicial: Inventario,
-    inventario_final: Inventario,
-) -> set[str]:
-    """Códigos que fueron incluidos como renglón en al menos un inventario."""
-    codigos_iniciales = {
-        normalizar_codigo(item.codigo) for item in inventario_inicial.items
-    }
-    codigos_finales = {
-        normalizar_codigo(item.codigo) for item in inventario_final.items
-    }
-    return (codigos_iniciales | codigos_finales) - {""}
 
 
 def explotar_conteo_inventario(
@@ -1478,27 +1444,8 @@ def explotar_conteo_inventario(
     return explotado
 
 
-def descripcion_codigo_movimiento(codigo: str) -> str:
-    articulo = buscar_pieza(codigo) or buscar_material(codigo)
-    return (
-        articulo.descripcion
-        if articulo is not None
-        else "Código presente en movimientos"
-    )
 
 
-def aplicar_movimientos_conciliacion(
-    conciliacion: Conciliacion,
-    movimientos: dict,
-    stock_inicial: dict[str, dict] | None = None,
-    stock_final: dict[str, dict] | None = None,
-) -> None:
-    items_por_codigo = {item.codigo: item for item in conciliacion.items}
-    for codigo, item in items_por_codigo.items():
-        ingresos = float(movimientos["ingresos_por_codigo"].get(codigo, 0))
-        egresos = float(movimientos["egresos_por_codigo"].get(codigo, 0))
-        item.ingresos = ingresos
-        item.egresos = egresos
 
 
 def codigos_completos_inventario(inventario: Inventario) -> set[str]:
@@ -2380,363 +2327,24 @@ def actualizar_nota_preconciliacion(
     )
 
 
-def sincronizar_movimientos_auditados(
-    conciliacion: Conciliacion,
-    db: Session,
-) -> None:
-    """Copia a los totales existentes el valor efectivo de la auditoría local."""
-    auditoria = obtener_auditoria(conciliacion.id)
-    for item in conciliacion.items:
-        local = auditoria["items"].get(item.id)
-        if local is not None:
-            item.ingresos = float(local["ingresos_calculados"])
-            item.egresos = float(local["egresos_calculados"])
-    db.commit()
 
 
-@router.post("/conciliaciones", status_code=201)
-def crear_conciliacion(
-    entrada: ConciliacionEntrada,
-    db: Session = Depends(get_db),
-):
-    if entrada.inventario_inicial_id == entrada.inventario_final_id:
-        raise HTTPException(
-            status_code=422,
-            detail="Elegí dos inventarios diferentes",
-        )
-    inicial = buscar_inventario(db, entrada.inventario_inicial_id)
-    final = buscar_inventario(db, entrada.inventario_final_id)
-    if final.fecha < inicial.fecha:
-        raise HTTPException(
-            status_code=422,
-            detail="El inventario final no puede ser anterior al inicial",
-        )
-    codigos_padre = codigos_presentes_inventarios(inicial, final)
-    if not codigos_padre:
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                "Los inventarios seleccionados no tienen piezas contadas"
-            ),
-        )
-    stock_inicial = explotar_conteo_inventario(
-        inicial,
-        codigos_padre,
-        codigos_padre,
-    )
-    stock_final = explotar_conteo_inventario(
-        final,
-        codigos_padre,
-        codigos_padre,
-    )
-    codigos = sorted(set(stock_inicial) | set(stock_final))
-    if not codigos:
-        raise HTTPException(
-            status_code=422,
-            detail="Los inventarios seleccionados no tienen artículos",
-        )
-
-    ultimo_id = db.scalar(select(func.max(Conciliacion.id))) or 0
-    conciliacion = Conciliacion(
-        codigo=f"CON-{final.fecha.year}-{ultimo_id + 1:03d}",
-        nombre=entrada.nombre.strip(),
-        inventario_inicial_id=inicial.id,
-        inventario_final_id=final.id,
-        inventario_inicial_codigo=inicial.codigo,
-        inventario_final_codigo=final.codigo,
-        fecha_inicial=inicial.fecha,
-        fecha_final=final.fecha,
-        remito_ingreso_inicial=inicial.ultimo_remito_ingreso,
-        remito_ingreso_final=final.ultimo_remito_ingreso,
-        remito_egreso_inicial=inicial.ultimo_remito_egreso,
-        remito_egreso_final=final.ultimo_remito_egreso,
-    )
-    conciliacion.items = [
-        ConciliacionItem(
-            codigo=codigo,
-            descripcion=(
-                stock_final.get(codigo, {}).get("descripcion")
-                or stock_inicial.get(codigo, {}).get("descripcion")
-                or ""
-            ),
-            stock_inicial=stock_inicial.get(codigo, {}).get("cantidad", 0),
-            detalle_inicial=stock_inicial.get(codigo, {}).get("detalle", ""),
-            stock_final=stock_final.get(codigo, {}).get("cantidad", 0),
-            detalle_final=stock_final.get(codigo, {}).get("detalle", ""),
-        )
-        for codigo in codigos
-    ]
-    try:
-        movimientos = calcular_movimientos(
-            conciliacion.remito_ingreso_inicial,
-            conciliacion.remito_ingreso_final,
-            conciliacion.remito_egreso_inicial,
-            conciliacion.remito_egreso_final,
-            fecha_inicial=inicial.fecha,
-            fecha_final=final.fecha,
-            codigos_padre=codigos_padre,
-            codigos_resultado=set(codigos),
-        )
-    except (ValueError, RuntimeError) as error:
-        raise HTTPException(status_code=422, detail=str(error)) from error
-    aplicar_movimientos_conciliacion(
-        conciliacion,
-        movimientos,
-        stock_inicial,
-        stock_final,
-    )
-    db.add(conciliacion)
-    db.commit()
-    conciliacion = buscar_conciliacion(db, conciliacion.id)
-    guardar_auditoria(conciliacion.id, movimientos, conciliacion.items)
-    sincronizar_movimientos_auditados(conciliacion, db)
-    return conciliacion_dict(
-        buscar_conciliacion(db, conciliacion.id)
-    )
 
 
-@router.post("/conciliaciones/{conciliacion_id}/recalcular-movimientos")
-def recalcular_movimientos_conciliacion(
-    conciliacion_id: int,
-    db: Session = Depends(get_db),
-):
-    conciliacion = buscar_conciliacion(db, conciliacion_id)
-    inicial = buscar_inventario(db, conciliacion.inventario_inicial_id)
-    final = buscar_inventario(db, conciliacion.inventario_final_id)
-    codigos_padre = codigos_presentes_inventarios(inicial, final)
-    if not codigos_padre:
-        raise HTTPException(
-            status_code=422,
-            detail="Los inventarios seleccionados no tienen piezas contadas",
-        )
-    stock_inicial = explotar_conteo_inventario(
-        inicial,
-        codigos_padre,
-        codigos_padre,
-    )
-    stock_final = explotar_conteo_inventario(
-        final,
-        codigos_padre,
-        codigos_padre,
-    )
-    codigos_resultado = set(stock_inicial) | set(stock_final)
-    codigos_excluidos = listar_codigos_excluidos(conciliacion.id)
-    codigos_resultado = {
-        codigo for codigo in codigos_resultado
-        if normalizar_codigo(codigo) not in codigos_excluidos
-    }
-    if not codigos_resultado:
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                "Los inventarios no tienen códigos contados disponibles para "
-                "conciliar"
-            ),
-        )
-    items_por_codigo = {
-        normalizar_codigo(item.codigo): item for item in conciliacion.items
-    }
-    for item in list(conciliacion.items):
-        if normalizar_codigo(item.codigo) not in codigos_resultado:
-            conciliacion.items.remove(item)
-    for codigo in sorted(codigos_resultado):
-        item = items_por_codigo.get(codigo)
-        if item is None:
-            item = ConciliacionItem(codigo=codigo)
-            conciliacion.items.append(item)
-        item.descripcion = (
-            stock_final.get(codigo, {}).get("descripcion")
-            or stock_inicial.get(codigo, {}).get("descripcion")
-            or ""
-        )
-        item.stock_inicial = stock_inicial.get(codigo, {}).get("cantidad", 0)
-        item.detalle_inicial = stock_inicial.get(codigo, {}).get("detalle", "")
-        item.stock_final = stock_final.get(codigo, {}).get("cantidad", 0)
-        item.detalle_final = stock_final.get(codigo, {}).get("detalle", "")
-    try:
-        movimientos = calcular_movimientos(
-            conciliacion.remito_ingreso_inicial,
-            conciliacion.remito_ingreso_final,
-            conciliacion.remito_egreso_inicial,
-            conciliacion.remito_egreso_final,
-            fecha_inicial=inicial.fecha,
-            fecha_final=final.fecha,
-            codigos_padre=codigos_padre,
-            codigos_resultado=codigos_resultado,
-        )
-    except (ValueError, RuntimeError) as error:
-        raise HTTPException(status_code=422, detail=str(error)) from error
-    aplicar_movimientos_conciliacion(conciliacion, movimientos)
-    db.commit()
-    conciliacion = buscar_conciliacion(db, conciliacion.id)
-    guardar_auditoria(conciliacion.id, movimientos, conciliacion.items)
-    sincronizar_movimientos_auditados(conciliacion, db)
-    return conciliacion_dict(
-        buscar_conciliacion(db, conciliacion.id)
-    )
 
 
-@router.delete("/conciliaciones/{conciliacion_id}/items/{item_id}")
-def eliminar_item_conciliacion(
-    conciliacion_id: int,
-    item_id: int,
-    db: Session = Depends(get_db),
-):
-    conciliacion = buscar_conciliacion(db, conciliacion_id)
-    item = next((fila for fila in conciliacion.items if fila.id == item_id), None)
-    if item is None:
-        raise HTTPException(status_code=404, detail="Fila de conciliación no encontrada")
-    if len(conciliacion.items) <= 1:
-        raise HTTPException(status_code=409, detail="La conciliación debe conservar al menos una fila")
-    excluir_item(conciliacion.id, item.id, item.codigo)
-    db.delete(item)
-    db.commit()
-    return conciliacion_dict(buscar_conciliacion(db, conciliacion.id))
 
 
-@router.put("/conciliaciones/{conciliacion_id}")
-def guardar_movimientos_conciliacion(
-    conciliacion_id: int,
-    entrada: ConciliacionMovimientosEntrada,
-    db: Session = Depends(get_db),
-):
-    conciliacion = buscar_conciliacion(db, conciliacion_id)
-    items_por_id = {item.id: item for item in conciliacion.items}
-    try:
-        actualizar_controles_ingreso(
-            conciliacion_id,
-            [control.model_dump() for control in entrada.controles_ingreso],
-        )
-        actualizar_controles_egreso(
-            conciliacion_id,
-            [control.model_dump() for control in entrada.controles_egreso],
-        )
-    except ValueError as error:
-        raise HTTPException(status_code=400, detail=str(error)) from error
-    valores_scrap = {}
-    for movimiento in entrada.items:
-        item = items_por_id.get(movimiento.item_id)
-        if item is None:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"El ítem {movimiento.item_id} no pertenece "
-                    "a la conciliación"
-                ),
-            )
-        item.ingresos = movimiento.ingresos
-        item.egresos = movimiento.egresos
-        valores_scrap[item.id] = movimiento.scrap
-    guardar_scrap(conciliacion_id, valores_scrap)
-    db.commit()
-    return conciliacion_dict(
-        buscar_conciliacion(db, conciliacion.id)
-    )
 
 
-@router.post("/conciliaciones/{conciliacion_id}/ingresos-manuales")
-def crear_ingreso_manual_conciliacion(
-    conciliacion_id: int,
-    entrada: ConciliacionIngresoManualEntrada,
-    db: Session = Depends(get_db),
-):
-    conciliacion = buscar_conciliacion(db, conciliacion_id)
-    item = next(
-        (fila for fila in conciliacion.items if fila.id == entrada.item_id),
-        None,
-    )
-    if item is None:
-        raise HTTPException(
-            status_code=400,
-            detail="La pieza elegida no pertenece a esta conciliación",
-        )
-    agregar_ingreso_manual(
-        conciliacion_id=conciliacion_id,
-        item_id=item.id,
-        codigo=item.codigo,
-        codigo_material=entrada.codigo_material,
-        remito=entrada.remito,
-        fecha=entrada.fecha,
-        cantidad=entrada.cantidad,
-        observacion=entrada.observacion,
-    )
-    sincronizar_movimientos_auditados(conciliacion, db)
-    return conciliacion_dict(buscar_conciliacion(db, conciliacion_id))
 
 
-@router.delete(
-    "/conciliaciones/{conciliacion_id}/ingresos-manuales/{movimiento_clave}"
-)
-def borrar_ingreso_manual_conciliacion(
-    conciliacion_id: int,
-    movimiento_clave: str,
-    db: Session = Depends(get_db),
-):
-    conciliacion = buscar_conciliacion(db, conciliacion_id)
-    try:
-        eliminar_ingreso_manual(conciliacion_id, movimiento_clave)
-    except ValueError as error:
-        raise HTTPException(status_code=404, detail=str(error)) from error
-    sincronizar_movimientos_auditados(conciliacion, db)
-    return conciliacion_dict(buscar_conciliacion(db, conciliacion_id))
 
 
-@router.post("/conciliaciones/{conciliacion_id}/egresos-manuales")
-def crear_egreso_manual_conciliacion(
-    conciliacion_id: int,
-    entrada: ConciliacionEgresoManualEntrada,
-    db: Session = Depends(get_db),
-):
-    conciliacion = buscar_conciliacion(db, conciliacion_id)
-    item = next(
-        (fila for fila in conciliacion.items if fila.id == entrada.item_id),
-        None,
-    )
-    if item is None:
-        raise HTTPException(
-            status_code=400,
-            detail="La pieza elegida no pertenece a esta conciliación",
-        )
-    agregar_egreso_manual(
-        conciliacion_id=conciliacion_id,
-        item_id=item.id,
-        codigo=item.codigo,
-        remito=entrada.remito,
-        fecha=entrada.fecha,
-        cantidad=entrada.cantidad,
-        observacion=entrada.observacion,
-    )
-    sincronizar_movimientos_auditados(conciliacion, db)
-    return conciliacion_dict(buscar_conciliacion(db, conciliacion_id))
 
 
-@router.delete(
-    "/conciliaciones/{conciliacion_id}/egresos-manuales/{movimiento_clave}"
-)
-def borrar_egreso_manual_conciliacion(
-    conciliacion_id: int,
-    movimiento_clave: str,
-    db: Session = Depends(get_db),
-):
-    conciliacion = buscar_conciliacion(db, conciliacion_id)
-    try:
-        eliminar_egreso_manual(conciliacion_id, movimiento_clave)
-    except ValueError as error:
-        raise HTTPException(status_code=404, detail=str(error)) from error
-    sincronizar_movimientos_auditados(conciliacion, db)
-    return conciliacion_dict(buscar_conciliacion(db, conciliacion_id))
 
 
-@router.delete("/conciliaciones/{conciliacion_id}", status_code=204)
-def eliminar_conciliacion(
-    conciliacion_id: int,
-    db: Session = Depends(get_db),
-):
-    conciliacion = buscar_conciliacion(db, conciliacion_id)
-    db.delete(conciliacion)
-    db.commit()
-    eliminar_auditoria(conciliacion_id)
-    return Response(status_code=204)
 
 
 @router.get("/busqueda/piezas")

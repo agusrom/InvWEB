@@ -3,7 +3,6 @@ const state = {
     inventarios: [],
     programaciones: [],
     notasCronograma: [],
-    conciliaciones: [],
     causasDiferencia: [],
     tiposInventario: [],
     personas: [],
@@ -14,7 +13,6 @@ const state = {
         minimo_renglones_alerta: 3,
     },
     inventarioSeleccionado: null,
-    conciliacionSeleccionada: null,
     vistaInventarios: "EN_CURSO",
     vistaProgramaciones: "LISTA",
     periodoCalendario: "MES",
@@ -52,7 +50,6 @@ let manualInventoryArticles = [];
 
 const autosave = {
     conteo: { timer: null, running: false, dirty: false, failed: false },
-    conciliacion: { timer: null, running: false, dirty: false, failed: false },
 };
 
 function estadoAutoguardado(tipo, estado, mensaje = "") {
@@ -85,16 +82,6 @@ function programarAutoguardado(tipo, demora = 700) {
             payload: datosConteoActuales(),
         };
     }
-    if (tipo === "conciliacion" && state.conciliacionSeleccionada) {
-        control.context = {
-            id: state.conciliacionSeleccionada.id,
-            payload: {
-                items: movimientosConciliacion(),
-                controles_ingreso: controlesIngresoConciliacion(),
-                controles_egreso: controlesEgresoConciliacion(),
-            },
-        };
-    }
     control.dirty = true;
     control.failed = false;
     estadoAutoguardado(tipo, "saving", "● Pendiente…");
@@ -114,9 +101,6 @@ async function ejecutarAutoguardado(tipo) {
         let guardado = null;
         if (tipo === "conteo") guardado = await guardarConteo({
             automatico: true, inventarioId: contexto.id, payload: contexto.payload,
-        });
-        if (tipo === "conciliacion") guardado = await guardarConciliacion({
-            automatico: true, conciliacionId: contexto.id, payload: contexto.payload,
         });
         if (tipo === "conteo" && control.dirty && guardado
             && control.context?.id === contexto.id) {
@@ -149,7 +133,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await cargarInicio();
     const vistaInicial = document.body.dataset.initialView
         || new URLSearchParams(window.location.search).get("view");
-    if (["inventarios", "plantillas", "programados", "conciliaciones"].includes(vistaInicial)) {
+    if (["inventarios", "plantillas", "programados"].includes(vistaInicial)) {
         mostrarVista(vistaInicial);
     }
 });
@@ -192,42 +176,6 @@ function registrarEventos() {
         window.location.href = "/plantillas/nueva";
     });
     $("#buscar-plantilla").addEventListener("input", renderPlantillas);
-    $("#btn-nueva-conciliacion").addEventListener(
-        "click",
-        abrirModalConciliacion
-    );
-    $("#form-conciliacion").addEventListener(
-        "submit",
-        crearConciliacion
-    );
-    $("#btn-guardar-conciliacion").addEventListener(
-        "click",
-        guardarConciliacion
-    );
-    $("#btn-recalcular-conciliacion").addEventListener(
-        "click",
-        recalcularMovimientosConciliacion
-    );
-    $("#btn-eliminar-conciliacion").addEventListener(
-        "click",
-        eliminarConciliacion
-    );
-    $("#btn-agregar-ingreso-manual").addEventListener(
-        "click",
-        abrirModalIngresoManual
-    );
-    $("#form-ingreso-manual").addEventListener(
-        "submit",
-        agregarIngresoManual
-    );
-    $("#btn-agregar-egreso-manual").addEventListener(
-        "click",
-        abrirModalEgresoManual
-    );
-    $("#form-egreso-manual").addEventListener(
-        "submit",
-        agregarEgresoManual
-    );
     $("#btn-volver").addEventListener("click", () => mostrarVista("inventarios"));
     $$("#count-view-tabs button").forEach((button) => {
         button.addEventListener("click", () => cambiarVistaConteo(
@@ -645,7 +593,6 @@ async function cargarInicio() {
         state.inventarios = data.inventarios;
         state.programaciones = data.programaciones || [];
         state.notasCronograma = data.notas_cronograma || [];
-        state.conciliaciones = data.conciliaciones || [];
         state.causasDiferencia = data.causas_diferencia || [];
         state.tiposInventario = data.tipos_inventario || [];
         state.personas = data.personas || [];
@@ -667,7 +614,6 @@ function renderTodo() {
     renderProgramaciones();
     renderCalendario();
     renderPlantillas();
-    renderConciliaciones();
     cargarSelectPlantillas();
     cargarSelectPersonas();
     cargarSelectTiposInventario();
@@ -1633,697 +1579,6 @@ function renderPlantillas() {
             eliminarPlantilla(Number(boton.dataset.id));
         });
     });
-}
-
-function renderConciliaciones() {
-    const ultima = state.conciliaciones[0] || null;
-    $("#metric-conciliaciones").textContent = state.conciliaciones.length;
-    $("#metric-conciliacion-confianza").textContent = ultima
-        ? formatearPorcentaje(ultima.confiabilidad)
-        : "—";
-    $("#metric-conciliacion-diferencia").textContent = ultima
-        ? numeroConSigno(ultima.diferencia_total)
-        : "—";
-    $("#conciliaciones-vacio").classList.toggle(
-        "hidden",
-        state.conciliaciones.length > 0
-    );
-    $("#tabla-conciliaciones").innerHTML = state.conciliaciones.map((item) => `
-        <tr data-id="${item.id}">
-            <td>
-                <strong>${escapeHtml(item.codigo)}</strong>
-                <small class="secondary-code">${escapeHtml(item.nombre)}</small>
-            </td>
-            <td>${escapeHtml(item.inventario_inicial_codigo)}</td>
-            <td>${escapeHtml(item.inventario_final_codigo)}</td>
-            <td>${formatearFecha(item.fecha_inicial)} → ${formatearFecha(item.fecha_final)}</td>
-            <td>${formatearPorcentaje(item.confiabilidad)}</td>
-            <td class="${item.diferencia_total ? "warning" : ""}">
-                ${numeroConSigno(item.diferencia_total)}
-            </td>
-            <td><button class="link">Abrir</button></td>
-        </tr>
-    `).join("");
-    $$("#tabla-conciliaciones tr").forEach((fila) => {
-        fila.addEventListener("click", () => {
-            abrirConciliacion(Number(fila.dataset.id));
-        });
-    });
-    if (state.conciliacionSeleccionada) {
-        const actualizada = state.conciliaciones.find(
-            (item) => item.id === state.conciliacionSeleccionada.id
-        );
-        state.conciliacionSeleccionada = actualizada || null;
-        renderDetalleConciliacion();
-    }
-}
-
-function abrirConciliacion(id) {
-    state.conciliacionSeleccionada = state.conciliaciones.find(
-        (item) => item.id === id
-    );
-    renderDetalleConciliacion();
-    $("#conciliacion-detalle").scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-    });
-}
-
-function renderDetalleConciliacion() {
-    const item = state.conciliacionSeleccionada;
-    $("#conciliacion-detalle").classList.toggle("hidden", !item);
-    if (!item) return;
-    $("#conciliacion-titulo").textContent =
-        `${item.codigo} · ${item.nombre}`;
-    $("#conciliacion-subtitulo").textContent =
-        `${item.inventario_inicial_codigo} → ${item.inventario_final_codigo}`
-        + ` · ${item.items_ok}/${item.items_total} códigos dentro de ±`
-        + `${formatearNumero(state.configuracionIndicadores.tolerancia_pct)}%`;
-    const describirCriterio = (criterio) => ({
-        REMITOS: "Cronológico: fechas ubicadas mediante ambos remitos",
-        FECHAS: `Aproximado por fechas (${formatearFecha(item.fecha_inicial)} excluida → ${formatearFecha(item.fecha_final)} incluida)`,
-        MIXTO_INICIAL_REMITO: `Mixto: inicio en la fecha del remito y final por fecha ${formatearFecha(item.fecha_final)} incluida`,
-        MIXTO_FINAL_REMITO: `Mixto: inicio por fecha ${formatearFecha(item.fecha_inicial)} excluida y final en la fecha del remito`,
-    })[criterio] || "Sin calcular";
-    const criterioIngreso = describirCriterio(item.criterio_ingreso);
-    const criterioEgreso = describirCriterio(item.criterio_egreso);
-    $("#conciliacion-remitos").innerHTML = `
-        <div>
-            <span>Corte remitos de ingreso</span>
-            <strong>
-                ${escapeHtml(item.remito_ingreso_inicial || "Sin informar")}
-                → ${escapeHtml(item.remito_ingreso_final || "Sin informar")}
-            </strong>
-            <small>${escapeHtml(criterioIngreso)}</small>
-        </div>
-        <div>
-            <span>Corte remitos de egreso</span>
-            <strong>
-                ${escapeHtml(item.remito_egreso_inicial || "Sin informar")}
-                → ${escapeHtml(item.remito_egreso_final || "Sin informar")}
-            </strong>
-            <small>${escapeHtml(criterioEgreso)}</small>
-        </div>
-        <div>
-            <span>Movimientos calculados</span>
-            <strong>${item.movimientos_calculados_en
-                ? escapeHtml(formatearFechaHora(item.movimientos_calculados_en))
-                : "Sin calcular"}</strong>
-        </div>
-    `;
-    const advertencias = item.advertencias_movimientos || [];
-    $("#conciliacion-advertencias").classList.toggle(
-        "hidden",
-        advertencias.length === 0
-    );
-    $("#conciliacion-advertencias").innerHTML = advertencias.map(
-        (mensaje) => `<p>⚠ ${escapeHtml(mensaje)}</p>`
-    ).join("");
-    renderAuditoriaRemitos(item);
-    $("#tabla-conciliacion-detalle").innerHTML = item.items.map((linea) => `
-        <tr data-conciliation-item="${linea.id}">
-            <td><strong>${escapeHtml(linea.codigo)}</strong></td>
-            <td>${escapeHtml(linea.descripcion)}</td>
-            <td>
-                <strong>${formatearNumero(linea.stock_inicial)}</strong>
-                <small class="reconciliation-trace">
-                    ${escapeHtml(linea.detalle_inicial || "Sin origen")}
-                </small>
-            </td>
-            <td>
-                <input class="movement-input movement-in" type="number" min="0" step="any"
-                    value="${linea.ingresos}" data-item-id="${linea.id}">
-                <small class="movement-calculated">
-                    Calculado: ${formatearNumero(linea.ingresos_calculados)}
-                </small>
-                ${detalleIngresosHtml(linea.detalle_ingresos)}
-            </td>
-            <td>
-                <input class="movement-input movement-out" type="number" min="0" step="any"
-                    value="${linea.egresos}" data-item-id="${linea.id}">
-                <small class="movement-calculated">
-                    Calculado: ${formatearNumero(linea.egresos_calculados)}
-                </small>
-                ${detalleEgresosHtml(linea.detalle_egresos)}
-            </td>
-            <td>
-                <input class="movement-input movement-scrap" type="number" min="0" step="any"
-                    value="${linea.scrap || 0}" data-item-id="${linea.id}">
-            </td>
-            <td data-expected="${linea.id}">${formatearNumero(linea.stock_esperado)}</td>
-            <td>
-                <strong>${formatearNumero(linea.stock_final)}</strong>
-                <small class="reconciliation-trace">
-                    ${escapeHtml(linea.detalle_final || "Sin origen")}
-                </small>
-            </td>
-            <td data-reconciliation-difference="${linea.id}"
-                class="${linea.diferencia ? "warning" : ""}">
-                ${numeroConSigno(linea.diferencia)}
-            </td>
-            <td data-reconciliation-percentage="${linea.id}">
-                ${porcentajeConteoHtml(linea)}
-            </td>
-            <td>
-                <button type="button" class="danger compact delete-conciliation-row"
-                    data-item-id="${linea.id}" data-item-code="${escapeHtml(linea.codigo)}">
-                    Eliminar fila
-                </button>
-            </td>
-        </tr>
-    `).join("");
-    $$(".movement-input").forEach((input) => {
-        input.addEventListener("input", (event) => {
-            recalcularConciliacionVisual(event);
-            programarAutoguardado("conciliacion");
-        });
-    });
-    $$(".delete-conciliation-row").forEach((boton) => {
-        boton.addEventListener("click", () => eliminarFilaConciliacion(
-            Number(boton.dataset.itemId), boton.dataset.itemCode
-        ));
-    });
-}
-
-async function eliminarFilaConciliacion(itemId, codigo) {
-    const conciliacion = state.conciliacionSeleccionada;
-    if (!conciliacion) return;
-    const confirmar = window.confirm(
-        `¿Eliminar ${codigo} de esta conciliación? No volverá a aparecer al recalcular.`
-    );
-    if (!confirmar) return;
-    window.clearTimeout(autosave.conciliacion.timer);
-    autosave.conciliacion.timer = null;
-    autosave.conciliacion.dirty = false;
-    autosave.conciliacion.failed = false;
-    try {
-        const actualizada = await api(
-            `/api/conciliaciones/${conciliacion.id}/items/${itemId}`,
-            { method: "DELETE" }
-        );
-        state.conciliaciones = state.conciliaciones.map((item) =>
-            item.id === actualizada.id ? actualizada : item
-        );
-        state.conciliacionSeleccionada = actualizada;
-        renderConciliaciones();
-        toast(`${codigo} fue excluido de la conciliación`);
-    } catch (error) {
-        toast(error.message, true);
-    }
-}
-
-function fechaMovimiento(fecha) {
-    return fecha ? formatearFecha(String(fecha).slice(0, 10)) : "—";
-}
-
-function detalleIngresosHtml(filas) {
-    if (!filas?.length) return "";
-    return `
-        <details class="movement-breakdown">
-            <summary>${filas.length} línea${filas.length === 1 ? "" : "s"}</summary>
-            ${filas.map((fila) => `
-                <div>
-                    <strong>${escapeHtml(fila.remito)}</strong>
-                    <span>${fechaMovimiento(fila.fecha)} · ${formatearNumero(fila.cantidad)}</span>
-                </div>
-            `).join("")}
-        </details>
-    `;
-}
-
-function detalleEgresosHtml(filas) {
-    if (!filas?.length) return "";
-    return `
-        <details class="movement-breakdown">
-            <summary>${filas.length} origen${filas.length === 1 ? "" : "es"}</summary>
-            ${filas.map((fila) => `
-                <div>
-                    <strong>${escapeHtml(fila.remito)} · ${escapeHtml(fila.pieza_origen)}</strong>
-                    <span>
-                        ${formatearNumero(fila.cantidad_pieza)} × ${formatearNumero(fila.uso)}
-                        = ${formatearNumero(fila.cantidad_equivalente)}
-                        ${fila.despacho_directo ? " · directo" : ""}
-                    </span>
-                </div>
-            `).join("")}
-        </details>
-    `;
-}
-
-function agruparPorRemito(filas) {
-    const grupos = new Map();
-    filas.forEach((fila) => {
-        const clave = fila.remito || "SIN REMITO";
-        if (!grupos.has(clave)) grupos.set(clave, []);
-        grupos.get(clave).push(fila);
-    });
-    return [...grupos.entries()];
-}
-
-function resumenGrupoRemito(remito, filas) {
-    const fechas = [...new Set(filas.map((fila) => fechaMovimiento(fila.fecha)))];
-    const verificados = filas.filter((fila) => fila.verificado).length;
-    return `
-        <strong>${escapeHtml(remito)}</strong>
-        <span>${fechas.join(" · ")} · ${filas.length} línea${filas.length === 1 ? "" : "s"}
-            · ${verificados}/${filas.length} verificadas</span>
-    `;
-}
-
-function renderAuditoriaRemitos(item) {
-    const ingresos = item.remitos_ingreso || [];
-    const egresos = item.remitos_egreso || [];
-    $("#tabla-remitos-ingreso").innerHTML = agruparPorRemito(ingresos).map(
-        ([remito, filas]) => `
-        <details class="remittance-group">
-            <summary>${resumenGrupoRemito(remito, filas)}</summary>
-            <div class="table-scroll"><table><thead><tr>
-                <th>Fecha</th><th>Material</th><th>Pieza relacionada</th>
-                <th>Cantidad</th><th>Verificado</th><th>Observación</th><th></th>
-            </tr></thead><tbody>
-            ${filas.map((fila) => `
-                <tr data-ingreso-clave="${escapeHtml(fila.movimiento_clave)}" data-item-id="${fila.item_id}">
-                    <td>${fechaMovimiento(fila.fecha)}</td>
-                    <td>${escapeHtml(fila.codigo_material || fila.codigo)}</td>
-                    <td>${escapeHtml(fila.codigo)}${fila.manual ? '<small class="manual-badge">MANUAL</small>' : ''}</td>
-                    <td><input class="ingress-detail-qty" type="number" min="0" step="any" value="${fila.cantidad}">
-                        ${fila.cantidad_modificada && !fila.manual ? `<small class="source-quantity">Origen: ${formatearNumero(fila.cantidad_original)}</small>` : ""}</td>
-                    <td class="audit-check"><input class="ingress-detail-check" type="checkbox" ${fila.verificado ? "checked" : ""}></td>
-                    <td><input class="ingress-detail-note" maxlength="1000" value="${escapeHtml(fila.observacion || "")}" placeholder="Observación"></td>
-                    <td>${fila.manual ? '<button type="button" class="link danger-text delete-manual-income">Eliminar</button>' : ''}</td>
-                </tr>
-            `).join("")}
-            </tbody></table></div>
-        </details>`
-    ).join("");
-    $("#remitos-ingreso-vacio").classList.toggle("hidden", ingresos.length > 0);
-    $("#tabla-remitos-egreso").innerHTML = agruparPorRemito(egresos).map(
-        ([remito, filas]) => `
-        <details class="remittance-group">
-            <summary>${resumenGrupoRemito(remito, filas)}</summary>
-            <div class="table-scroll"><table><thead><tr>
-                <th>Fecha</th><th>Pieza despachada</th><th>Cantidad</th>
-                <th>Componentes explotados</th><th>Verificado</th><th>Observación</th><th></th>
-            </tr></thead><tbody>
-            ${filas.map((fila) => `
-                <tr data-egreso-clave="${escapeHtml(fila.movimiento_clave)}">
-                    <td>${fechaMovimiento(fila.fecha)}</td>
-                    <td>${escapeHtml(fila.codigo_pieza)}${fila.manual ? '<small class="manual-badge">MANUAL</small>' : ''}</td>
-                    <td><input class="egress-detail-qty" type="number" min="0" step="any" value="${fila.cantidad}">
-                        ${fila.cantidad_modificada && !fila.manual ? `<small class="source-quantity">Origen: ${formatearNumero(fila.cantidad_original)}</small>` : ""}</td>
-                    <td class="movement-components">${(fila.componentes || []).map((componente) => `
-                        <span data-egress-item-id="${componente.item_id}" data-egress-use="${componente.uso}">
-                            ${escapeHtml(componente.codigo)}: ${formatearNumero(fila.cantidad)} × ${formatearNumero(componente.uso)}
-                            = ${formatearNumero(Number(fila.cantidad) * Number(componente.uso))}
-                            ${componente.despacho_directo ? " · despacho directo" : ""}
-                        </span>`).join("") || "Sin estructura"}</td>
-                    <td class="audit-check"><input class="egress-detail-check" type="checkbox" ${fila.verificado ? "checked" : ""}></td>
-                    <td><input class="egress-detail-note" maxlength="1000" value="${escapeHtml(fila.observacion || "")}" placeholder="Observación"></td>
-                    <td>${fila.manual ? '<button type="button" class="link danger-text delete-manual-egress">Eliminar</button>' : ''}</td>
-                </tr>
-            `).join("")}
-            </tbody></table></div>
-        </details>`
-    ).join("");
-    $("#remitos-egreso-vacio").classList.toggle("hidden", egresos.length > 0);
-    $$(".ingress-detail-qty").forEach((input) => {
-        input.addEventListener("input", (event) => {
-            const itemId = Number(event.target.closest("tr").dataset.itemId);
-            recalcularIngresoDesdeDetalle(itemId);
-            programarAutoguardado("conciliacion");
-        });
-    });
-    $$(".delete-manual-income").forEach((button) => {
-        button.addEventListener("click", eliminarIngresoManual);
-    });
-    $$(".egress-detail-qty").forEach((input) => {
-        input.addEventListener("input", () => {
-            recalcularEgresosDesdeDetalle();
-            programarAutoguardado("conciliacion");
-        });
-    });
-    $$(".ingress-detail-check, .egress-detail-check").forEach((input) => {
-        input.addEventListener("change", () => programarAutoguardado("conciliacion", 100));
-    });
-    $$(".ingress-detail-note, .egress-detail-note").forEach((input) => {
-        input.addEventListener("input", () => programarAutoguardado("conciliacion"));
-    });
-    $$(".delete-manual-egress").forEach((button) => {
-        button.addEventListener("click", eliminarEgresoManual);
-    });
-}
-
-function controlesIngresoConciliacion() {
-    return $$("#tabla-remitos-ingreso [data-ingreso-clave]").map((fila) => ({
-        movimiento_clave: fila.dataset.ingresoClave,
-        cantidad: Number(fila.querySelector(".ingress-detail-qty")?.value || 0),
-        verificado: Boolean(fila.querySelector(".ingress-detail-check")?.checked),
-        observacion: fila.querySelector(".ingress-detail-note")?.value.trim() || "",
-    }));
-}
-
-function recalcularIngresoDesdeDetalle(itemId) {
-    const total = $$(`#tabla-remitos-ingreso [data-item-id="${itemId}"]`)
-        .reduce((suma, fila) => suma + Number(
-            fila.querySelector(".ingress-detail-qty")?.value || 0
-        ), 0);
-    const input = document.querySelector(`.movement-in[data-item-id="${itemId}"]`);
-    if (input) {
-        input.value = String(total);
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-    }
-}
-
-function controlesEgresoConciliacion() {
-    return $$("#tabla-remitos-egreso [data-egreso-clave]").map((fila) => ({
-        movimiento_clave: fila.dataset.egresoClave,
-        cantidad: Number(fila.querySelector(".egress-detail-qty")?.value || 0),
-        verificado: Boolean(fila.querySelector(".egress-detail-check")?.checked),
-        observacion: fila.querySelector(".egress-detail-note")?.value.trim() || "",
-    }));
-}
-
-function recalcularEgresosDesdeDetalle() {
-    const totales = new Map();
-    $$("#tabla-remitos-egreso [data-egreso-clave]").forEach((fila) => {
-        const cantidad = Number(fila.querySelector(".egress-detail-qty")?.value || 0);
-        fila.querySelectorAll("[data-egress-item-id]").forEach((componente) => {
-            const itemId = Number(componente.dataset.egressItemId);
-            const uso = Number(componente.dataset.egressUse || 0);
-            totales.set(itemId, (totales.get(itemId) || 0) + cantidad * uso);
-        });
-    });
-    state.conciliacionSeleccionada.items.forEach((item) => {
-        const input = document.querySelector(`.movement-out[data-item-id="${item.id}"]`);
-        if (input) {
-            input.value = String(totales.get(item.id) || 0);
-            input.dispatchEvent(new Event("input", { bubbles: true }));
-        }
-    });
-}
-
-function movimientosConciliacion() {
-    return state.conciliacionSeleccionada.items.map((item) => ({
-        item_id: item.id,
-        ingresos: Number(
-            document.querySelector(
-                `.movement-in[data-item-id="${item.id}"]`
-            )?.value || 0
-        ),
-        egresos: Number(
-            document.querySelector(
-                `.movement-out[data-item-id="${item.id}"]`
-            )?.value || 0
-        ),
-        scrap: Number(
-            document.querySelector(
-                `.movement-scrap[data-item-id="${item.id}"]`
-            )?.value || 0
-        ),
-    }));
-}
-
-function recalcularConciliacionVisual(event) {
-    const id = Number(event.target.dataset.itemId);
-    const item = state.conciliacionSeleccionada.items.find(
-        (linea) => linea.id === id
-    );
-    const movimiento = movimientosConciliacion().find(
-        (linea) => linea.item_id === id
-    );
-    const esperado = item.stock_inicial + movimiento.ingresos
-        - movimiento.egresos - movimiento.scrap;
-    const metricas = calcularMetricasConteo(item.stock_final, esperado);
-    document.querySelector(`[data-expected="${id}"]`).textContent =
-        formatearNumero(esperado);
-    const diferencia = document.querySelector(
-        `[data-reconciliation-difference="${id}"]`
-    );
-    diferencia.textContent = numeroConSigno(metricas.diferencia);
-    diferencia.classList.toggle("warning", metricas.diferencia !== 0);
-    document.querySelector(
-        `[data-reconciliation-percentage="${id}"]`
-    ).innerHTML = porcentajeConteoHtml(metricas);
-}
-
-function abrirModalConciliacion() {
-    const completos = state.inventarios
-        .filter((item) => item.progreso === 100)
-        .sort((a, b) => a.fecha.localeCompare(b.fecha));
-    if (completos.length < 2) {
-        toast(
-            "Necesitás al menos dos inventarios completamente contados",
-            true
-        );
-        return;
-    }
-    const opciones = completos.map((item) => `
-        <option value="${item.id}">
-            ${escapeHtml(item.codigo)} · ${formatearFecha(item.fecha)} · ${escapeHtml(item.cliente)}
-        </option>
-    `).join("");
-    $("#conciliacion-inicial").innerHTML = opciones;
-    $("#conciliacion-final").innerHTML = opciones;
-    $("#conciliacion-inicial").value = String(completos[0].id);
-    $("#conciliacion-final").value = String(completos[completos.length - 1].id);
-    $("#conciliacion-nombre").value = "";
-    abrirModal("#modal-conciliacion");
-}
-
-async function crearConciliacion(event) {
-    event.preventDefault();
-    try {
-        const creada = await api("/api/conciliaciones", {
-            method: "POST",
-            body: JSON.stringify({
-                nombre: $("#conciliacion-nombre").value.trim(),
-                inventario_inicial_id: Number($("#conciliacion-inicial").value),
-                inventario_final_id: Number($("#conciliacion-final").value),
-            }),
-        });
-        state.conciliaciones.unshift(creada);
-        state.conciliacionSeleccionada = creada;
-        cerrarModales();
-        renderConciliaciones();
-        abrirConciliacion(creada.id);
-        toast("Conciliación creada");
-    } catch (error) {
-        toast(error.message, true);
-    }
-}
-
-async function guardarConciliacion({
-    automatico = false, conciliacionId = null, payload = null,
-} = {}) {
-    if (!automatico) {
-        window.clearTimeout(autosave.conciliacion.timer);
-        autosave.conciliacion.timer = null;
-        autosave.conciliacion.dirty = false;
-        autosave.conciliacion.failed = false;
-        estadoAutoguardado("conciliacion", "saving");
-    }
-    const item = state.conciliacionSeleccionada;
-    const id = conciliacionId || item?.id;
-    if (!id) return;
-    try {
-        const guardada = await api(`/api/conciliaciones/${id}`, {
-            method: "PUT",
-            body: JSON.stringify(payload || {
-                items: movimientosConciliacion(),
-                controles_ingreso: controlesIngresoConciliacion(),
-                controles_egreso: controlesEgresoConciliacion(),
-            }),
-        });
-        state.conciliaciones = state.conciliaciones.map((actual) =>
-            actual.id === guardada.id ? guardada : actual
-        );
-        if (state.conciliacionSeleccionada?.id === guardada.id) {
-            state.conciliacionSeleccionada = guardada;
-        }
-        if (!automatico) {
-            renderConciliaciones();
-            estadoAutoguardado("conciliacion", "saved");
-            toast("Movimientos guardados");
-        }
-        return guardada;
-    } catch (error) {
-        if (!automatico) {
-            autosave.conciliacion.failed = true;
-            estadoAutoguardado("conciliacion", "error");
-            toast(error.message, true);
-            return null;
-        }
-        throw error;
-    }
-}
-
-function abrirModalIngresoManual() {
-    const item = state.conciliacionSeleccionada;
-    if (!item) return;
-    $("#ingreso-manual-item").innerHTML = item.items.map((linea) => `
-        <option value="${linea.id}">${escapeHtml(linea.codigo)} · ${escapeHtml(linea.descripcion)}</option>
-    `).join("");
-    $("#ingreso-manual-material").value = "";
-    $("#ingreso-manual-remito").value = "MANUAL";
-    $("#ingreso-manual-fecha").value = String(item.fecha_final).slice(0, 10);
-    $("#ingreso-manual-cantidad").value = "";
-    $("#ingreso-manual-observacion").value = "";
-    abrirModal("#modal-ingreso-manual");
-}
-
-async function agregarIngresoManual(event) {
-    event.preventDefault();
-    const conciliacion = state.conciliacionSeleccionada;
-    if (!conciliacion) return;
-    try {
-        const actualizada = await api(
-            `/api/conciliaciones/${conciliacion.id}/ingresos-manuales`,
-            {
-                method: "POST",
-                body: JSON.stringify({
-                    item_id: Number($("#ingreso-manual-item").value),
-                    codigo_material: $("#ingreso-manual-material").value.trim(),
-                    remito: $("#ingreso-manual-remito").value.trim(),
-                    fecha: $("#ingreso-manual-fecha").value,
-                    cantidad: Number($("#ingreso-manual-cantidad").value),
-                    observacion: $("#ingreso-manual-observacion").value.trim(),
-                }),
-            }
-        );
-        state.conciliaciones = state.conciliaciones.map((item) =>
-            item.id === actualizada.id ? actualizada : item
-        );
-        state.conciliacionSeleccionada = actualizada;
-        cerrarModales();
-        renderConciliaciones();
-        toast("Ingreso manual agregado");
-    } catch (error) {
-        toast(error.message, true);
-    }
-}
-
-async function eliminarIngresoManual(event) {
-    const fila = event.target.closest("tr[data-ingreso-clave]");
-    const conciliacion = state.conciliacionSeleccionada;
-    if (!fila || !conciliacion || !confirm("¿Eliminar este ingreso manual?")) return;
-    try {
-        const clave = encodeURIComponent(fila.dataset.ingresoClave);
-        const actualizada = await api(
-            `/api/conciliaciones/${conciliacion.id}/ingresos-manuales/${clave}`,
-            { method: "DELETE" }
-        );
-        state.conciliaciones = state.conciliaciones.map((item) =>
-            item.id === actualizada.id ? actualizada : item
-        );
-        state.conciliacionSeleccionada = actualizada;
-        renderConciliaciones();
-        toast("Ingreso manual eliminado");
-    } catch (error) {
-        toast(error.message, true);
-    }
-}
-
-function abrirModalEgresoManual() {
-    const item = state.conciliacionSeleccionada;
-    if (!item) return;
-    $("#egreso-manual-item").innerHTML = item.items.map((linea) => `
-        <option value="${linea.id}">${escapeHtml(linea.codigo)} · ${escapeHtml(linea.descripcion)}</option>
-    `).join("");
-    $("#egreso-manual-remito").value = "MANUAL";
-    $("#egreso-manual-fecha").value = String(item.fecha_final).slice(0, 10);
-    $("#egreso-manual-cantidad").value = "";
-    $("#egreso-manual-observacion").value = "";
-    abrirModal("#modal-egreso-manual");
-}
-
-async function agregarEgresoManual(event) {
-    event.preventDefault();
-    const conciliacion = state.conciliacionSeleccionada;
-    if (!conciliacion) return;
-    try {
-        const actualizada = await api(
-            `/api/conciliaciones/${conciliacion.id}/egresos-manuales`,
-            {
-                method: "POST",
-                body: JSON.stringify({
-                    item_id: Number($("#egreso-manual-item").value),
-                    remito: $("#egreso-manual-remito").value.trim(),
-                    fecha: $("#egreso-manual-fecha").value,
-                    cantidad: Number($("#egreso-manual-cantidad").value),
-                    observacion: $("#egreso-manual-observacion").value.trim(),
-                }),
-            }
-        );
-        state.conciliaciones = state.conciliaciones.map((item) =>
-            item.id === actualizada.id ? actualizada : item
-        );
-        state.conciliacionSeleccionada = actualizada;
-        cerrarModales();
-        renderConciliaciones();
-        toast("Egreso manual agregado");
-    } catch (error) {
-        toast(error.message, true);
-    }
-}
-
-async function eliminarEgresoManual(event) {
-    const fila = event.target.closest("[data-egreso-clave]");
-    const conciliacion = state.conciliacionSeleccionada;
-    if (!fila || !conciliacion || !confirm("¿Eliminar este egreso manual?")) return;
-    try {
-        const clave = encodeURIComponent(fila.dataset.egresoClave);
-        const actualizada = await api(
-            `/api/conciliaciones/${conciliacion.id}/egresos-manuales/${clave}`,
-            { method: "DELETE" }
-        );
-        state.conciliaciones = state.conciliaciones.map((item) =>
-            item.id === actualizada.id ? actualizada : item
-        );
-        state.conciliacionSeleccionada = actualizada;
-        renderConciliaciones();
-        toast("Egreso manual eliminado");
-    } catch (error) {
-        toast(error.message, true);
-    }
-}
-
-async function recalcularMovimientosConciliacion() {
-    const item = state.conciliacionSeleccionada;
-    if (!item) return;
-    if (!confirm(
-        "Se volverán a leer los remitos. Las verificaciones, correcciones "
-        + "y movimientos manuales existentes se conservarán. ¿Continuar?"
-    )) return;
-    try {
-        const actualizada = await api(
-            `/api/conciliaciones/${item.id}/recalcular-movimientos`,
-            { method: "POST" }
-        );
-        state.conciliaciones = state.conciliaciones.map((actual) =>
-            actual.id === actualizada.id ? actualizada : actual
-        );
-        state.conciliacionSeleccionada = actualizada;
-        renderConciliaciones();
-        toast("Movimientos recalculados desde los remitos");
-    } catch (error) {
-        toast(error.message, true);
-    }
-}
-
-async function eliminarConciliacion() {
-    const item = state.conciliacionSeleccionada;
-    if (!item || !confirm(`¿Eliminar ${item.codigo}?`)) return;
-    try {
-        await api(`/api/conciliaciones/${item.id}`, { method: "DELETE" });
-        state.conciliaciones = state.conciliaciones.filter(
-            (actual) => actual.id !== item.id
-        );
-        state.conciliacionSeleccionada = null;
-        renderConciliaciones();
-        toast("Conciliación eliminada");
-    } catch (error) {
-        toast(error.message, true);
-    }
 }
 
 function cargarSelectPlantillas() {
@@ -4711,12 +3966,7 @@ function actualizarEtiquetasIndicadores() {
         "#detalle-confiabilidad-etiqueta"
     );
     if (etiqueta) etiqueta.textContent = `Confiabilidad (±${tolerancia}%)`;
-    const etiquetaConciliacion = document.querySelector(
-        "#conciliacion-confiabilidad-etiqueta"
-    );
-    if (etiquetaConciliacion) {
-        etiquetaConciliacion.textContent = `Dentro de ±${tolerancia}%`;
-    }
+
 }
 
 function actualizarConfiabilidadVisual() {
@@ -5475,7 +4725,6 @@ function mostrarVista(nombre) {
         inventarios: "Inventarios",
         programados: "Programados",
         plantillas: "Plantillas",
-        conciliaciones: "Conciliaciones",
         detalle: state.inventarioSeleccionado?.codigo || "Detalle",
     };
     const breadcrumb = $("#breadcrumb-current");

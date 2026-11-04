@@ -608,71 +608,6 @@ button.today-item:hover { background: #f8fafc; }
 }
 .inventory-alert-summary .has-alert { color: #b54708; }
 .inventory-alert-summary .no-alert { color: #16803c; }
-.reconciliation-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.reconciliation-detail { margin-top: 20px; }
-.reconciliation-cutoffs {
-    background: #f7f9fd;
-    border-bottom: 1px solid var(--line);
-    border-top: 1px solid var(--line);
-    display: grid;
-    gap: 16px;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    padding: 14px 24px;
-}
-.reconciliation-cutoffs div {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-.reconciliation-cutoffs span {
-    color: var(--muted);
-    font-size: 10px;
-    text-transform: uppercase;
-}
-.reconciliation-cutoffs strong { font-size: 12px; }
-.reconciliation-table { min-width: 1260px; }
-.reconciliation-table .movement-input {
-    font-variant-numeric: tabular-nums;
-    height: 38px;
-    padding: 0 9px;
-    text-align: right;
-    width: 105px;
-}
-.reconciliation-trace {
-    color: var(--muted);
-    display: block;
-    font-size: 9px;
-    line-height: 1.35;
-    margin-top: 4px;
-    max-width: 240px;
-    white-space: normal;
-}
-.reconciliation-warnings {
-    background: #fff8e8;
-    border-bottom: 1px solid #f0cf83;
-    color: #7a4c00;
-    padding: 10px 24px;
-}
-.reconciliation-warnings p { margin: 3px 0; }
-.reconciliation-audit {
-    border-bottom: 1px solid var(--line);
-    padding: 0 24px;
-}
-.reconciliation-audit > summary {
-    color: var(--blue);
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 700;
-    padding: 14px 0;
-}
-.reconciliation-audit table { min-width: 1080px; }
-.reconciliation-audit-actions {
-    align-items: center;
-    display: flex;
-    gap: 12px;
-    padding: 0 0 12px;
-}
-.reconciliation-audit-actions small { color: var(--muted); }
 .ingress-detail-qty,
 .egress-detail-qty { min-width: 92px; width: 92px; }
 .ingress-detail-note,
@@ -3730,8 +3665,6 @@ tbody tr:last-child td { border-bottom: 0; }
         font-size: 10px;
         padding: 4px 6px;
     }
-    .reconciliation-detail { margin-top: 14px; }
-    .reconciliation-cutoffs { padding: 10px 18px; }
 }
 
 @media (max-width: 1100px) {
@@ -3807,7 +3740,6 @@ tbody tr:last-child td { border-bottom: 0; }
     .metrics, .template-grid, .detail-summary, .schedule-metrics,
     .stock-file-grid { grid-template-columns: 1fr; }
     .inventory-data-fields { grid-template-columns: 1fr; }
-    .reconciliation-cutoffs { grid-template-columns: 1fr; }
     .remittance-fields { grid-template-columns: 1fr; }
     .tools, .field-row { flex-direction: column; width: 100%; }
     .detail-actions {
