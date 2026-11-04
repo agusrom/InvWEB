@@ -946,7 +946,6 @@ function renderInventarios() {
                         ${confiabilidadHtml(item)}
                     </div>
                 </div>
-                <small class="secondary-code">${resumen.contados}/${resumen.total} renglones · ${resumen.pendientes} pendientes</small>
             </td>
             <td>
                 <div class="inventory-alert-summary">

@@ -4206,7 +4206,10 @@ tbody tr:last-child td { border-bottom: 0; }
 .home-week-events .schedule-note-add { padding: 5px; font-size: 10px; }
 @media print { .schedule-note-add { display: none; } }
 
-.inventory-count-indicators { display: flex; align-items: flex-start; gap: 18px; }
+.inventory-count-indicators { display: flex; align-items: center; gap: 14px; }
 .inventory-reliability { min-width: 100px; }
-.inventory-reliability .confidence { min-width: 100px; }
+.inventory-reliability .confidence { min-width: 100px; display: flex; align-items: center; gap: 6px; }
+.inventory-reliability .confidence > span { font-size: inherit; }
+.inventory-reliability .confidence > i { margin: 0; width: 60px; }
+.inventory-reliability .confidence > small { display: none; }
 #schedule-note-delete { color: #b42318; background: #fff0ef; border: 1px solid #f4c8c4; }
