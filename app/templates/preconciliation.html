@@ -4,7 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ 'Análisis de stock' if not inventario_id else 'Análisis de stock · ' ~ inventario_codigo }}</title>
-    <link rel="stylesheet" href="/static/css/preconciliation.css?v=29">
+    <link rel="stylesheet" href="/static/css/preconciliation.css?v=30">
+    <link rel="stylesheet" href="/static/css/preconciliation-workspace.css?v=1">
 </head>
 <body data-inventory-id="{{ inventario_id }}" data-standalone="{{ 'true' if not inventario_id else 'false' }}">
     <header class="pre-header">
@@ -28,7 +29,17 @@
         </section>
 
         <div id="analysis-workspace" class="analysis-workspace {{ 'hidden' if not inventario_id else '' }}">
-            <button id="back-to-analyses" class="back-to-analyses" type="button">← Análisis guardados</button>
+            <div class="analysis-workspace-bar">
+                <button id="back-to-analyses" class="back-to-analyses" type="button">← Análisis guardados</button>
+                <p id="analysis-period-context" class="analysis-period-context"></p>
+                <div class="workspace-context-actions">
+                    <button id="edit-analysis-configuration" class="hidden" type="button" aria-haspopup="dialog">Cambiar períodos</button>
+                    <button id="refresh-final" type="button" title="Releer el conteo y estado del inventario final sin cambiar los inventarios iniciales">↻ Actualizar inventario final</button>
+                </div>
+            </div>
+            <p id="analysis-loading-status" class="hidden" role="status">Abriendo análisis…</p>
+            <div id="analysis-configuration-host">
+            <div id="analysis-configuration" class="analysis-configuration">
             <section id="final-selector-panel" class="final-selector-panel {{ 'hidden' if inventario_id else '' }}">
                 <div><h2>Inventario a analizar</h2><p>Elegí el inventario actual; después seleccioná los períodos contra los que querés conciliar.</p></div>
                 <select id="final-inventory-picker" aria-label="Inventario a analizar"></select>
@@ -37,38 +48,42 @@
                 <div class="selector-heading">
                     <div><h2>¿Desde qué inventarios querés comparar?</h2><p>Elegí hasta cuatro. El inventario actual queda fijo como resultado final.</p></div>
                     <div class="selector-actions">
-                        <button id="refresh-final" type="button" title="Releer el conteo y estado del inventario final sin cambiar los inventarios iniciales">↻ Actualizar inventario final</button>
                         <button id="calculate" type="button">Calcular escenarios</button>
                     </div>
                 </div>
                 <div id="initial-options" class="initial-options"></div>
                 <p id="final-refresh-status" class="message" role="status"></p>
-                <p id="selector-message" class="message"></p>
+                <p id="selector-message" class="message" role="status"></p>
             </section>
+            </div>
+            </div>
 
         <section id="results" class="hidden">
-            <div class="view-navigation">
-                <div class="unified-view-title">
-                    <span>VISTA UNIFICADA</span>
-                    <strong>Análisis general, conciliación y remitos</strong>
+            <div class="review-toolbar">
+                <div class="view-navigation">
+                    <nav class="analysis-view-tabs" aria-label="Secciones del análisis">
+                        <button type="button" data-analysis-view="SUMMARY" class="active">Comparación</button>
+                        <button type="button" data-analysis-view="DETAIL">Detalle por pieza</button>
+                        <button type="button" data-analysis-view="REMITTANCES">Remitos</button>
+                    </nav>
+                    <div class="view-export-actions">
+                        <button id="save-analysis" type="button">Guardar análisis</button>
+                        <details id="analysis-export-menu" class="analysis-export-menu">
+                            <summary>Exportar <span aria-hidden="true">⌄</span></summary>
+                            <div class="analysis-export-options">
+                                <button id="export-comparison" type="button">⇩ Excel comparativo completo</button>
+                                <label>Excel de un período<select id="export-scenario" aria-label="Período para exportar"></select></label>
+                                <button id="export-excel" type="button">⇩ Exportar período seleccionado</button>
+                                <button id="print-view" type="button">▤ Imprimir vista actual</button>
+                            </div>
+                        </details>
+                    </div>
                 </div>
-                <div class="view-export-actions">
-                    <button id="export-comparison" type="button">⇩ Excel comparativo</button>
-                    <select id="export-scenario" aria-label="Período para exportar"></select>
-                    <button id="save-analysis" type="button">Guardar análisis</button>
-                    <button id="export-excel" type="button">⇩ Exportar Excel</button>
-                    <button id="print-view" type="button">▤ Imprimir</button>
-                </div>
+                <p id="analysis-snapshot-state" class="snapshot-state" role="status"></p>
             </div>
-            <p id="analysis-snapshot-state" class="snapshot-state" role="status"></p>
-            <nav class="analysis-view-tabs" aria-label="Secciones del análisis">
-                <button type="button" data-analysis-view="SUMMARY" class="active">Comparación de períodos</button>
-                <button type="button" data-analysis-view="DETAIL">Análisis detallado</button>
-                <button type="button" data-analysis-view="REMITTANCES">Conciliación y remitos</button>
-            </nav>
             <section id="analysis-summary-view" class="analysis-summary-view">
                 <section class="period-comparison" aria-labelledby="comparison-heading">
-                    <div class="comparison-heading"><div><h2 id="comparison-heading">Comparación entre inventarios</h2><p>Elegí un tramo y abrí una diferencia para revisar el conteo y los movimientos que la explican.</p></div>
+                    <div class="comparison-heading"><div><h2 id="comparison-heading">Diferencias por componente</h2><p>Abrí una celda para revisar su cálculo y documentación.</p></div>
                         <label>Períodos<select id="comparison-mode"><option value="ACCUMULATED">Cada inicial → actual</option><option value="CONSECUTIVE">Tramos consecutivos</option></select></label>
                     </div>
                     <div id="comparison-quality" class="comparison-quality"></div>
@@ -225,7 +240,13 @@
         <div class="evidence-drawer-heading"><div><small>REVISIÓN DE EVIDENCIA</small><h2 id="period-evidence-title"></h2></div><button id="close-period-evidence" type="button" aria-label="Cerrar evidencia">✕</button></div>
         <div id="period-evidence-content"></div>
     </dialog>
-    <script src="/static/js/preconciliation-comparison.js?v=1"></script>
-    <script src="/static/js/preconciliation.js?v=31" defer></script>
+    <dialog id="analysis-configuration-dialog" class="analysis-configuration-dialog" aria-labelledby="configuration-dialog-title">
+        <div class="configuration-dialog-heading"><div><h2 id="configuration-dialog-title">Cambiar períodos</h2><p>Elegí hasta cuatro inventarios iniciales y recalculá para aplicar.</p></div><button id="close-analysis-configuration" type="button" aria-label="Cerrar configuración">✕</button></div>
+        <div id="analysis-configuration-dialog-host"></div>
+        <div class="configuration-dialog-footer"><button id="cancel-analysis-configuration" type="button">Volver al análisis sin cambiar períodos</button></div>
+    </dialog>
+    <script src="/static/js/preconciliation-workspace.js?v=1"></script>
+    <script src="/static/js/preconciliation-comparison.js?v=2"></script>
+    <script src="/static/js/preconciliation.js?v=32" defer></script>
 </body>
 </html>

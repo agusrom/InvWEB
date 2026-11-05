@@ -138,7 +138,9 @@ function renderSnapshotState() {
     const pending = state.timers.size || noteSavesPending || [...failedNoteSaves].some((key) => key.startsWith(`${inventoryId}:`)) || document.querySelector(".remittance-group.dirty");
     $("#analysis-snapshot-state").classList.toggle("dirty", Boolean(state.snapshotDirty || pending));
     const selectionChanged = !sameNumbers(selectedIds(), state.calculation.escenarios.map((p) => p.inicial.id));
-    $("#analysis-snapshot-state").textContent = `${selectionChanged ? "Selección de iniciales modificada: pulsá Calcular escenarios. " : ""}${pending ? "Hay ediciones pendientes de guardar. " : ""}${state.snapshotDirty ? "Cambios calculados sin guardar en la fotografía del análisis. " : state.analysisId ? "Fotografía guardada. " : "Análisis todavía sin guardar. "}Último cálculo: ${state.calculation.calculado_en ? formatDateTime(state.calculation.calculado_en) : "sin fecha registrada"} · Último guardado: ${state.savedAt ? formatDateTime(state.savedAt) : "sin guardar"}`;
+    const status = `${selectionChanged ? "Selección modificada: recalculá para aplicar. " : ""}${pending ? "Ediciones pendientes. " : ""}${state.snapshotDirty ? "Cambios sin guardar" : state.analysisId ? "Guardado" : "Análisis sin guardar"}`;
+    $("#analysis-snapshot-state").textContent = `${status} · Cálculo: ${state.calculation.calculado_en ? formatDateTime(state.calculation.calculado_en) : "sin fecha"} · Guardado: ${state.savedAt ? formatDateTime(state.savedAt) : "pendiente"}`;
+
 }
 
 async function exportComparison() {

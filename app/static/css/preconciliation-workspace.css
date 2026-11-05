@@ -1,0 +1,185 @@
+/* Presentación del módulo: configuración separada de la revisión de resultados. */
+:root { --review-toolbar-height: 84px; }
+body { background: #f4f6f9; }
+.pre-header { padding: 12px max(24px, calc((100vw - 1800px) / 2)); align-items: center; gap: 16px; }
+.pre-header a { display: inline-block; margin: 0 12px 4px 0; font-size: 11px; font-weight: 500; }
+.pre-header div > span { font-size: 10px; letter-spacing: .08em; }
+.pre-header h1 { font-size: 21px; line-height: 1.25; margin: 3px 0 5px; font-weight: 650; }
+.pre-header p { font-size: 12px; }
+.draft-badge { font-size: 10px; padding: 5px 9px; white-space: nowrap; }
+main { max-width: 1800px; padding: 10px 24px 30px; }
+.analysis-workspace-bar { display: flex; gap: 12px; align-items: center; min-height: 38px; margin-bottom: 8px; }
+.analysis-workspace-bar .back-to-analyses { margin: 0; padding: 5px 0; background: transparent; border: 0; font-size: 12px; font-weight: 550; }
+.analysis-period-context { font-size: 12px; color: #526078; padding-left: 12px; border-left: 1px solid #cfd8e4; }
+.workspace-context-actions { display: flex; gap: 7px; margin-left: auto; }
+.workspace-context-actions button { background: white; border: 1px solid #c5cfdd; color: #344b69; padding: 7px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+.workspace-context-actions button:hover { background: #eef3fa; border-color: #91a7c5; }
+button:disabled { cursor: default; opacity: .6; }
+.review-toolbar { position: sticky; top: 0; z-index: 12; background: #fff; border: 1px solid #d8e0eb; border-radius: 9px; box-shadow: 0 2px 5px #233c5a08; }
+.view-navigation { display: flex; flex-direction: row; gap: 12px; align-items: center; justify-content: space-between; padding: 8px 10px 0; }
+.analysis-view-tabs { display: flex; gap: 4px; padding: 0; margin: 0; border: 0; border-radius: 0; background: transparent; }
+.analysis-view-tabs button { flex: none; white-space: nowrap; padding: 9px 13px; font-size: 12px; font-weight: 600; border-radius: 6px; color: #53637a; }
+.analysis-view-tabs button.active { background: #eaf1fb; color: #224f88; box-shadow: none; }
+.analysis-view-tabs button:not(.active):hover { background: #f4f6f9; }
+.view-export-actions { align-items: center; gap: 7px; }
+.view-export-actions #save-analysis { padding: 8px 12px; font-size: 12px; font-weight: 600; background: #24578f; border-color: #24578f; white-space: nowrap; }
+.snapshot-state { margin: 0; padding: 6px 12px 8px; border: 0; border-radius: 0 0 8px 8px; background: transparent; color: #64748a; font-size: 11px; line-height: 1.4; }
+.snapshot-state.dirty { background: #fff8e9; color: #835d1a; }
+.analysis-export-menu { position: relative; }
+.analysis-export-menu > summary { display: flex; align-items: center; gap: 12px; cursor: pointer; list-style: none; border: 1px solid #c5cfdd; border-radius: 6px; padding: 8px 11px; font-size: 12px; color: #344b69; }
+.analysis-export-menu > summary::-webkit-details-marker { display: none; }
+.analysis-export-menu[open] > summary { background: #eef3fa; }
+.analysis-export-options { position: absolute; right: 0; top: calc(100% + 6px); width: 310px; padding: 8px; border: 1px solid #cbd5e2; border-radius: 8px; box-shadow: 0 10px 30px #22344e24; background: white; z-index: 30; }
+.view-export-actions .analysis-export-options button { display: block; width: 100%; padding: 10px; text-align: left; border: 0; font-weight: 500; font-size: 12px; }
+.view-export-actions .analysis-export-options button:hover { background: #eef3fa; }
+.analysis-export-options label { display: grid; gap: 5px; margin-top: 5px; padding: 9px 10px 0; border-top: 1px solid #e2e8f0; font-size: 11px; color: #64748a; }
+.view-export-actions .analysis-export-options select { width: 100%; min-width: 0; padding: 7px; font-size: 11px; font-weight: 500; }
+.period-comparison { margin-top: 10px; padding: 12px; border-radius: 9px; }
+.comparison-heading { gap: 12px; }
+.comparison-heading h2 { font-size: 15px; margin: 0 0 3px; }
+.comparison-heading p { font-size: 12px; }
+.comparison-heading label { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 11px; color: #617086; }
+.comparison-heading select, .comparison-filters input, .comparison-filters select { min-height: 34px; padding: 6px 9px; font-size: 12px; border-color: #c6d0dd; }
+.comparison-quality { display: flex; gap: 0; margin: 10px 0; padding: 8px 0; border-block: 1px solid #e6ebf2; }
+.comparison-quality > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; flex: 1; padding: 0 14px; background: transparent; border: 0; border-radius: 0; }
+.comparison-quality > div:first-child { padding-left: 0; }
+.comparison-quality > div + div { border-left: 1px solid #e1e7ef; }
+.comparison-quality span { font-size: 11px; color: #596a80; }
+.comparison-quality strong { font-size: 18px; font-weight: 650; order: -1; }
+.comparison-quality small { width: 100%; font-size: 10px; color: #728095; line-height: 1.3; }
+.comparison-filters { margin-bottom: 9px; gap: 8px; }
+.comparison-filters input { min-width: 0; width: 300px; }
+.comparison-filters span { margin-left: auto; font-size: 11px; }
+.comparison-matrix { max-height: calc(100dvh - 290px); min-height: 110px; }
+.comparison-matrix th, .comparison-matrix td { padding: 7px 8px; }
+.comparison-matrix small, .comparison-matrix em { font-size: 10px; line-height: 1.35; margin-top: 3px; }
+.period-cell { min-height: 46px; padding: 6px 8px; gap: 2px; }
+.period-cell strong { font-size: 14px; }
+.period-cell small { font-size: 10px; }
+.selected-period-summary { margin: 4px 0 0; padding: 10px 12px; border-radius: 8px; }
+.selected-period-summary > summary { font-size: 12px; color: #51647e; }
+.analysis-configuration-dialog { width: min(880px, calc(100vw - 32px)); max-width: calc(100vw - 32px); max-height: calc(100dvh - 40px); padding: 0; border: 1px solid #d0d9e6; border-radius: 12px; box-shadow: 0 24px 80px #172c4f40; color: var(--ink); }
+.analysis-configuration-dialog::backdrop { background: #12263f66; }
+.configuration-dialog-heading { position: sticky; top: 0; z-index: 2; display: flex; align-items: start; justify-content: space-between; gap: 12px; padding: 18px 20px; background: white; border-bottom: 1px solid #e2e8f0; }
+.configuration-dialog-heading h2 { font-size: 17px; }
+.configuration-dialog-heading p { margin-top: 5px; font-size: 12px; }
+.configuration-dialog-heading button { padding: 5px 9px; background: white; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; }
+.configuration-dialog-footer { padding: 12px 20px; background: #f7f9fc; border-top: 1px solid #e2e8f0; text-align: right; }
+.configuration-dialog-footer button { background: white; border: 1px solid #c5d0df; border-radius: 6px; padding: 8px 12px; color: #425978; cursor: pointer; }
+.analysis-configuration-dialog #final-selector-panel { display: none; }
+.analysis-configuration-dialog .selector-panel { padding: 18px 20px; border: 0; border-radius: 0; }
+.analysis-configuration-dialog .selector-heading { flex-direction: column; align-items: start; gap: 14px; }
+.analysis-configuration-dialog .selector-heading h2 { display: none; }
+.analysis-configuration-dialog .initial-options { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); margin-top: 16px; }
+.analysis-configuration-dialog .message:empty { display: none; }
+.analysis-loading #analysis-configuration-host, .analysis-loading #results { display: none; }
+#analysis-loading-status { padding: 18px; color: #617086; }
+/* Los datos extensos se despliegan en su propia sección, sin inflar el encabezado. */
+.result-toolbar, .global-audit-panel { margin-top: 10px; padding: 12px; }
+.result-toolbar h2, .global-audit-heading h2 { font-size: 15px; }
+.result-toolbar p, .global-audit-heading p { font-size: 11px; line-height: 1.4; }
+.result-toolbar .filters { gap: 7px; flex-wrap: wrap; }
+.result-toolbar .filters input, .result-toolbar .filters select { min-width: 160px; padding: 7px 9px; font-size: 12px; }
+.piece-card { scroll-margin-top: calc(var(--review-toolbar-height) + 10px); }
+.piece-main { gap: 10px; padding: 10px 12px; }
+.piece-reconciliation-heading strong { font-size: 11px; }
+.piece-reconciliation-heading span, .piece-identity > span, .piece-inline-controls label, .inline-observation { font-size: 11px; }
+.remittance-register > summary { padding: 9px 11px; }
+.remittance-register > summary > span:nth-child(2) small { font-size: 11px; }
+.audit-movement { padding: 10px; }
+.audit-controls label { font-size: 11px; }
+.manual-form { padding: 12px; }
+.period-evidence { padding: 16px; }
+.evidence-drawer-heading { top: -16px; padding: 10px 0; }
+.evidence-control { padding: 11px; margin: 10px 0; }
+.evidence-control h3 { font-size: 14px; }
+.evidence-control dl { gap: 6px; margin: 9px 0; }
+.evidence-control dd { font-size: 17px; }
+.analysis-home { padding: 16px; }
+.saved-analysis-search { margin-top: 12px; font-size: 11px; }
+.saved-analysis-row { padding: 10px 12px; }
+.saved-analysis-row small { font-size: 10px; }
+.saved-analysis-identity > span, .saved-analysis-periods > span, .saved-analysis-updated > span { font-size: 11px; }
+@media (max-width: 900px) {
+    main { padding: 10px 14px 24px; }
+    .pre-header { padding: 12px 14px; }
+    .analysis-period-context { display: none; }
+    .view-navigation { flex-wrap: wrap; gap: 6px; padding-top: 7px; }
+    .analysis-view-tabs { flex: 1; }
+    .analysis-view-tabs button { padding: 8px 10px; }
+    .comparison-filters span { display: none; }
+    .piece-main { grid-template-columns: minmax(220px, 1fr) minmax(280px, 1fr); }
+    .history-column { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+    .pre-header { align-items: start; gap: 8px; }
+    .pre-header h1 { font-size: 18px; }
+    .pre-header a { display: block; font-size: 11px; }
+    .pre-header div > span { display: none; }
+    .pre-header p { font-size: 11px; line-height: 1.4; }
+    .draft-badge { font-size: 9px; max-width: 115px; white-space: normal; text-align: center; }
+    .analysis-workspace-bar { align-items: start; flex-wrap: wrap; gap: 5px; }
+    .analysis-workspace-bar .back-to-analyses { font-size: 11px; }
+    .workspace-context-actions { flex-wrap: wrap; justify-content: end; gap: 5px; }
+    .workspace-context-actions button { font-size: 11px; padding: 7px 8px; }
+    .view-navigation { padding: 7px 8px 0; }
+    .analysis-view-tabs { display: flex; order: 2; width: 100%; flex-basis: 100%; gap: 2px; }
+    .analysis-view-tabs button { flex: 1; width: auto; padding: 9px 4px; font-size: 11px; }
+    .view-export-actions { margin-left: auto; }
+    .snapshot-state { font-size: 10px; padding: 5px 9px 7px; }
+    .analysis-export-options { width: min(310px, calc(100vw - 45px)); }
+    .comparison-heading { align-items: stretch; gap: 8px; }
+    .comparison-heading h2 { font-size: 14px; }
+    .comparison-heading p { display: none; }
+    .comparison-heading label { justify-content: space-between; }
+    .comparison-heading select { flex: 1; max-width: 240px; }
+    .comparison-quality { gap: 0; padding-block: 7px; margin: 8px 0; }
+    .comparison-quality > div { display: flex; flex-direction: column; flex-wrap: nowrap; align-items: start; padding: 0 7px; gap: 3px; }
+    .comparison-quality strong { font-size: 17px; }
+    .comparison-quality span { font-size: 10px; line-height: 1.3; }
+    .comparison-quality small { display: none; }
+    .comparison-filters { display: grid; grid-template-columns: 1fr; gap: 6px; }
+    .comparison-filters input { width: 100%; }
+    .period-comparison { padding: 10px; }
+    .comparison-matrix { max-height: 65dvh; }
+    .analysis-configuration-dialog { width: calc(100vw - 16px); max-width: calc(100vw - 16px); max-height: calc(100dvh - 20px); }
+    .configuration-dialog-heading, .analysis-configuration-dialog .selector-panel { padding: 14px; }
+    .analysis-configuration-dialog .initial-options { grid-template-columns: 1fr; }
+    .final-selector-panel, .selector-heading { flex-direction: column; align-items: stretch; }
+    .final-selector-panel select { min-width: 0; width: 100%; }
+    .piece-main { grid-template-columns: 1fr; }
+    .history-column { grid-column: auto; }
+    .period-evidence { padding: 12px; }
+    .evidence-drawer-heading { top: -12px; }
+}
+@media print {
+    .analysis-workspace-bar, .review-toolbar, .analysis-configuration-dialog, #analysis-configuration-host { display: none !important; }
+    main { max-width: none; padding: 0; }
+    .comparison-matrix { max-height: none; overflow: visible; }
+}
+
+.configuration-dialog-footer { position: sticky; bottom: 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.configuration-dialog-footer #calculate { background: #24578f; border-color: #24578f; color: white; white-space: nowrap; }
+.analysis-configuration .selector-actions:empty { display: none; }
+@media (max-width: 600px) { .configuration-dialog-footer { flex-direction: column-reverse; align-items: stretch; padding: 12px 14px; } }
+
+.history-column { align-self: start; }
+.piece-history { margin-bottom: 8px; padding: 8px 10px; border: 1px solid #dce4ee; border-radius: 6px; background: #f8fafc; }
+.piece-history > summary { cursor: pointer; font-size: 11px; color: #51647d; font-weight: 600; }
+.piece-history .system-history { margin-top: 8px; }
+/* Compacto sin reducir la legibilidad de las cantidades y los campos de revisión. */
+.diagnosis b { font-size: 12px; }
+.diagnosis small, .diagnosis-action { font-size: 11px; line-height: 1.4; }
+.diagnosis em { font-size: 10px; }
+.piece-inline-controls select, .inline-observation textarea { font-size: 12px; line-height: 1.4; }
+.system-stock-card small, .stock-breakdown small { font-size: 10px; line-height: 1.35; }
+.stock-breakdown b { font-size: 12px; }
+.system-history article small, .system-history article em { font-size: 10px; }
+.system-history article strong { font-size: 12px; }
+.piece-scenario-details .scenario-calculation > summary span,
+.piece-scenario-details .scenario-calculation > summary small,
+.piece-scenario-details .scenario-calculation > summary em { font-size: 10px; }
+.piece-scenario-details .scenario-calculation > summary small b { font-size: 12px; }
+.audit-identity strong, .audit-identity span, .audit-controls input, .audit-controls textarea { font-size: 12px; }
+.analysis-configuration-dialog .selector-heading { display: none; }
+.analysis-configuration-dialog .initial-options { margin-top: 0; }

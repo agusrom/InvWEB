@@ -12,6 +12,10 @@ fotografía del análisis sigue guardándose en la auditoría SQLite existente.
 2. Pulsar **Calcular escenarios**. La nueva entrada es una matriz de componentes
    y MP, con una columna por inicial → actual y el control directo contra sistema
    actual en otra columna.
+   Al abrir un análisis guardado se muestran directamente sus resultados. Para
+   modificar los iniciales, usar **Cambiar períodos**: la configuración se abre en
+   una ventana separada, con **Aplicar y recalcular**. Cerrar o volver sin aplicar
+   conserva los períodos del análisis.
 3. Cambiar **Períodos** a **Tramos consecutivos**. Se ordenan por fecha: A → B,
    B → C, C → actual. Abrir una celda para ver su cálculo.
 4. En el panel lateral, contrastar los dos controles independientes: sistema
@@ -25,7 +29,7 @@ fotografía del análisis sigue guardándose en la auditoría SQLite existente.
    evaluables, remitos sin verificar y revisiones resueltas/sin resolver.
 8. Guardar el análisis y comprobar la cabecera: último cálculo, último guardado y
    cambios pendientes. Las notas se guardan automáticamente, pero la fotografía
-   requiere **Guardar/Actualizar análisis**, como antes.
+   requiere **Guardar análisis/Guardar cambios**, como antes.
 9. Exportar **Excel comparativo**: incluye acumulados, consecutivos, control de
    sistema, cortes/advertencias e indicadores. Se mantiene la exportación anterior
    por período. Si hay cálculos sin guardar, la exportación se recalcula con los
@@ -92,3 +96,13 @@ cero, conteo actual pendiente, ajustes manuales, scrap, cortes/exclusiones no
 anidados, guardado y Excel. Pruebas de navegador de matriz, evidencia, navegación
 hacia remitos y regreso, filtros, notas, estado de la fotografía, exportación,
 compatibilidad con fotografías anteriores y distribución en escritorio/celular.
+
+
+## Presentación de la revisión
+
+La cabecera muestra el nombre del análisis y el inventario actual. Las pestañas
+Comparación, Detalle por pieza y Remitos, junto con Guardar análisis/Guardar cambios,
+quedan fijas al desplazarse. Exportar reúne el Excel comparativo, el período
+seleccionado y la impresión. Los indicadores y el estado de guardado son compactos;
+el historial por pieza se despliega cuando hace falta. Al crear un análisis,
+la selección de inventarios sigue disponible en la pantalla inicial.

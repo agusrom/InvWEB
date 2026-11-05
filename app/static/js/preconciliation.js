@@ -28,6 +28,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 function registerEvents() {
+    registerWorkspaceEvents();
     registerComparisonEvents();
     $("#final-inventory-picker").addEventListener("change", async (event) => {
         inventoryId = Number(event.target.value);
@@ -227,6 +228,7 @@ async function changeFinalInventory() {
     state.selectedScenario = null;
     state.activeView = "SUMMARY";
     $("#results").classList.add("hidden");
+    syncWorkspaceLayout();
     $("#initial-options").innerHTML = '<p class="empty">Cargando períodos comparables…</p>';
     renderSaveButton();
     return await loadSetup();
@@ -281,6 +283,8 @@ async function savedAnalysisAction(event) {
 }
 
 async function loadSavedAnalysis(analysisId) {
+    document.body.classList.add("analysis-loading");
+    $("#analysis-loading-status").classList.remove("hidden");
     try {
         showAnalysisWorkspace();
         const saved = await api(`/api/preconciliacion/analisis-guardados/${analysisId}`);
@@ -303,14 +307,19 @@ async function loadSavedAnalysis(analysisId) {
         $("#results").classList.remove("hidden");
         renderSaveButton();
         history.replaceState({}, "", `/analisis-stock?inventario=${inventoryId}&analisis=${saved.id}`);
-        $("#results").scrollIntoView({ behavior: "smooth", block: "start" });
+        window.scrollTo({ top: 0, behavior: "instant" });
     } catch (error) { toast(error.message, true); }
+    finally {
+        document.body.classList.remove("analysis-loading");
+        $("#analysis-loading-status").classList.add("hidden");
+    }
 }
 
 function renderSaveButton() {
     const button = $("#save-analysis");
     if (!button) return;
-    button.textContent = state.analysisId ? "Actualizar análisis" : "Guardar análisis";
+    button.textContent = state.analysisId ? "Guardar cambios" : "Guardar análisis";
+    button.title = state.analysisId ? "Guardar la fotografía del análisis con los datos actuales" : "Guardar este análisis para continuar después";
     renderSnapshotState();
 }
 
@@ -329,6 +338,7 @@ async function loadSetup() {
         state.setup = await api(`/api/inventarios/${inventoryId}/preconciliacion`);
         renderFinalInventory();
         renderOptions();
+        syncWorkspaceLayout();
         return true;
     } catch (error) {
         $("#selector-message").textContent = error.message;
@@ -352,9 +362,15 @@ function selectedIds() {
 }
 
 function limitSelection(event) {
+    $("#selector-message").textContent = "";
+    $("#selector-message").classList.remove("error");
     const selected = selectedIds();
     if (selected.length > 4) {
         event.target.checked = false;
+        if ($("#analysis-configuration-dialog").open) {
+            $("#selector-message").textContent = "Podés comparar hasta cuatro inventarios iniciales";
+            $("#selector-message").classList.add("error");
+        }
         toast("Podés comparar hasta cuatro inventarios iniciales");
     }
     renderSnapshotState();
@@ -363,8 +379,16 @@ function limitSelection(event) {
 async function calculate(refresh = false) {
     if (state.busy) return;
     const ids = refresh === true ? state.calculation.escenarios.map((s) => s.inicial.id) : selectedIds();
-    if (!ids.length) return toast("Elegí al menos un inventario inicial", true);
+    if (!ids.length) {
+        if ($("#analysis-configuration-dialog").open) {
+            $("#selector-message").textContent = "Elegí al menos un inventario inicial";
+            $("#selector-message").classList.add("error");
+        }
+        return toast("Elegí al menos un inventario inicial", true);
+    }
     const button = $("#calculate");
+    $("#selector-message").textContent = "";
+    $("#selector-message").classList.remove("error");
     state.busy = true;
     button.disabled = true;
     button.textContent = "Calculando movimientos…";
@@ -389,11 +413,15 @@ async function calculate(refresh = false) {
         await loadSavedAnalyses();
         return true;
     } catch (error) {
+        if ($("#analysis-configuration-dialog").open) {
+            $("#selector-message").textContent = error.message;
+            $("#selector-message").classList.add("error");
+        }
         toast(error.message, true);
     } finally {
         state.busy = false;
         button.disabled = false;
-        button.textContent = "Calcular escenarios";
+        button.textContent = $("#analysis-configuration-dialog").contains(button) ? "Aplicar y recalcular" : "Calcular escenarios";
     }
 }
 
@@ -440,6 +468,7 @@ function diagnose(row) {
 function diagnosis(key, label, detail, confidence, action, status) { return { key, label, detail, confidence, action, status }; }
 
 function renderAll() {
+    syncWorkspaceLayout();
     renderComparison();
     renderRows();
     renderUnifiedControls();
@@ -660,7 +689,7 @@ function pieceCard(row) {
                     ${systemAdjustmentsHtml(row)}
                 `}
             </div>
-            <div class="history-column">${systemHistoryHtml(row, current.diferencia_sistema)}<label class="inline-observation">Observación<textarea data-note="observacion" rows="2" maxlength="1500" placeholder="Ej. Desde julio cierra; revisar ajuste realizado en junio.">${escapeHtml(note.observacion || "")}</textarea></label></div>
+            <div class="history-column"><details class="piece-history"><summary>Historial contra sistema</summary>${systemHistoryHtml(row, current.diferencia_sistema)}</details><label class="inline-observation">Observación<textarea data-note="observacion" rows="2" maxlength="1500" placeholder="Ej. Desde julio cierra; revisar ajuste realizado en junio.">${escapeHtml(note.observacion || "")}</textarea></label></div>
         </div>
         <div class="piece-reconciliation">
             <div class="piece-reconciliation-heading"><strong>Control explotado · Conciliación y origen de movimientos</strong><span>Padres explotados a componentes. No utiliza el stock directo del sistema.</span></div>
@@ -1303,8 +1332,8 @@ async function saveScrap(event) {
 function renderFinalInventory() {
     const final = state.calculation?.inventario_final || state.setup?.final;
     if (!final) return;
-    document.title = `Análisis de stock · ${final.codigo}`;
-    $("#analysis-title").textContent = `Análisis de stock · ${final.codigo}`;
+    document.title = state.analysisName ? `${state.analysisName} · Análisis de stock` : `Análisis de stock · ${final.codigo}`;
+    $("#analysis-title").textContent = state.analysisName || `Análisis de stock · ${final.codigo}`;
     $("#final-description").textContent = `${final.cliente} · ${formatDate(final.fecha)} · ${final.contados}/${final.total} códigos completos · ${final.estado}`;
     const option = document.querySelector(`#final-inventory-picker option[value="${final.id}"]`);
     if (option) option.textContent = `${final.codigo} · ${formatDate(final.fecha)} · ${final.cliente} · ${final.estado}`;
