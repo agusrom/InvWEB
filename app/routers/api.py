@@ -51,6 +51,7 @@ from app.services.system_adjustments import (
 )
 from app.services.preconciliation_excel import crear_excel_preconciliacion
 from app.services.preconciliation_indicators import calcular_indicadores_preconciliacion
+from app.services.stock_analysis_comparison import construir_periodos_consecutivos, fecha_calculo
 from app.database import get_db
 from app.local_count_store import (
     eliminar_caja,
@@ -1729,6 +1730,7 @@ def agrupar_filas_material_compartido(
             "diferencia_sistema": float(fila.get("diferencia_sistema", 0) or 0),
             "porcentaje_desvio_sistema": fila.get("porcentaje_desvio_sistema"),
             "sistema_ok": bool(fila.get("sistema_ok")),
+            "comparacion_sistema_disponible": fila.get("comparacion_sistema_disponible", True),
             "detalle_sistema": fila.get("detalle_sistema", {}),
             "detalle_fisico": fila.get("detalle_fisico", {}),
             "ajustes_sistema": fila.get("ajustes_sistema", []),
@@ -1741,6 +1743,15 @@ def agrupar_filas_material_compartido(
             "codigos": codigos,
             "es_grupo_mp": True,
             "conteo_completo": all(fila.get("conteo_completo", True) for fila in miembros),
+            "incluido_inicial": all(fila.get("incluido_inicial", True) for fila in miembros),
+            "incluido_final": all(fila.get("incluido_final", True) for fila in miembros),
+            "comparacion_sistema_disponible": all(fila.get("comparacion_sistema_disponible", True) for fila in miembros) and detalle_sistema["consumo_material"] is not None and detalle_sistema["unidad_consumo"] != "VARIAS",
+            "cobertura_inicial": "CONTADO" if all(fila.get("incluido_inicial", True) for fila in miembros) else "NO_INCLUIDO",
+            "cobertura_final": "NO_INCLUIDO" if not all(fila.get("incluido_final", True) for fila in miembros) else "PENDIENTE" if not all(fila.get("conteo_completo", True) for fila in miembros) else "CONTADO",
+            "unidad_analisis": "Equivalentes de componente",
+            "unidad_compatible": detalle_sistema["consumo_material"] is not None and detalle_sistema["unidad_consumo"] != "VARIAS",
+            "detalle_explosion_inicial": "; ".join(fila.get("detalle_explosion_inicial", "") for fila in miembros),
+            "detalle_explosion_final": "; ".join(fila.get("detalle_explosion_final", "") for fila in miembros),
             "descripcion": f"MP {material} compartida por {' + '.join(codigos)}",
             "fisico_inicial": fisico_inicial,
             "ingresos": ingresos,
@@ -1957,6 +1968,7 @@ def calcular_preconciliacion(
     codigos_finales = codigos_completos_inventario(final)
     detalle_sistema = detalle_stock_sistema_por_codigo(final)
     detalle_fisico = detalle_conteo_fisico_por_codigo(final)
+    codigos_finales_directos = {normalizar_codigo(i.codigo) for i in final.items}
     # La pertenencia no depende del avance de conteo.
     iniciales = [buscar_inventario(db, inicial_id) for inicial_id in entrada.inventarios_iniciales]
     grupos_compartidos = grupos_material_compartido(final, iniciales)
@@ -2014,6 +2026,7 @@ def calcular_preconciliacion(
                 final.fecha,
             )
             filas = []
+            codigos_iniciales_directos = {normalizar_codigo(i.codigo) for i in inicial.items}
             for codigo in codigos:
                 fisico_inicial = float(stock_inicial.get(codigo, {}).get("cantidad", 0))
                 conteo_explotado_actual = float(stock_final.get(codigo, {}).get("cantidad", 0))
@@ -2052,6 +2065,14 @@ def calcular_preconciliacion(
                         or ""
                     ),
                     "conteo_completo": stock_final.get(codigo, {}).get("conteo_completo", True),
+                    "incluido_inicial": codigo in stock_inicial,
+                    "incluido_final": codigo in stock_final,
+                    "cobertura_inicial": ("CONTADO" if codigo in codigos_iniciales_directos else "EXPLOTADO") if codigo in stock_inicial else "NO_INCLUIDO",
+                    "cobertura_final": ("PENDIENTE" if not stock_final.get(codigo, {}).get("conteo_completo", True) else "CONTADO" if codigo in codigos_finales_directos else "EXPLOTADO") if codigo in stock_final else "NO_INCLUIDO",
+                    "comparacion_sistema_disponible": codigo in detalle_sistema and codigo in codigos_finales,
+                    "unidad_analisis": "Equivalentes de componente",
+                    "detalle_explosion_inicial": stock_inicial.get(codigo, {}).get("detalle", ""),
+                    "detalle_explosion_final": stock_final.get(codigo, {}).get("detalle", ""),
                     "fisico_inicial": fisico_inicial,
                     "ingresos": ingresos,
                     "egresos": egresos,
@@ -2079,6 +2100,10 @@ def calcular_preconciliacion(
                 "inicial": {"id": inicial.id, "codigo": inicial.codigo, "fecha": inicial.fecha.isoformat()},
                 "filas": filas,
                 "advertencias": movimientos.get("advertencias", []),
+                "cortes": movimientos.get("cortes", {
+                    "ingreso": {"criterio": movimientos.get("criterio_ingreso", "SIN_INFORMACION")},
+                    "egreso": {"criterio": movimientos.get("criterio_egreso", "SIN_INFORMACION")},
+                }),
             })
         except (HTTPException, ValueError, RuntimeError) as error:
             detalle = error.detail if isinstance(error, HTTPException) else str(error)
@@ -2139,17 +2164,28 @@ def calcular_preconciliacion(
     for escenario in result["escenarios"]:
         pendientes = []
         for fila in escenario["filas"]:
-            if not fila.get("conteo_completo", True):
+            incluido_inicial = fila.get("incluido_inicial", True)
+            incluido_final = fila.get("incluido_final", True)
+            fila["comparable"] = incluido_inicial and incluido_final and fila.get("conteo_completo", True) and fila.get("unidad_compatible", True)
+            if not fila.get("comparacion_sistema_disponible", True):
+                for campo in ("sistema_ok", "diferencia_sistema", "porcentaje_desvio_sistema"):
+                    fila[campo] = None
+            if not fila["comparable"]:
+                fila["motivo_no_comparable"] = "Grupo con consumos o unidades diferentes" if not fila.get("unidad_compatible", True) else "Sin cobertura en ambos inventarios" if not incluido_inicial or not incluido_final else "Conteo pendiente"
                 pendientes.append(fila["codigo"])
                 fila["conteo_parcial"] = fila["conteo_explotado_actual"]
-                for campo in ("conteo_explotado_actual", "fisico_actual", "diferencia_conciliacion",
-                              "porcentaje_desvio_conciliacion", "conciliacion_ok", "sistema_ok",
-                              "diferencia_sistema", "porcentaje_desvio_sistema"):
+                for campo in ("diferencia_conciliacion", "porcentaje_desvio_conciliacion", "conciliacion_ok"):
                     fila[campo] = None
+                if not incluido_inicial:
+                    fila["fisico_inicial"] = None
+                    fila["esperado"] = None
+                if not incluido_final or not fila.get("conteo_completo", True):
+                    fila["conteo_explotado_actual"] = None
+                    fila["fisico_actual"] = None
         if pendientes:
             escenario["advertencias"].append(
-                "Conteo pendiente en: " + ", ".join(pendientes)
-                + ". El esperado incluye movimientos; la comparación se habilita al completar y actualizar."
+                "Comparación pendiente o sin cobertura: " + ", ".join(pendientes)
+                + ". No se interpretan ausencias de renglones como stock cero."
             )
     completar_codigos_cliente_preconciliacion(result)
     result["notas_guardadas"] = notas_inventario(final.id)
@@ -2163,6 +2199,10 @@ def calcular_preconciliacion(
         "contados": len(codigos_finales),
         "total": len({normalizar_codigo(item.codigo) for item in final.items}),
     }
+    result["calculado_en"] = fecha_calculo()
+    result["periodos_consecutivos"] = construir_periodos_consecutivos(
+        result["escenarios"], result["inventario_final"], tolerancia, dentro_tolerancia_comparacion,
+    )
     return result
 
 
@@ -2181,7 +2221,8 @@ def guardar_analisis_preconciliacion(
     analysis_id = preconciliation_audit.save_analysis(
         final.id, final.codigo, calculation["escenarios"], calculation, entrada.nombre
     )
-    return {"id": analysis_id, "nombre": entrada.nombre.strip(), "calculo": calculation}
+    saved = preconciliation_audit.get_analysis(analysis_id)
+    return {"id": analysis_id, "nombre": entrada.nombre.strip(), "calculo": calculation, "actualizado_en": saved["actualizado_en"]}
 
 
 @router.get("/preconciliacion/analisis-guardados")
@@ -2284,7 +2325,7 @@ def exportar_preconciliacion(
         setup["historial_sistema"],
         entrada.vista,
     )
-    scope = "analisis" if entrada.vista == "ANALISIS" else "conciliacion"
+    scope = "comparacion" if entrada.vista == "COMPARACION" else "analisis" if entrada.vista == "ANALISIS" else "conciliacion"
     filename = f"{scope}_{final.codigo}.xlsx"
     return StreamingResponse(
         stream,

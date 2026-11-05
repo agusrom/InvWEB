@@ -54,6 +54,8 @@ def _finish(sheet, number_columns=()):
 
 
 def _diagnosis(rows):
+    if any(row.get("comparable") is False and row.get("conteo_completo", True) for row in rows):
+        return "Sin cobertura comparable"
     if any(row.get("conteo_completo") is False for row in rows):
         return "Conteo pendiente"
     system_ok = bool(rows) and rows[0].get("sistema_ok", False)
@@ -104,7 +106,7 @@ def _analysis_sheet(book, final, calculation, notes, history):
         for column, value in enumerate(values, 1):
             sheet.cell(row_number, column, value)
         # Diferencias quedan auditables como fórmulas.
-        if current.get("conteo_completo", True):
+        if current.get("conteo_completo", True) and current.get("comparacion_sistema_disponible", True):
             sheet.cell(row_number, 18, f"=M{row_number}-E{row_number}")
         column = 20
         for _ in history:
@@ -112,7 +114,7 @@ def _analysis_sheet(book, final, calculation, notes, history):
             column += 3
         for scenario_map in scenario_maps:
             expected_column = get_column_letter(column)
-            if scenario_map.get(code, {}).get("conteo_completo", True):
+            if scenario_map.get(code) and scenario_map[code].get("comparable", scenario_map[code].get("conteo_completo", True)):
                 sheet.cell(row_number, column + 1, f"=S{row_number}-{expected_column}{row_number}")
             column += 2
         if current.get("diferencia_sistema"):
@@ -131,9 +133,10 @@ def _reconciliation_summary(book, final, scenario, notes):
         values = [item["codigo"], item.get("codigo_cliente", ""), item.get("descripcion", ""), item.get("fisico_inicial", 0), item.get("ingresos", 0), item.get("egresos", 0), item.get("scrap", 0), None, item.get("conteo_explotado_actual", item.get("fisico_actual", 0)), None, note.get("estado", "PENDIENTE"), note.get("causa", ""), note.get("observacion", "")]
         for column, value in enumerate(values, 1):
             sheet.cell(row_number, column, value)
-        sheet.cell(row_number, 8, f"=D{row_number}+E{row_number}-F{row_number}-G{row_number}")
-        if not item.get("conteo_completo", True):
-            sheet.cell(row_number, 9, "Pendiente")
+        if item.get("incluido_inicial", True):
+            sheet.cell(row_number, 8, f"=D{row_number}+E{row_number}-F{row_number}-G{row_number}")
+        if not item.get("comparable", item.get("conteo_completo", True)):
+            sheet.cell(row_number, 9, item.get("motivo_no_comparable", "Pendiente"))
             continue
         sheet.cell(row_number, 10, f"=I{row_number}-H{row_number}")
         if item.get("diferencia_conciliacion"):
@@ -237,11 +240,48 @@ def _indicator_sheet(book, calculation, notes):
     _finish(sheet, (4, 5, 6))
 
 
+def _comparison_sheets(book, calculation, notes):
+    main = book.active
+    main.title = "Acumulados"
+    periods = [dict(s, final=calculation.get("inventario_final", {})) for s in calculation["escenarios"]]
+    for sheet, group in ((main, periods), (book.create_sheet("Consecutivos"), calculation.get("periodos_consecutivos", []))):
+        _headers(sheet, 1, ["Componente / MP", "Inicial", "Final", "Unidad", "Cobertura inicial", "Cobertura final", "Inicial explotado", "Ingresos", "Egresos", "Scrap", "Esperado", "Final explotado", "Diferencia", "Desvío %", "Estado de comparación", "Estado revisión", "Causa", "Observación"])
+        index = 2
+        for period in group:
+            for row in period.get("filas", []):
+                note = notes.get(row["codigo"], {})
+                values = [row["codigo"], period["inicial"]["codigo"], period["final"].get("codigo", "Actual"), row.get("unidad_analisis", "Sin registrar"), row.get("cobertura_inicial", "Sin registrar"), row.get("cobertura_final", "Sin registrar"), row.get("fisico_inicial"), row.get("ingresos"), row.get("egresos"), row.get("scrap"), row.get("esperado"), row.get("conteo_explotado_actual"), row.get("diferencia_conciliacion"), row.get("porcentaje_desvio_conciliacion"), "Evaluable" if row.get("comparable", True) else row.get("motivo_no_comparable", "Pendiente"), note.get("estado", "PENDIENTE"), note.get("causa", ""), note.get("observacion", "")]
+                for column, value in enumerate(values, 1):
+                    sheet.cell(index, column, value)
+                index += 1
+        _finish(sheet, range(7, 15))
+    system = book.create_sheet("Sistema actual")
+    _headers(system, 1, ["Componente / MP", "Conteo directo", "Stock sistema", "Diferencia directa", "Evaluable"])
+    current = {r["codigo"]: r for p in calculation["escenarios"] for r in p["filas"]}
+    for index, row in enumerate(current.values(), 2):
+        valid = row.get("comparacion_sistema_disponible", True)
+        for column, value in enumerate([row["codigo"], row.get("conteo_actual") if valid else None, row.get("sistema_actual") if valid else None, row.get("diferencia_sistema"), "Sí" if valid else "Sin control directo"], 1):
+            system.cell(index, column, value)
+    _finish(system, (2, 3, 4))
+    cuts = book.create_sheet("Cortes y advertencias")
+    _headers(cuts, 1, ["Período", "Tipo", "Criterio", "Desde excluido", "Hasta incluido", "Advertencias"])
+    index = 2
+    for period in periods + calculation.get("periodos_consecutivos", []):
+        for kind in ("ingreso", "egreso"):
+            cut = period.get("cortes", {}).get(kind, {})
+            for column, value in enumerate([f'{period["inicial"]["codigo"]} → {period["final"].get("codigo", "Actual")}', kind, cut.get("criterio", "Sin registrar"), cut.get("desde"), cut.get("hasta"), "; ".join(period.get("advertencias", []))], 1):
+                cuts.cell(index, column, value)
+            index += 1
+    _finish(cuts)
+
+
 def crear_excel_preconciliacion(final, calculation, notes, history, view):
     book = Workbook()
     book.calculation.fullCalcOnLoad = True
     book.calculation.forceFullCalc = True
-    if view == "ANALISIS":
+    if view == "COMPARACION":
+        _comparison_sheets(book, calculation, notes)
+    elif view == "ANALISIS":
         _analysis_sheet(book, final, calculation, notes, history)
     else:
         scenario = calculation["escenarios"][0]

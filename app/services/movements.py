@@ -875,6 +875,10 @@ def calcular_movimientos(
         "detalles_ingreso": dict(detalles_ingreso),
         "detalles_egreso": dict(detalles_egreso),
         "advertencias": advertencias,
+        "cortes": {
+            "ingreso": {"criterio": criterios["ingreso"], "desde": _fecha_texto(ingreso_fecha_desde), "hasta": _fecha_texto(ingreso_fecha_hasta), "remito_inicial": remito_ingreso_inicial, "remito_final": remito_ingreso_final, "inicio_por_remito": ingreso_inicio_remito, "fin_por_remito": ingreso_fin_remito, "incluye_inicio": False, "incluye_fin": True},
+            "egreso": {"criterio": criterios["egreso"], "desde": _fecha_texto(egreso_fecha_desde), "hasta": _fecha_texto(egreso_fecha_hasta), "remito_inicial": remito_egreso_inicial, "remito_final": remito_egreso_final, "inicio_por_remito": egreso_inicio_remito, "fin_por_remito": egreso_fin_remito, "incluye_inicio": False, "incluye_fin": True},
+        },
         "criterio_ingreso": criterios["ingreso"],
         "criterio_egreso": criterios["egreso"],
     }

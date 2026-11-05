@@ -3,7 +3,7 @@ const standalone = document.body.dataset.standalone === "true";
 const initialParams = new URLSearchParams(location.search);
 const requestedInventoryId = Number(initialParams.get("inventario"));
 const requestedAnalysisId = initialParams.get("analisis");
-const state = { setup: null, calculation: null, analysisId: null, analysisName: "", savedAnalyses: [], rows: [], timers: new Map(), selectedScenario: null, activeView: "SUMMARY", busy: false };
+const state = { setup: null, calculation: null, analysisId: null, analysisName: "", savedAnalyses: [], rows: [], timers: new Map(), selectedScenario: null, activeView: "SUMMARY", busy: false, snapshotDirty: false, savedAt: null };
 const $ = (selector) => document.querySelector(selector);
 let manualSearchTimer = null;
 let manualSearchController = null;
@@ -28,6 +28,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 function registerEvents() {
+    registerComparisonEvents();
     $("#final-inventory-picker").addEventListener("change", async (event) => {
         inventoryId = Number(event.target.value);
         history.replaceState({}, "", `/analisis-stock?inventario=${inventoryId}`);
@@ -102,7 +103,7 @@ async function exportExcel() {
         const response = await fetch(`/api/inventarios/${inventoryId}/preconciliacion/exportar`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ inventarios_iniciales: scenarioIds, vista: "CONCILIACION", analisis_id: state.analysisId }),
+            body: JSON.stringify({ inventarios_iniciales: scenarioIds, vista: "CONCILIACION", analisis_id: state.snapshotDirty ? null : state.analysisId }),
         });
         if (!response.ok) {
             const body = await response.json().catch(() => ({}));
@@ -126,7 +127,9 @@ async function exportExcel() {
 }
 
 async function saveAnalysis() {
+    if (state.busy || mutationPending || state.timers.size || noteSavesPending || [...failedNoteSaves].some((k) => k.startsWith(`${inventoryId}:`)) || document.querySelector(".remittance-group.dirty")) return toast("Terminá de guardar las ediciones antes de guardar la fotografía", true);
     if (!state.calculation) return toast("Primero calculá los escenarios", true);
+    if (!sameNumbers(selectedIds(), state.calculation.escenarios.map((p) => p.inicial.id))) return toast("Recalculá los iniciales seleccionados antes de guardar la fotografía", true);
     const ids = state.calculation.escenarios.map((scenario) => scenario.inicial.id);
     const dates = state.calculation.escenarios.map((scenario) => formatDate(scenario.inicial.fecha)).join(", ");
     const suggested = state.analysisName || `${state.setup.final.codigo} · desde ${dates}`;
@@ -143,6 +146,8 @@ async function saveAnalysis() {
         state.analysisId = saved.id;
         state.analysisName = name;
         state.calculation = saved.calculo;
+        state.snapshotDirty = false;
+        state.savedAt = saved.actualizado_en || new Date().toISOString();
         renderFinalInventory();
         buildRows();
         renderAll();
@@ -213,6 +218,9 @@ async function loadInventoryOptions(preferredId = null) {
 async function changeFinalInventory() {
     state.setup = null;
     state.calculation = null;
+    state.snapshotDirty = false;
+    state.savedAt = null;
+    $("#back-to-evidence").classList.add("hidden");
     state.analysisId = null;
     state.analysisName = "";
     state.rows = [];
@@ -282,6 +290,8 @@ async function loadSavedAnalysis(analysisId) {
         const selected = new Set(saved.inventarios_iniciales.map(Number));
         document.querySelectorAll("#initial-options input").forEach((input) => { input.checked = selected.has(Number(input.value)); });
         state.calculation = saved.calculo;
+        state.snapshotDirty = false;
+        state.savedAt = saved.actualizado_en || null;
         renderFinalInventory();
         if (state.calculation.notas_guardadas) state.setup.notas = state.calculation.notas_guardadas;
         state.analysisId = saved.id;
@@ -301,6 +311,7 @@ function renderSaveButton() {
     const button = $("#save-analysis");
     if (!button) return;
     button.textContent = state.analysisId ? "Actualizar análisis" : "Guardar análisis";
+    renderSnapshotState();
 }
 
 async function api(url, options = {}) {
@@ -346,6 +357,7 @@ function limitSelection(event) {
         event.target.checked = false;
         toast("Podés comparar hasta cuatro inventarios iniciales");
     }
+    renderSnapshotState();
 }
 
 async function calculate(refresh = false) {
@@ -361,7 +373,9 @@ async function calculate(refresh = false) {
             method: "POST",
             body: JSON.stringify({ inventarios_iniciales: ids }),
         });
+        state.snapshotDirty = true;
         if (refresh !== true) {
+            state.savedAt = null;
             state.analysisId = null;
             state.analysisName = "";
             state.activeView = "SUMMARY";
@@ -406,7 +420,9 @@ function buildRows() {
 function diagnose(row) {
     const scenarios = row.scenarios;
     if (scenarios.length !== state.calculation.escenarios.length) return diagnosis("REVIEW", "Comparación incompleta", "Faltan resultados de uno o más escenarios; revisá las advertencias.", "Baja", "Completar los escenarios antes de decidir", "REVISAR_MOVIMIENTOS");
+    if (scenarios.some((item) => item.comparable === false && item.conteo_completo !== false)) return diagnosis("REVIEW", "Cobertura incompleta", "Faltan datos comparables de uno de los inventarios. Una ausencia de renglón no representa un cero contado.", "Pendiente", "Revisar cobertura", "PENDIENTE");
     if (scenarios.some((item) => item.conteo_completo === false)) return diagnosis("REVIEW", "Conteo pendiente", "El esperado incluye los movimientos del período. Completá el conteo y actualizá el inventario final para comparar.", "Pendiente", "Completar conteo y actualizar", "PENDIENTE");
+    if (scenarios[0]?.comparacion_sistema_disponible === false) return diagnosis("REVIEW", "Revisar evolución física", "Este componente no tiene un conteo directo comparable contra sistema; usá los períodos explotados y su evidencia.", "Orientativa", "Verificar conteos y movimientos", "PENDIENTE");
     const systemOk = scenarios[0]?.sistema_ok ?? false;
     const reconciliationOk = scenarios.map((item) => item.conciliacion_ok);
     const allReconciliationOk = reconciliationOk.length > 0 && reconciliationOk.every(Boolean);
@@ -424,6 +440,7 @@ function diagnose(row) {
 function diagnosis(key, label, detail, confidence, action, status) { return { key, label, detail, confidence, action, status }; }
 
 function renderAll() {
+    renderComparison();
     renderRows();
     renderUnifiedControls();
     renderSummaryView();
@@ -452,7 +469,7 @@ function setAnalysisView(view) {
 function renderSummaryView() {
     const scenario = selectedSummaryScenario();
     const rows = scenario?.filas || [];
-    const evaluated = rows.filter((item) => item.conteo_completo !== false);
+    const evaluated = rows.filter(rowComparable);
     const good = evaluated.filter((item) => item.conciliacion_ok).length;
     const reliability = evaluated.length ? good * 100 / evaluated.length : null;
     const tolerance = state.calculation?.tolerancia ?? state.setup?.tolerancia ?? 5;
@@ -464,6 +481,7 @@ function renderSummaryView() {
         <em>${good} grupos/piezas OK de ${evaluated.length} evaluados · ${rows.length - evaluated.length} pendientes</em>
     ` : '<p class="empty">No hay un escenario de conciliación disponible.</p>';
     renderSummaryTable();
+    renderComparison();
 }
 
 function causeLabel(code) {
@@ -489,10 +507,10 @@ function renderSummaryTable() {
         const note = notes[item.codigo] || {};
         const searchable = `${item.codigo} ${(item.codigos || []).join(" ")} ${item.codigo_material || ""} ${item.codigo_cliente || ""} ${item.descripcion || ""} ${causeLabel(note.causa)} ${note.observacion || ""} ${summaryStatus(note)}`;
         if (query && !normalize(searchable).includes(query)) return false;
-        if (status === "DIFFERENCE") return !item.conciliacion_ok;
+        if (status === "DIFFERENCE") return rowComparable(item) && !item.conciliacion_ok;
         if (status === "OK") return item.conciliacion_ok;
         if (status === "PENDING") return String(note.estado || "PENDIENTE") === "PENDIENTE";
-        if (status === "NO_CAUSE") return !item.conciliacion_ok && !String(note.causa || "").trim();
+        if (status === "NO_CAUSE") return rowComparable(item) && !item.conciliacion_ok && !String(note.causa || "").trim();
         if (status === "RESOLVED") return String(note.estado || "") === "RESUELTO";
         return true;
     });
@@ -629,7 +647,7 @@ function pieceCard(row) {
         : `<strong>${escapeHtml(row.codigo)}</strong><span>${escapeHtml(row.descripcion || "Sin descripción")}</span>`;
     return `<article class="piece-card ${row.diagnosis.key.toLowerCase()} ${row.es_grupo_mp ? "shared-analysis-group" : ""}" data-code="${escapeHtml(row.codigo)}">
         <div class="piece-main">
-            <div class="piece-identity">${identity}<div class="diagnosis ${row.diagnosis.key.toLowerCase()}"><span><b>${row.diagnosis.label}</b><em>Confianza ${row.diagnosis.confidence}</em></span><small>${row.diagnosis.detail}</small><span class="diagnosis-action"><strong>Siguiente:</strong> ${row.diagnosis.action}</span><button type="button" data-apply-diagnosis="${row.diagnosis.status}">Aplicar acción</button></div>
+            <div class="piece-identity">${identity}<div class="diagnosis ${row.diagnosis.key.toLowerCase()}"><span><b>${row.diagnosis.label}</b><em>Hipótesis orientativa · verificar evidencia</em></span><small>${row.diagnosis.detail}</small><span class="diagnosis-action"><strong>Siguiente:</strong> ${row.diagnosis.action}</span><button type="button" data-apply-diagnosis="${row.diagnosis.status}">Aplicar acción</button></div>
                 ${evidenceChips.length ? `<div class="evidence-chips">${evidenceChips.map((text) => `<span>${escapeHtml(text)}</span>`).join("")}</div>` : ''}
                 <div class="piece-inline-controls"><label>Estado<select data-note="estado">${statusOptions(note.estado)}</select></label><label>Causa probable<select data-note="causa">${causeOptions(note.causa)}</select></label><span class="save-state">${note.estado || note.causa || note.observacion ? "✓ Guardado" : "Sin análisis"}</span></div>
                 <details class="validation-checklist"><summary>Comprobaciones ${checkedControls}/5</summary><div>${validationCheck("conteo", "Conteo confirmado", controls)}${validationCheck("ingresos", "Ingresos revisados", controls)}${validationCheck("egresos", "Egresos revisados", controls)}${validationCheck("scrap", "Scrap revisado", controls)}${validationCheck("ajustes", "Ajustes del sistema revisados", controls)}</div></details>
@@ -794,7 +812,7 @@ function causeOptions(selected = "") {
 
 function handleAnalysisChange(event) {
     const card = event.target.closest("[data-code]");
-    if (card && (event.target.dataset.note || event.target.dataset.check)) {
+    if (card && ((event.target.dataset.note && event.target.dataset.note !== "observacion") || event.target.dataset.check)) {
         card.dataset.inventoryId = String(inventoryId);
         updateChecklistSummary(card);
         saveNote(card);
@@ -808,6 +826,7 @@ function handleAnalysisInput(event) {
     const key = `${inventoryId}:${card.dataset.code}`;
     clearTimeout(state.timers.get(key));
     state.timers.set(key, setTimeout(() => saveNote(card), 650));
+    renderSnapshotState();
 }
 
 async function saveNote(card) {
@@ -827,13 +846,14 @@ async function saveNote(card) {
         failedNoteSaves.delete(key);
         if (finalId !== inventoryId) return;
         state.setup.notas[card.dataset.code] = saved;
+        state.snapshotDirty = true;
         status.textContent = "✓ Guardado";
         renderSummaryView();
     } catch (error) {
         failedNoteSaves.add(key);
         status.textContent = "Error al guardar";
         toast(error.message, true);
-    } finally { noteSavesPending -= 1; }
+    } finally { noteSavesPending -= 1; renderSnapshotState(); }
 }
 
 function updateChecklistSummary(card) {
@@ -884,7 +904,8 @@ function renderUnifiedControls() {
 }
 
 function warningsHtml(scenarios) {
-    return scenarios.flatMap((s) => (s.advertencias || []).map((warning) => `<p class="audit-warning"><strong>${escapeHtml(s.inicial.codigo)}:</strong> ${escapeHtml(warning)}</p>`)).join("");
+    const warnings = scenarios.flatMap((s) => (s.advertencias || []).map((warning) => ({ code: s.inicial.codigo, text: warning })));
+    return warnings.length ? `<details class="audit-warning-summary"><summary>${warnings.length} advertencias de cobertura y cortes · revisar antes de concluir</summary>${warnings.map((w) => `<p class="audit-warning"><strong>${escapeHtml(w.code)}:</strong> ${escapeHtml(w.text)}</p>`).join("")}</details>` : "";
 }
 
 function movementCardHtml(movement) {
@@ -931,7 +952,7 @@ function renderMovementType(type, allRows, target, summaryTarget, query, scenari
     const rows = visibleGroups.flatMap((group) => group.rows);
     const verified = rows.filter((movement) => movement.verificado).length;
     const total = rows.reduce((sum, movement) => sum + Number(movement.cantidad || 0), 0);
-    $(summaryTarget).innerHTML = `<strong>${rows.length} movimiento${rows.length === 1 ? '' : 's'}</strong><small>${verified}/${rows.length} verificados · Total ${number(total)}</small>`;
+    $(summaryTarget).innerHTML = `<strong>${rows.length} movimiento${rows.length === 1 ? '' : 's'}</strong><small>${verified}/${rows.length} verificados · cantidades por código</small>`;
     if (!visibleGroups.length) {
         $(target).innerHTML = '<p class="empty">No hay remitos para este filtro.</p>';
         return;
@@ -1052,6 +1073,7 @@ function updateRemittanceDraft(group) {
             ? "Cambios de cálculo · se recalculará una sola vez"
             : "Verificación/comentarios · guardado rápido";
     group.classList.toggle("dirty", draft.changed);
+    renderSnapshotState();
 }
 
 function applySavedMovements(saved) {
@@ -1060,7 +1082,7 @@ function applySavedMovements(saved) {
         const update = updates.get(movement.clave);
         if (update) Object.assign(movement, update);
     });
-    state.calculation.escenarios.forEach((scenario) => (scenario.filas || []).forEach((row) => {
+    [...state.calculation.escenarios, ...(state.calculation.periodos_consecutivos || [])].forEach((scenario) => (scenario.filas || []).forEach((row) => {
         ["detalle_ingresos", "detalle_egresos"].forEach((field) => (row[field] || []).forEach((detail) => {
             const update = updates.get(detail.clave);
             if (update) {
@@ -1102,6 +1124,7 @@ async function saveRemittance(group, button) {
                 movimientos: draft.movements,
             }),
         });
+        state.snapshotDirty = true;
         if (response.recalculado) state.calculation = response.calculo;
         else applySavedMovements(response.movimientos || []);
         buildRows();
@@ -1322,7 +1345,11 @@ async function refreshFinalInventory() {
         if (inventoryId !== finalId || state.analysisId !== analysisId) return;
         state.setup = setup;
         state.calculation = calculation;
-        if (refreshed) state.analysisName = refreshed.analisis.nombre;
+        if (refreshed) {
+            state.analysisName = refreshed.analisis.nombre;
+            state.savedAt = refreshed.analisis.actualizado_en;
+        }
+        state.snapshotDirty = !refreshed;
         renderOptions();
         document.querySelectorAll("#initial-options input").forEach((input) => { input.checked = ids.includes(Number(input.value)); });
         if (calculation) {

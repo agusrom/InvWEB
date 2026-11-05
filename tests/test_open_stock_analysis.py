@@ -115,8 +115,10 @@ class OpenStockAnalysisTests(unittest.TestCase):
         self.assertEqual(rows['TEST']['conteo_parcial'],4)
         self.assertIsNone(rows['TEST']['diferencia_conciliacion'])
         self.assertEqual(rows['SOLO-INICIAL']['fisico_inicial'],3)
-        self.assertEqual(rows['SOLO-INICIAL']['fisico_actual'],0)
-        self.assertEqual(rows['SOLO-FINAL']['fisico_inicial'],0)
+        self.assertIsNone(rows['SOLO-INICIAL']['fisico_actual'])
+        self.assertFalse(rows['SOLO-INICIAL']['comparable'])
+        self.assertIsNone(rows['SOLO-FINAL']['fisico_inicial'])
+        self.assertFalse(rows['SOLO-FINAL']['comparable'])
         self.assertEqual(rows['SOLO-FINAL']['fisico_actual'],7)
 
     def test_recursive_explosion_and_real_movements_are_limited_to_inventory_universe(self):
@@ -165,7 +167,7 @@ class OpenStockAnalysisTests(unittest.TestCase):
         book=load_workbook(crear_excel_preconciliacion(self.final,result,{},[],"CONCILIACION"))
         sheet=book['Conciliación']
         self.assertEqual(sheet['A5'].value,'TEST')
-        self.assertEqual(sheet['I5'].value,'Pendiente')
+        self.assertEqual(sheet['I5'].value,'Conteo pendiente')
         self.assertIsNone(sheet['J5'].value)
         self.assertEqual(sheet['H5'].value,'=D5+E5-F5-G5')
         book=load_workbook(crear_excel_preconciliacion(self.final,result,{},[],"ANALISIS"))

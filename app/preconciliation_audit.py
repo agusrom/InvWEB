@@ -42,7 +42,7 @@ def save_analysis(final_id, final_code, scenarios, calculation, name=None):
     initial_ids = sorted(int(item["inicial"]["id"]) for item in scenarios)
     initial_codes = [item["inicial"]["codigo"] for item in scenarios]
     signature = json.dumps(initial_ids, separators=(",", ":"))
-    now = datetime.now().isoformat(timespec="seconds")
+    now = datetime.now().astimezone().isoformat(timespec="seconds")
     with connection() as db:
         existing = db.execute(
             "SELECT id, creado_en FROM analisis WHERE final_id=? AND iniciales=?",
@@ -322,6 +322,6 @@ def update_analysis_calculation(analysis_id, calculation):
         cursor = db.execute(
             "UPDATE analisis SET calculo = ?, actualizado_en = ? WHERE id = ?",
             (json.dumps(calculation, ensure_ascii=False),
-             datetime.now().isoformat(timespec="seconds"), analysis_id),
+             datetime.now().astimezone().isoformat(timespec="seconds"), analysis_id),
         )
         return cursor.rowcount > 0

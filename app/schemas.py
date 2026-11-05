@@ -269,7 +269,7 @@ class PreconciliacionCalculoEntrada(BaseModel):
 
 
 class PreconciliacionExportacionEntrada(PreconciliacionCalculoEntrada):
-    vista: str = Field(pattern="^(ANALISIS|CONCILIACION)$")
+    vista: str = Field(pattern="^(ANALISIS|CONCILIACION|COMPARACION)$")
     analisis_id: str | None = Field(default=None, max_length=64)
 
 

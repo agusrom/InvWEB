@@ -62,7 +62,7 @@ class UnifiedPreconciliationUiTests(unittest.TestCase):
         self.assertNotIn('Sistema vs. esperado', self.script)
         self.assertIn('Ajustes del sistema · produc16', self.script)
         self.assertNotIn('Prioridad de reconteo', self.template)
-        self.assertIn('Confianza ${row.diagnosis.confidence}', self.script)
+        self.assertIn('Hipótesis orientativa · verificar evidencia', self.script)
         self.assertIn('id="evidence-filter"', self.template)
         self.assertIn('class="validation-checklist"', self.script)
         self.assertIn('Esperado explotado', self.script)

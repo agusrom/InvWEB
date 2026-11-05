@@ -85,6 +85,13 @@ notas y las correcciones de movimientos. Si el recálculo falla conserva la
 fotografía anterior. Hay que terminar de guardar las notas y remitos pendientes
 antes de actualizar. No modifica el stock del inventario ni requiere migraciones.
 
+## Comparación de períodos (rama de prueba)
+
+La vista de análisis permite comparar todos los iniciales contra el actual o
+revisar tramos consecutivos, abrir su evidencia y exportar un Excel comparativo.
+El [recorrido de prueba y las reglas de cobertura](docs/prueba_analisis_periodos.md)
+detallan cómo validar esta vista sin migraciones de base de datos.
+
 ## Datos que se deben conservar y respaldar
 
 | Ubicación | Contenido activo |

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ 'Análisis de stock' if not inventario_id else 'Análisis de stock · ' ~ inventario_codigo }}</title>
-    <link rel="stylesheet" href="/static/css/preconciliation.css?v=28">
+    <link rel="stylesheet" href="/static/css/preconciliation.css?v=29">
 </head>
 <body data-inventory-id="{{ inventario_id }}" data-standalone="{{ 'true' if not inventario_id else 'false' }}">
     <header class="pre-header">
@@ -53,18 +53,34 @@
                     <strong>Análisis general, conciliación y remitos</strong>
                 </div>
                 <div class="view-export-actions">
+                    <button id="export-comparison" type="button">⇩ Excel comparativo</button>
                     <select id="export-scenario" aria-label="Período para exportar"></select>
                     <button id="save-analysis" type="button">Guardar análisis</button>
                     <button id="export-excel" type="button">⇩ Exportar Excel</button>
                     <button id="print-view" type="button">▤ Imprimir</button>
                 </div>
             </div>
+            <p id="analysis-snapshot-state" class="snapshot-state" role="status"></p>
             <nav class="analysis-view-tabs" aria-label="Secciones del análisis">
-                <button type="button" data-analysis-view="SUMMARY" class="active">Resumen</button>
+                <button type="button" data-analysis-view="SUMMARY" class="active">Comparación de períodos</button>
                 <button type="button" data-analysis-view="DETAIL">Análisis detallado</button>
                 <button type="button" data-analysis-view="REMITTANCES">Conciliación y remitos</button>
             </nav>
             <section id="analysis-summary-view" class="analysis-summary-view">
+                <section class="period-comparison" aria-labelledby="comparison-heading">
+                    <div class="comparison-heading"><div><h2 id="comparison-heading">Comparación entre inventarios</h2><p>Elegí un tramo y abrí una diferencia para revisar el conteo y los movimientos que la explican.</p></div>
+                        <label>Períodos<select id="comparison-mode"><option value="ACCUMULATED">Cada inicial → actual</option><option value="CONSECUTIVE">Tramos consecutivos</option></select></label>
+                    </div>
+                    <div id="comparison-quality" class="comparison-quality"></div>
+                    <div class="comparison-filters">
+                        <input id="comparison-search" type="search" placeholder="Buscar componente, MP o descripción" aria-label="Buscar en comparación">
+                        <select id="comparison-filter" aria-label="Lista de trabajo"><option value="ALL">Toda la lista de trabajo</option><option value="DIFFERENCE">Con diferencias</option><option value="PENDING">Conteos pendientes</option><option value="COVERAGE">Sin cobertura / no evaluables</option><option value="UNVERIFIED">Remitos sin verificar</option><option value="OPEN">Revisiones sin resolver</option><option value="RESOLVED">Revisiones resueltas</option></select>
+                        <span>Seleccioná una celda para ver su evidencia.</span>
+                    </div>
+                    <div id="comparison-matrix" class="comparison-matrix"></div>
+                </section>
+                <details class="selected-period-summary"><summary>Resumen y filtros del período acumulado seleccionado</summary>
+
                 <div class="summary-overview">
                     <div class="summary-reliability" id="summary-reliability"></div>
                     <div class="summary-scenario-actions">
@@ -94,6 +110,7 @@
                     </div>
                 </div>
                 <div id="summary-table" class="summary-table"></div>
+                </details>
             </section>
             <div id="cross-panel" class="hidden">
                 <section id="movements-panel" class="global-audit-panel hidden">
@@ -108,6 +125,7 @@
                             <select id="movement-scenario" aria-label="Filtrar escenario"></select>
                         </div>
                     </div>
+                    <button id="back-to-evidence" type="button" class="hidden">← Volver a la evidencia del componente</button>
                     <div id="audit-warnings" class="audit-warnings"></div>
                     <div class="remittance-accordions">
                         <details id="income-register" class="remittance-register">
@@ -203,6 +221,11 @@
     </main>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/static/js/preconciliation.js?v=30" defer></script>
+    <dialog id="period-evidence" class="period-evidence" aria-labelledby="period-evidence-title">
+        <div class="evidence-drawer-heading"><div><small>REVISIÓN DE EVIDENCIA</small><h2 id="period-evidence-title"></h2></div><button id="close-period-evidence" type="button" aria-label="Cerrar evidencia">✕</button></div>
+        <div id="period-evidence-content"></div>
+    </dialog>
+    <script src="/static/js/preconciliation-comparison.js?v=1"></script>
+    <script src="/static/js/preconciliation.js?v=31" defer></script>
 </body>
 </html>

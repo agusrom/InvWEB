@@ -34,31 +34,22 @@ def calcular_indicadores_preconciliacion(
             rows_by_code.setdefault(str(row.get("codigo", "")), []).append(row)
 
     total_pieces = len(rows_by_code)
-    rows_by_code = {code: rows for code, rows in rows_by_code.items()
-                    if all(row.get("conteo_completo", True) for row in rows)}
-    total = len(rows_by_code)
-    expected_scenarios = len(scenarios)
-    system_good = sum(
-        1 for rows in rows_by_code.values()
-        if rows and bool(rows[0].get("sistema_ok"))
-    )
-    reconciliation_good = sum(
-        1 for rows in rows_by_code.values()
-        if len(rows) == expected_scenarios
-        and rows
-        and all(bool(row.get("conciliacion_ok")) for row in rows)
-    )
-    integral_good = sum(
-        1 for rows in rows_by_code.values()
-        if len(rows) == expected_scenarios
-        and rows
-        and bool(rows[0].get("sistema_ok"))
-        and all(bool(row.get("conciliacion_ok")) for row in rows)
-    )
+    expected_scenarios = len(calculation.get("escenarios", []))
+    reconciliation_rows = {code: rows for code, rows in rows_by_code.items()
+                           if len(rows) == expected_scenarios
+                           and all(row.get("comparable", row.get("conteo_completo", True)) for row in rows)}
+    system_rows = {code: rows for code, rows in rows_by_code.items()
+                   if rows and rows[0].get("comparacion_sistema_disponible", rows[0].get("conteo_completo", True))}
+    integral_rows = reconciliation_rows.keys() & system_rows.keys()
+    total = len(reconciliation_rows)
+    system_good = sum(bool(rows[0].get("sistema_ok")) for rows in system_rows.values())
+    reconciliation_good = sum(all(bool(row.get("conciliacion_ok")) for row in rows) for rows in reconciliation_rows.values())
+    integral_good = sum(bool(rows_by_code[code][0].get("sistema_ok"))
+                        and all(bool(row.get("conciliacion_ok")) for row in rows_by_code[code]) for code in integral_rows)
 
     scenario_metrics = []
     for scenario in scenarios:
-        rows = [row for row in scenario.get("filas", []) if row.get("conteo_completo", True)]
+        rows = [row for row in scenario.get("filas", []) if row.get("comparable", row.get("conteo_completo", True))]
         good = sum(1 for row in rows if bool(row.get("conciliacion_ok")))
         scenario_metrics.append({
             "id": scenario.get("inicial", {}).get("id"),
@@ -102,7 +93,7 @@ def calcular_indicadores_preconciliacion(
 
     system_bad_codes = {
         code for code, rows in rows_by_code.items()
-        if rows and not bool(rows[0].get("sistema_ok"))
+        if code in system_rows and not bool(rows[0].get("sistema_ok"))
     }
     system_differences_with_adjustments = sum(
         1 for code in system_bad_codes
@@ -113,9 +104,9 @@ def calcular_indicadores_preconciliacion(
         "tolerancia": calculation.get("tolerancia", 5),
         "total_piezas": total_pieces,
         "piezas_pendientes": total_pieces - total,
-        "sistema": _metrica(system_good, total),
+        "sistema": _metrica(system_good, len(system_rows)),
         "conciliacion_integral": _metrica(reconciliation_good, total),
-        "consistencia_integral": _metrica(integral_good, total),
+        "consistencia_integral": _metrica(integral_good, len(integral_rows)),
         "peor_escenario": worst,
         "escenarios": scenario_metrics,
         "auditoria_documental": _metrica(verified, len(movements)),
