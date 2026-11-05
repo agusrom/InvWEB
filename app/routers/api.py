@@ -637,28 +637,36 @@ def construir_items_articulo(
 
 
 @router.get("/inicio")
-def obtener_inicio(db: Session = Depends(get_db)):
+def obtener_inicio(db: Session = Depends(get_db), ligero: bool = False):
     plantillas = db.scalars(
         select(Plantilla)
         .options(selectinload(Plantilla.items))
         .order_by(Plantilla.cliente)
     ).all()
-    inventarios = db.scalars(
-        select(Inventario)
-        .options(selectinload(Inventario.items))
+    inventarios = [] if ligero else db.scalars(
+        select(Inventario).options(selectinload(Inventario.items))
         .order_by(Inventario.fecha.desc(), Inventario.id.desc())
     ).all()
-    programaciones = db.scalars(
-        select(ProgramacionInventario)
-        .options(
-            selectinload(ProgramacionInventario.plantilla),
-            selectinload(ProgramacionInventario.inventarios),
-        )
-        .order_by(
-            ProgramacionInventario.activa.desc(),
-            ProgramacionInventario.fecha_proxima,
-        )
-    ).all()
+    opciones = [selectinload(ProgramacionInventario.plantilla)]
+    if not ligero:
+        opciones.append(selectinload(ProgramacionInventario.inventarios))
+    programaciones = db.scalars(select(ProgramacionInventario).options(*opciones)
+        .order_by(ProgramacionInventario.activa.desc(), ProgramacionInventario.fecha_proxima)).all()
+    resumen_programaciones = {}
+    if ligero and programaciones:
+        from app.services.inventory_listing import cabecera
+        resumen = db.execute(select(Inventario.programacion_id, func.count(), func.max(Inventario.id))
+            .where(Inventario.programacion_id.in_([p.id for p in programaciones]))
+            .group_by(Inventario.programacion_id)).all()
+        ultimos = {inv.id: cabecera(inv) for inv in db.scalars(select(Inventario)
+            .where(Inventario.id.in_([row[2] for row in resumen]))).all()} if resumen else {}
+        resumen_programaciones = {row[0]: {"ejecuciones": row[1], "ultimo_inventario": ultimos[row[2]]} for row in resumen}
+    def datos_programacion(item):
+        if not ligero:
+            return programacion_dict(item)
+        resumen = resumen_programaciones.get(item.id, {"ejecuciones": 0, "ultimo_inventario": None})
+        return {**programacion_dict(item, ejecuciones=resumen["ejecuciones"]),
+                "ultimo_inventario": resumen["ultimo_inventario"]}
     return {
         "notas_cronograma": listar_notas(),
         "plantillas": [plantilla_dict(item) for item in plantillas],
@@ -673,7 +681,7 @@ def obtener_inicio(db: Session = Depends(get_db)):
         ],
         "configuracion_indicadores": cargar_configuracion(db),
         "programaciones": [
-            programacion_dict(item)
+            datos_programacion(item)
             for item in programaciones
         ],
         "tipos_inventario": [

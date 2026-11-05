@@ -23,6 +23,7 @@ from app.models import CausaDiferencia, Inventario
 from app.serializers import inventario_dict
 from app.routers.api import router as api_router
 from app.routers.notes import router as notes_router
+from app.routers.home import router as home_router
 from app.services.print_sheet import (
     filas_ciclico_impresion,
     filas_detalle_impresion,
@@ -73,6 +74,7 @@ app.mount(
 templates = Jinja2Templates(directory=BASE_DIR / "app" / "templates")
 app.include_router(api_router)
 app.include_router(notes_router)
+app.include_router(home_router)
 
 FORMATOS_IMPRESION = {
     "CICLICO",
