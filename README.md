@@ -73,7 +73,10 @@ Los almacenes locales vigentes se inicializan según los módulos que los usan.
 
 Se puede iniciar y guardar un análisis aunque el inventario final siga en conteo
 (incluso sin códigos completos). Se muestra como **PROVISORIA**: los códigos
-incompletos no se interpretan como físico cero y se incorporan al completarse.
+incompletos aparecen como pendientes, junto con sus movimientos y esperado.
+El universo es la unión de piezas de ambos inventarios, explotadas a sus
+componentes terminales; no se incorporan piezas ajenas desde los movimientos.
+Los pendientes no se interpretan como físico cero ni participan de la confiabilidad.
 
 El botón **Actualizar inventario final** relee el estado y los conteos guardados
 y recalcula los mismos períodos iniciales. Si el análisis ya está guardado,

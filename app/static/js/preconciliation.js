@@ -392,6 +392,7 @@ function buildRows() {
 function diagnose(row) {
     const scenarios = row.scenarios;
     if (scenarios.length !== state.calculation.escenarios.length) return diagnosis("REVIEW", "Comparación incompleta", "Faltan resultados de uno o más escenarios; revisá las advertencias.", "Baja", "Completar los escenarios antes de decidir", "REVISAR_MOVIMIENTOS");
+    if (scenarios.some((item) => item.conteo_completo === false)) return diagnosis("REVIEW", "Conteo pendiente", "El esperado incluye los movimientos del período. Completá el conteo y actualizá el inventario final para comparar.", "Pendiente", "Completar conteo y actualizar", "PENDIENTE");
     const systemOk = scenarios[0]?.sistema_ok ?? false;
     const reconciliationOk = scenarios.map((item) => item.conciliacion_ok);
     const allReconciliationOk = reconciliationOk.length > 0 && reconciliationOk.every(Boolean);
@@ -437,15 +438,16 @@ function setAnalysisView(view) {
 function renderSummaryView() {
     const scenario = selectedSummaryScenario();
     const rows = scenario?.filas || [];
-    const good = rows.filter((item) => item.conciliacion_ok).length;
-    const reliability = rows.length ? good * 100 / rows.length : null;
+    const evaluated = rows.filter((item) => item.conteo_completo !== false);
+    const good = evaluated.filter((item) => item.conciliacion_ok).length;
+    const reliability = evaluated.length ? good * 100 / evaluated.length : null;
     const tolerance = state.calculation?.tolerancia ?? state.setup?.tolerancia ?? 5;
     const tone = reliability === null ? "neutral" : reliability >= 95 ? "good" : reliability >= 80 ? "warning" : "bad";
     $("#summary-reliability").className = `summary-reliability ${tone}`;
     $("#summary-reliability").innerHTML = scenario ? `
         <div><span>CONFIABILIDAD DE LA CONCILIACIÓN</span><small>${formatDate(scenario.inicial.fecha)} · ${escapeHtml(scenario.inicial.codigo)} · tolerancia ±${number(tolerance)}%</small></div>
         <strong>${compactPercentage(reliability)}</strong>
-        <em>${good} grupos/piezas OK de ${rows.length}</em>
+        <em>${good} grupos/piezas OK de ${evaluated.length} evaluados · ${rows.length - evaluated.length} pendientes</em>
     ` : '<p class="empty">No hay un escenario de conciliación disponible.</p>';
     renderSummaryTable();
 }
@@ -494,7 +496,7 @@ function renderSummaryTable() {
             const analysis = note.causa || note.observacion || note.estado ? `<strong>${escapeHtml(summaryStatus(note))}</strong><span>${escapeHtml(causeLabel(note.causa))}</span>${note.observacion ? `<small>${escapeHtml(note.observacion)}</small>` : ""}` : '<strong>Pendiente</strong><span>Sin causa asignada</span>';
             return `<tr class="${item.conciliacion_ok ? "conciliation-ok" : "conciliation-bad"}">
                 <td><span class="summary-piece"><strong>${item.es_grupo_mp ? `MP ${escapeHtml(item.codigo_material)} compartida` : escapeHtml(item.codigo)}</strong>${item.es_grupo_mp ? `<span class="shared-piece-codes">${item.codigos.map((codigo) => `<b>${escapeHtml(codigo)}</b>`).join("")}</span>` : ""}${item.codigo_cliente ? `<em>Cliente: ${escapeHtml(item.codigo_cliente)}</em>` : ""}<small>${escapeHtml(item.descripcion || "Sin descripción")}</small></span></td>
-                <td class="numeric">${number(item.fisico_inicial)}</td><td class="numeric positive">${signed(item.ingresos)}</td><td class="numeric negative">${signed(-Number(item.egresos || 0))}</td><td class="numeric">${number(item.esperado)}</td><td class="numeric">${number(item.conteo_explotado_actual ?? item.fisico_actual)}</td>
+                <td class="numeric">${number(item.fisico_inicial)}</td><td class="numeric positive">${signed(item.ingresos)}</td><td class="numeric negative">${signed(-Number(item.egresos || 0))}</td><td class="numeric">${number(item.esperado)}</td><td class="numeric">${item.conteo_completo === false ? `Pendiente (parcial: ${number(item.conteo_parcial)})` : number(item.conteo_explotado_actual ?? item.fisico_actual)}</td>
                 <td class="numeric difference ${item.conciliacion_ok ? "ok" : "bad"}">${signed(item.diferencia_conciliacion)}</td><td class="numeric difference ${item.conciliacion_ok ? "ok" : "bad"}">${percentage(item.porcentaje_desvio_conciliacion)}</td>
                 <td><span class="summary-analysis">${analysis}</span></td><td><button type="button" class="summary-detail-button" data-open-piece="${escapeHtml(item.codigo)}">Ver detalle</button></td>
             </tr>`;
@@ -746,7 +748,7 @@ function scenarioDetailHtml(item) {
             <small>Egresos <b class="negative">−${number(item.egresos)}</b></small>
             <small class="scenario-scrap">Scrap <b>${number(item.scrap)}</b></small>
             <small class="scenario-expected">Esperado explotado <b>${number(item.esperado)}</b></small>
-            <small class="scenario-current">Conteo actual explotado <b>${number(item.conteo_explotado_actual ?? item.fisico_actual)}</b></small>
+            <small class="scenario-current">Conteo actual explotado <b>${item.conteo_completo === false ? `Pendiente (parcial: ${number(item.conteo_parcial)})` : number(item.conteo_explotado_actual ?? item.fisico_actual)}</b></small>
             <span class="reconciliation-difference ${item.conciliacion_ok ? "ok" : "bad"}"><small>Físico explotado vs. esperado</small><strong>${signed(item.diferencia_conciliacion)}</strong><b>${percentage(item.porcentaje_desvio_conciliacion)}</b></span>
             <em class="detail-action">▾ Ver remitos</em>
         </summary>
@@ -847,8 +849,8 @@ function toast(message, error = false) {
     setTimeout(() => element.classList.add("hidden"), 3200);
 }
 function normalize(value) { return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
-function number(value) { return new Intl.NumberFormat("es-AR", { maximumFractionDigits: 2 }).format(Number(value || 0)); }
-function signed(value) { const numeric = Number(value || 0); return `${numeric > 0 ? "+" : ""}${number(numeric)}`; }
+function number(value) { if (value === null || value === undefined) return "—"; return new Intl.NumberFormat("es-AR", { maximumFractionDigits: 2 }).format(Number(value || 0)); }
+function signed(value) { if (value === null || value === undefined) return "—"; const numeric = Number(value || 0); return `${numeric > 0 ? "+" : ""}${number(numeric)}`; }
 function percentage(value) { return value === null || value === undefined ? "—" : `${signed(value)}%`; }
 function formatDate(value) { const [y, m, d] = String(value).slice(0, 10).split("-"); return `${d}/${m}/${y}`; }
 function formatDateTime(value) { const date = new Date(value); return Number.isNaN(date.getTime()) ? String(value || "") : date.toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" }); }
@@ -1190,7 +1192,7 @@ function renderFinalInventory() {
     if (option) option.textContent = `${final.codigo} · ${formatDate(final.fecha)} · ${final.cliente} · ${final.estado}`;
     $("#draft-badge").textContent = final.estado === "Cerrado" ? "INVENTARIO CERRADO" : "PROVISORIA";
     $("#final-refresh-status").textContent = final.estado !== "Cerrado"
-        ? "Análisis provisorio. Los códigos incompletos quedan pendientes y se incorporan al actualizar el inventario final."
+        ? "Análisis provisorio. Las piezas y sus componentes ya están incluidos. Los conteos incompletos se muestran pendientes; completalos y actualizá el inventario final."
         : "Podés actualizar el inventario final para incorporar sus últimos datos guardados.";
 }
 

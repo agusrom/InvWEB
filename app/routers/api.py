@@ -1335,6 +1335,7 @@ def explotar_conteo_inventario(
     inventario: Inventario,
     codigos_padre: set[str] | None = None,
     codigos_resultado: set[str] | None = None,
+    permitir_incompleto: bool = False,
 ) -> dict[str, dict]:
     padres_permitidos = (
         {normalizar_codigo(codigo) for codigo in codigos_padre}
@@ -1355,7 +1356,7 @@ def explotar_conteo_inventario(
         )
         if item.conteo_fisico is None
     ]
-    if sin_contar:
+    if sin_contar and not permitir_incompleto:
         raise HTTPException(
             status_code=409,
             detail=(
@@ -1425,9 +1426,11 @@ def explotar_conteo_inventario(
                     "descripcion": descripciones[codigo_componente],
                     "cantidad": 0.0,
                     "trazas": {},
+                    "conteo_completo": True,
                 },
             )
             fila["cantidad"] += equivalente
+            fila["conteo_completo"] &= item.conteo_fisico is not None
             traza = fila["trazas"].setdefault(
                 codigo_padre,
                 {
@@ -1567,10 +1570,13 @@ def detalle_conteo_fisico_por_codigo(inventario: Inventario) -> dict[str, dict]:
     return resultado
 
 
-def grupos_material_compartido(inventario: Inventario) -> dict[str, list[str]]:
+def grupos_material_compartido(
+    inventario: Inventario, otros: list[Inventario] | None = None,
+) -> dict[str, list[str]]:
     """Agrupa las piezas del inventario que declaran el mismo código de MP."""
     piezas_por_material: dict[str, set[str]] = {}
-    for item in inventario.items:
+    items = [item for origen in [inventario, *(otros or [])] for item in origen.items]
+    for item in items:
         codigo = normalizar_codigo(item.codigo)
         material = normalizar_codigo(item.codigo_material)
         if not codigo or not material:
@@ -1733,6 +1739,7 @@ def agrupar_filas_material_compartido(
             "codigo_material": material,
             "codigos": codigos,
             "es_grupo_mp": True,
+            "conteo_completo": all(fila.get("conteo_completo", True) for fila in miembros),
             "descripcion": f"MP {material} compartida por {' + '.join(codigos)}",
             "fisico_inicial": fisico_inicial,
             "ingresos": ingresos,
@@ -1949,7 +1956,9 @@ def calcular_preconciliacion(
     codigos_finales = codigos_completos_inventario(final)
     detalle_sistema = detalle_stock_sistema_por_codigo(final)
     detalle_fisico = detalle_conteo_fisico_por_codigo(final)
-    grupos_compartidos = grupos_material_compartido(final)
+    # La pertenencia no depende del avance de conteo.
+    iniciales = [buscar_inventario(db, inicial_id) for inicial_id in entrada.inventarios_iniciales]
+    grupos_compartidos = grupos_material_compartido(final, iniciales)
     conteo_final_compartido = conteo_explotado_grupos_material_compartido(
         final,
         grupos_compartidos,
@@ -1961,8 +1970,7 @@ def calcular_preconciliacion(
         for codigo in codigos
     }
     escenarios = []
-    for inicial_id in entrada.inventarios_iniciales:
-        inicial = buscar_inventario(db, inicial_id)
+    for inicial in iniciales:
         conteos_iniciales_compartidos[inicial.id] = (
             conteo_explotado_grupos_material_compartido(
                 inicial,
@@ -1977,18 +1985,17 @@ def calcular_preconciliacion(
             or inicial.modalidad_conteo != final.modalidad_conteo
         ):
             raise HTTPException(status_code=422, detail="Los inventarios seleccionados no son comparables")
-        padres = codigos_finales & codigos_completos_inventario(inicial)
-        if not padres:
-            escenarios.append({
-                "inicial": {"id": inicial.id, "codigo": inicial.codigo, "fecha": inicial.fecha.isoformat()},
-                "filas": [],
-                "advertencias": ["No hay códigos completos comunes con el inventario actual."],
-                "error": "Sin códigos completos comunes",
-            })
-            continue
+        padres = {
+            normalizar_codigo(item.codigo)
+            for inventario in (inicial, final)
+            for item in inventario.items
+            if normalizar_codigo(item.codigo)
+        }
         try:
-            stock_inicial = explotar_conteo_inventario(inicial, padres, padres)
-            stock_final = explotar_conteo_inventario(final, padres, padres)
+            # Cada inventario aporta sus propios padres y todos sus terminales.
+            # No filtrar terminales por los códigos de los padres: perdería la BOM.
+            stock_inicial = explotar_conteo_inventario(inicial)
+            stock_final = explotar_conteo_inventario(final, permitir_incompleto=True)
             codigos = sorted(set(stock_inicial) | set(stock_final))
             movimientos = calcular_movimientos(
                 inicial.ultimo_remito_ingreso,
@@ -2043,6 +2050,7 @@ def calcular_preconciliacion(
                         or stock_inicial.get(codigo, {}).get("descripcion")
                         or ""
                     ),
+                    "conteo_completo": stock_final.get(codigo, {}).get("conteo_completo", True),
                     "fisico_inicial": fisico_inicial,
                     "ingresos": ingresos,
                     "egresos": egresos,
@@ -2081,9 +2089,10 @@ def calcular_preconciliacion(
             })
     for escenario in escenarios:
         if escenario.get("filas"):
+            inicial = next(item for item in iniciales if item.id == escenario["inicial"]["id"])
             escenario["filas"] = agrupar_filas_material_compartido(
                 escenario["filas"],
-                grupos_compartidos,
+                grupos_material_compartido(final, [inicial]),
                 tolerancia,
                 conteos_iniciales_compartidos.get(
                     int(escenario["inicial"]["id"]),
@@ -2103,25 +2112,44 @@ def calcular_preconciliacion(
                 codigos_reales.update(grupos_compartidos.get(material, []))
             else:
                 codigos_reales.add(codigo)
+        def destino(piece):
+            grupo = grupo_por_pieza.get(piece, piece)
+            return grupo if grupo in codes else piece
+
         if code in codigos_reales:
-            return {grupo_por_pieza.get(code, code): 1.0}
+            return {destino(code): 1.0}
         if movement["tipo"] == "IN":
             cache_key = tuple(sorted(codigos_reales))
             if cache_key not in material_cache:
                 material_cache[cache_key] = _materiales_por_pieza(codigos_reales)
             return {
-                grupo_por_pieza.get(piece, piece): 1.0
+                destino(piece): 1.0
                 for piece in material_cache[cache_key].get(code, set())
             }
         uses = {}
         for component in _componentes_terminales(code, structure_cache):
             if component["codigo"] in codigos_reales:
-                destino = grupo_por_pieza.get(component["codigo"], component["codigo"])
-                uses[destino] = uses.get(destino, 0) + component["uso"]
+                codigo_destino = destino(component["codigo"])
+                uses[codigo_destino] = uses.get(codigo_destino, 0) + component["uso"]
         return uses
 
     result = preconciliation_audit.reconcile(final.id, final.fecha, escenarios, tolerancia,
         dentro_tolerancia_comparacion, resolve_manual)
+    for escenario in result["escenarios"]:
+        pendientes = []
+        for fila in escenario["filas"]:
+            if not fila.get("conteo_completo", True):
+                pendientes.append(fila["codigo"])
+                fila["conteo_parcial"] = fila["conteo_explotado_actual"]
+                for campo in ("conteo_explotado_actual", "fisico_actual", "diferencia_conciliacion",
+                              "porcentaje_desvio_conciliacion", "conciliacion_ok", "sistema_ok",
+                              "diferencia_sistema", "porcentaje_desvio_sistema"):
+                    fila[campo] = None
+        if pendientes:
+            escenario["advertencias"].append(
+                "Conteo pendiente en: " + ", ".join(pendientes)
+                + ". El esperado incluye movimientos; la comparación se habilita al completar y actualizar."
+            )
     completar_codigos_cliente_preconciliacion(result)
     result["notas_guardadas"] = notas_inventario(final.id)
     result["indicadores"] = calcular_indicadores_preconciliacion(

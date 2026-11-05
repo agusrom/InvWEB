@@ -54,6 +54,8 @@ def _finish(sheet, number_columns=()):
 
 
 def _diagnosis(rows):
+    if any(row.get("conteo_completo") is False for row in rows):
+        return "Conteo pendiente"
     system_ok = bool(rows) and rows[0].get("sistema_ok", False)
     reconciliations = [row.get("conciliacion_ok", False) for row in rows]
     has_adjustments = any(row.get("ajustes_sistema") for row in rows)
@@ -102,14 +104,16 @@ def _analysis_sheet(book, final, calculation, notes, history):
         for column, value in enumerate(values, 1):
             sheet.cell(row_number, column, value)
         # Diferencias quedan auditables como fórmulas.
-        sheet.cell(row_number, 18, f"=M{row_number}-E{row_number}")
+        if current.get("conteo_completo", True):
+            sheet.cell(row_number, 18, f"=M{row_number}-E{row_number}")
         column = 20
         for _ in history:
             sheet.cell(row_number, column + 2, f"={get_column_letter(column)}{row_number}-{get_column_letter(column + 1)}{row_number}")
             column += 3
-        for _ in scenarios:
+        for scenario_map in scenario_maps:
             expected_column = get_column_letter(column)
-            sheet.cell(row_number, column + 1, f"=S{row_number}-{expected_column}{row_number}")
+            if scenario_map.get(code, {}).get("conteo_completo", True):
+                sheet.cell(row_number, column + 1, f"=S{row_number}-{expected_column}{row_number}")
             column += 2
         if current.get("diferencia_sistema"):
             sheet.cell(row_number, 18).fill = PatternFill("solid", fgColor=RED)
@@ -128,6 +132,9 @@ def _reconciliation_summary(book, final, scenario, notes):
         for column, value in enumerate(values, 1):
             sheet.cell(row_number, column, value)
         sheet.cell(row_number, 8, f"=D{row_number}+E{row_number}-F{row_number}-G{row_number}")
+        if not item.get("conteo_completo", True):
+            sheet.cell(row_number, 9, "Pendiente")
+            continue
         sheet.cell(row_number, 10, f"=I{row_number}-H{row_number}")
         if item.get("diferencia_conciliacion"):
             sheet.cell(row_number, 10).fill = PatternFill("solid", fgColor=RED)

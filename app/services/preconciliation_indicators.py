@@ -33,6 +33,9 @@ def calcular_indicadores_preconciliacion(
         for row in scenario.get("filas", []):
             rows_by_code.setdefault(str(row.get("codigo", "")), []).append(row)
 
+    total_pieces = len(rows_by_code)
+    rows_by_code = {code: rows for code, rows in rows_by_code.items()
+                    if all(row.get("conteo_completo", True) for row in rows)}
     total = len(rows_by_code)
     expected_scenarios = len(scenarios)
     system_good = sum(
@@ -55,7 +58,7 @@ def calcular_indicadores_preconciliacion(
 
     scenario_metrics = []
     for scenario in scenarios:
-        rows = scenario.get("filas", [])
+        rows = [row for row in scenario.get("filas", []) if row.get("conteo_completo", True)]
         good = sum(1 for row in rows if bool(row.get("conciliacion_ok")))
         scenario_metrics.append({
             "id": scenario.get("inicial", {}).get("id"),
@@ -108,7 +111,8 @@ def calcular_indicadores_preconciliacion(
 
     return {
         "tolerancia": calculation.get("tolerancia", 5),
-        "total_piezas": total,
+        "total_piezas": total_pieces,
+        "piezas_pendientes": total_pieces - total,
         "sistema": _metrica(system_good, total),
         "conciliacion_integral": _metrica(reconciliation_good, total),
         "consistencia_integral": _metrica(integral_good, total),
