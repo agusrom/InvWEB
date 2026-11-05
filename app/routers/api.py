@@ -32,6 +32,8 @@ from sqlalchemy.orm import (
 )
 
 from app.config import settings
+from app.services import client_catalog
+from app.schemas import ClienteEntrada, UnificarClienteEntrada
 from app import preconciliation_audit
 from app.schedule_notes_store import listar_notas
 from app.schemas import (
@@ -703,6 +705,7 @@ def obtener_inicio(db: Session = Depends(get_db), ligero: bool = False):
                 .order_by(Persona.orden, Persona.nombre)
             ).all()
         ],
+        "clientes": client_catalog.listar(),
     }
 
 
@@ -912,6 +915,7 @@ def modificar_configuracion_indicadores(
 @router.get("/catalogos")
 def obtener_catalogos(db: Session = Depends(get_db)):
     return {
+        "clientes": client_catalog.listar(),
         "tipos_inventario": [
             tipo_dict(item)
             for item in db.scalars(
@@ -1823,6 +1827,7 @@ def inventarios_disponibles_preconciliacion(db: Session = Depends(get_db)):
             "id": inventario.id,
             "codigo": inventario.codigo,
             "cliente": inventario.cliente,
+            **client_catalog.referencia(inventario.cliente),
             "fecha": inventario.fecha.isoformat(),
             "estado": inventario.estado,
             "contados": len(codigos_completos_inventario(inventario)),
@@ -1843,7 +1848,7 @@ def opciones_preconciliacion(
         .where(
             Inventario.id != final.id,
             Inventario.fecha < final.fecha,
-            Inventario.cliente == final.cliente,
+            Inventario.cliente.in_(client_catalog.nombres_equivalentes(final.cliente)),
             Inventario.categoria == final.categoria,
             Inventario.modalidad_conteo == final.modalidad_conteo,
         )
@@ -1882,6 +1887,7 @@ def opciones_preconciliacion(
             "id": final.id,
             "codigo": final.codigo,
             "cliente": final.cliente,
+            **client_catalog.referencia(final.cliente),
             "fecha": final.fecha.isoformat(),
             "estado": final.estado,
             "contados": len(completos),
@@ -1993,7 +1999,7 @@ def calcular_preconciliacion(
         if inicial.fecha >= final.fecha:
             raise HTTPException(status_code=422, detail="El inventario inicial debe ser anterior al final")
         if (
-            inicial.cliente != final.cliente
+            client_catalog.referencia(inicial.cliente)["cliente_valor"] != client_catalog.referencia(final.cliente)["cliente_valor"]
             or inicial.categoria != final.categoria
             or inicial.modalidad_conteo != final.modalidad_conteo
         ):
@@ -2195,6 +2201,7 @@ def calcular_preconciliacion(
     )
     result["inventario_final"] = {
         "id": final.id, "codigo": final.codigo, "cliente": final.cliente,
+        **client_catalog.referencia(final.cliente),
         "fecha": final.fecha.isoformat(), "estado": final.estado,
         "contados": len(codigos_finales),
         "total": len({normalizar_codigo(item.codigo) for item in final.items}),
@@ -2570,7 +2577,7 @@ def crear_plantilla(
     ahora = datetime.now()
     plantilla = Plantilla(
         nombre=entrada.nombre.strip(),
-        cliente=entrada.cliente.strip(),
+        cliente=client_catalog.valor_cliente(entrada.cliente),
         descripcion=entrada.descripcion.strip(),
         categoria=entrada.categoria,
         tipo_inventario_codigo=tipo.codigo,
@@ -2619,7 +2626,7 @@ def modificar_plantilla(
         )
 
     plantilla.nombre = entrada.nombre.strip()
-    plantilla.cliente = entrada.cliente.strip()
+    plantilla.cliente = client_catalog.valor_cliente(entrada.cliente, plantilla.cliente)
     plantilla.descripcion = entrada.descripcion.strip()
     plantilla.categoria = entrada.categoria
     plantilla.tipo_inventario_codigo = tipo.codigo
@@ -2787,6 +2794,7 @@ def crear_inventario(
     pieza_raiz = None
     es_ciclico_directo = entrada.modo == "CICLICO"
     es_manual = entrada.modo == "MANUAL"
+    cliente_manual = client_catalog.valor_cliente(entrada.cliente or "") if es_manual or es_ciclico_directo else None
     items_manual: list[InventarioItem] = []
     tipo_solicitado = (
         db.get(TipoInventario, entrada.tipo_inventario_codigo)
@@ -2812,10 +2820,6 @@ def crear_inventario(
                 status_code=422,
                 detail=f"La pieza raíz {codigo_raiz} no existe en produc01",
             )
-        cliente = (
-            pieza_raiz.codigo_cliente.strip()
-            or "Inventario cíclico"
-        )
         plantilla_id = None
         categoria = "CICLICO"
         formato_impresion = "CICLICO"
@@ -2866,20 +2870,9 @@ def crear_inventario(
 
         if "MATERIA_PRIMA" in tipos_manual:
             categoria = "MATERIA_PRIMA"
-            cliente = "Inventario manual de MP"
             formato_impresion = "LISTADO_SIMPLE"
         else:
             categoria = "PIEZAS"
-            clientes = {
-                articulo.codigo_cliente.strip()
-                for articulo in articulos_validados
-                if articulo.codigo_cliente.strip()
-            }
-            cliente = (
-                next(iter(clientes))
-                if len(clientes) == 1
-                else "Inventario manual"
-            )
             formato_impresion = "FLUJO_HORIZONTAL"
         plantilla_id = None
         controla_remitos = entrada.controla_remitos
@@ -2914,7 +2907,7 @@ def crear_inventario(
                 ),
             )
         clientes = {
-            normalizar_codigo(item.cliente) for item in plantillas_seleccionadas
+            client_catalog.referencia(item.cliente)["cliente_valor"] for item in plantillas_seleccionadas
         }
         if len(clientes) != 1:
             raise HTTPException(
@@ -3015,6 +3008,8 @@ def crear_inventario(
         )
     if modalidad_conteo == "MEDIOS":
         formato_impresion = "MEDIOS"
+
+    cliente = cliente_manual if es_manual or es_ciclico_directo else client_catalog.valor_cliente(cliente)
 
     ultimo_id = db.scalar(select(func.max(Inventario.id))) or 0
     codigo = f"INV-{entrada.fecha.year}-{ultimo_id + 12:03d}"
@@ -5066,3 +5061,43 @@ def descargar_excel(
             "Content-Disposition": f'attachment; filename="{nombre}"',
         },
     )
+
+
+@router.get("/clientes")
+def listar_clientes(db: Session = Depends(get_db)):
+    client_catalog.importar_clientes(db)
+    return {"clientes": client_catalog.listar(db)}
+
+
+@router.post("/clientes", status_code=201)
+def crear_cliente(entrada: ClienteEntrada):
+    return client_catalog.guardar(entrada.model_dump())
+
+
+@router.put("/clientes/{cliente_id}")
+def modificar_cliente(cliente_id: int, entrada: ClienteEntrada):
+    return client_catalog.guardar(entrada.model_dump(), cliente_id)
+
+
+@router.post("/clientes/{cliente_id}/unificar")
+def unificar_cliente(cliente_id: int, entrada: UnificarClienteEntrada):
+    return client_catalog.unificar(cliente_id, entrada.destino_id)
+
+
+@router.delete("/clientes/{cliente_id}", status_code=204)
+def eliminar_cliente(cliente_id: int, db: Session = Depends(get_db)):
+    client_catalog.eliminar(cliente_id, db)
+    return Response(status_code=204)
+
+
+@router.get('/clientes/exportar')
+def exportar_clientes_locales():
+    from app import catalog_database as store
+    from fastapi.encoders import jsonable_encoder
+    from fastapi.responses import JSONResponse
+    models = (store.Cliente, store.ClienteNombre, store.CatalogMeta)
+    with store.session() as local:
+        local.connection().exec_driver_sql('BEGIN')
+        data = {model.__tablename__: [dict(row) for row in local.execute(select(model.__table__)).mappings()] for model in models}
+    return JSONResponse(jsonable_encoder({'version': 1, 'exportado_en': datetime.now().astimezone().isoformat(), 'tablas': data}),
+                        headers={'Content-Disposition': 'attachment; filename="clientes.json"'})

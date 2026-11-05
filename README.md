@@ -92,6 +92,12 @@ revisar tramos consecutivos, abrir su evidencia y exportar un Excel comparativo.
 El [recorrido de prueba y las reglas de cobertura](docs/prueba_analisis_periodos.md)
 detallan cómo validar esta vista sin migraciones de base de datos.
 
+## Clientes estandarizados (rama de prueba)
+
+El nuevo maestro de clientes se administra desde Configuración → Catálogos y
+se guarda en SQLite. Los inventarios y los catálogos que ya usaban MySQL conservan
+su almacenamiento. Ver [alcance, uso y respaldo](docs/clientes_sqlite.md).
+
 ## Datos que se deben conservar y respaldar
 
 | Ubicación | Contenido activo |

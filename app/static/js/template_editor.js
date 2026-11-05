@@ -4,6 +4,8 @@ const editorState = {
     items: [],
     structure: null,
     inventoryTypes: [],
+    clients: [],
+    existingClient: "",
 };
 
 const autocompleteState = {
@@ -17,6 +19,13 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 
 document.addEventListener("DOMContentLoaded", async () => {
+    $("#refresh-template-clients").addEventListener("click", async (event) => {
+        const selected=$("#template-client").value;
+        const button=event.currentTarget;
+        button.disabled=true;
+        try { const data=await requestJson("/api/clientes");editorState.clients=data.clientes;renderClientOptions(selected);$("#template-client").value=selected; }
+        catch(error){showStatus(error.message,true)} finally{button.disabled=false}
+    });
     $("#add-piece").addEventListener("click", addPiece);
     $("#piece-code").addEventListener("input", scheduleItemSuggestions);
     $("#piece-code").addEventListener("keydown", handleItemSuggestionKeydown);
@@ -55,6 +64,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 async function loadInventoryTypes() {
     try {
         const data = await requestJson("/api/catalogos");
+        editorState.clients = data.clientes || [];
+        renderClientOptions();
         editorState.inventoryTypes = (data.tipos_inventario || []).filter(
             (tipo) => tipo.motor !== "CICLICO"
         );
@@ -108,7 +119,9 @@ async function loadTemplate() {
             `/api/plantillas/${editorState.templateId}`
         );
         $("#template-name").value = template.nombre;
-        $("#template-client").value = template.cliente;
+        editorState.existingClient=template.cliente_valor || template.cliente;
+        renderClientOptions(template.cliente_valor || template.cliente);
+        $("#template-client").value = template.cliente_valor || template.cliente;
         $("#template-description").value = template.descripcion || "";
         $("#template-inventory-type").value =
             template.tipo_inventario_codigo || (
@@ -716,4 +729,9 @@ function escapeHtml(value) {
         '"': "&quot;",
         "'": "&#039;",
     })[character]);
+}
+
+function renderClientOptions(current="") {
+    const clients=editorState.clients.filter(c=>!c.reemplazado_por_id&&(c.activo||c.valor===editorState.existingClient));
+    $("#template-client").innerHTML='<option value="">Seleccioná un cliente</option>'+clients.map(c=>`<option value="${escapeHtml(c.valor)}">${escapeHtml(c.nombre)}${c.activo?'':' · Inactivo (actual)'}</option>`).join('');
 }

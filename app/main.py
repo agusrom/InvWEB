@@ -35,6 +35,7 @@ from app.services.indicator_settings import (
     cargar_configuracion,
 )
 from app.services.catalogs import asegurar_catalogos
+from app.services.client_catalog import importar_clientes
 from app.services.print_formats import (
     asegurar_formatos_impresion,
     resolver_version_para_inventario,
@@ -55,6 +56,7 @@ async def lifespan(app: FastAPI):
         asegurar_configuracion(db)
         asegurar_formatos_impresion(db)
         asegurar_catalogos(db)
+        importar_clientes(db)
         sincronizar_cierres_local(db)
     yield
 

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ app_name }}</title>
-    <link rel="stylesheet" href="/static/css/styles.css?v=1167">
+    <link rel="stylesheet" href="/static/css/styles.css?v=1168">
 </head>
 <body data-initial-view="{{ vista_inicial | default('inventarios') }}">
     <div class="app-shell">
@@ -766,6 +766,11 @@
                 </div>
             </section>
 
+            <label id="inventario-cliente-wrap" class="hidden">
+                Cliente
+                <select id="inventario-cliente"><option value="">Seleccioná un cliente</option></select>
+                <small><a href="/configuracion/catalogos" target="_blank" rel="noopener">Administrar clientes</a> · <button id="refresh-inventory-clients" type="button" class="client-refresh">Actualizar lista</button></small>
+            </label>
             <label>
                 Tipo de inventario
                 <select id="inventario-tipo-inventario" required></select>
@@ -1131,6 +1136,6 @@
     <div id="toast" class="toast hidden" role="status"></div>
     <div id="loading" class="loading hidden">Procesando…</div>
 
-    <script src="/static/js/app.js?v=1167" defer></script>
+    <script src="/static/js/app.js?v=1168" defer></script>
 </body>
 </html>

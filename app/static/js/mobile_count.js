@@ -372,7 +372,7 @@ function renderAll() {
         localStorage.setItem(routeContextKey, JSON.stringify(mobileState.routeContext));
     }
     $("#inventory-code").textContent = inventory.codigo;
-    $("#inventory-client").textContent = inventory.cliente;
+    $("#inventory-client").textContent = inventory.cliente_nombre || inventory.cliente;
     document.title = `${inventory.codigo} · Conteo móvil`;
     const canAdd = inventory.estado !== "Cerrado";
     $("#add-material").classList.toggle("hidden", !canAdd);

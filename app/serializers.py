@@ -1,5 +1,6 @@
 from datetime import date
 
+from app.services.client_catalog import referencia as referencia_cliente
 from app.models import (
     Inventario,
     Plantilla,
@@ -84,6 +85,7 @@ def plantilla_dict(plantilla: Plantilla) -> dict:
         "id": plantilla.id,
         "nombre": plantilla.nombre,
         "cliente": plantilla.cliente,
+        **referencia_cliente(plantilla.cliente),
         "descripcion": plantilla.descripcion,
         "categoria": plantilla.categoria,
         "tipo_inventario_codigo": plantilla.tipo_inventario_codigo,
@@ -138,6 +140,7 @@ def inventario_dict(inventario: Inventario) -> dict:
         "codigo": inventario.codigo,
         "origen": inventario.origen,
         "cliente": inventario.cliente,
+        **referencia_cliente(inventario.cliente),
         "plantilla_id": inventario.plantilla_id,
         "plantillas_origen": plantillas_inventario(inventario.id),
         "programacion_id": inventario.programacion_id,
@@ -205,6 +208,7 @@ def programacion_dict(programacion: ProgramacionInventario, ejecuciones: int | N
         "plantilla_id": programacion.plantilla_id,
         "plantilla_nombre": programacion.plantilla.nombre,
         "cliente": programacion.plantilla.cliente,
+        **referencia_cliente(programacion.plantilla.cliente),
         "categoria": programacion.plantilla.categoria,
         "tipo_inventario_codigo": (
             programacion.plantilla.tipo_inventario_codigo

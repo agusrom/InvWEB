@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ "Editar" if modo == "editar" else "Nueva" }} plantilla · {{ app_name }}</title>
-    <link rel="stylesheet" href="/static/css/template_editor.css?v=1160">
+    <link rel="stylesheet" href="/static/css/template_editor.css?v=1161">
 </head>
 <body data-template-id="{{ plantilla_id }}" data-mode="{{ modo }}">
     <header class="editor-topbar">
@@ -49,7 +49,8 @@
                     </label>
                     <label>
                         Cliente
-                        <input id="template-client" required autocomplete="off">
+                        <select id="template-client" required><option value="">Seleccioná un cliente</option></select>
+                        <small>Administralos en <a href="/configuracion/catalogos" target="_blank" rel="noopener">Configuración → Catálogos</a>. <button id="refresh-template-clients" type="button">Actualizar lista</button></small>
                     </label>
                 </div>
 
@@ -203,6 +204,6 @@
     </main>
 
     <div id="page-loading" class="page-loading hidden">Procesando…</div>
-    <script src="/static/js/template_editor.js?v=1160" defer></script>
+    <script src="/static/js/template_editor.js?v=1161" defer></script>
 </body>
 </html>

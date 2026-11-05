@@ -1,4 +1,5 @@
 """Consultas de portada: solo lectura, sin cargar renglones en el navegador."""
+from app.services.client_catalog import referencia as referencia_cliente, nombres_para_busqueda
 from datetime import date
 from math import ceil
 from sqlalchemy import Date, and_, case, column, func, literal, or_, select, table
@@ -10,7 +11,7 @@ from app.services.indicator_settings import cargar_configuracion
 
 def cabecera(inv, mes_cierre=None):
     return {
-        "id": inv.id, "codigo": inv.codigo, "cliente": inv.cliente,
+        "id": inv.id, "codigo": inv.codigo, "cliente": inv.cliente, **referencia_cliente(inv.cliente),
         "fecha": inv.fecha.isoformat(),
         "fecha_programada": inv.fecha_programada.isoformat() if inv.fecha_programada else None,
         **({"mes_cierre": mes_cierre.isoformat()} if mes_cierre else {}),
@@ -53,7 +54,8 @@ def listar_inventarios(db, pagina=1, por_pagina=25, buscar="", estado="Todos", v
         searchable = func.coalesce(fields[0], "")
         for field in fields[1:]:
             searchable = searchable + literal(" ") + func.coalesce(field, "")
-        filters.append(func.lower(searchable).contains(buscar.strip().lower(), autoescape=True))
+        filters.append(or_(func.lower(searchable).contains(buscar.strip().lower(), autoescape=True),
+                           Inventario.cliente.in_(nombres_para_busqueda(buscar))))
     total = db.scalar(select(func.count()).select_from(Inventario).where(*filters))
     paginas = max(1, ceil(total / por_pagina))
     pagina = min(pagina, paginas)

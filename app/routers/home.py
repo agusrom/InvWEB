@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 from app.database import get_db
+from app.services.client_catalog import nombres_equivalentes
 from app.models import Inventario
 from app.routers.api import buscar_inventario
 from app.serializers import inventario_dict, items_inventario_dict
@@ -49,7 +50,7 @@ def detalle(inventario_id: int, db: Session = Depends(get_db)):
 def historial(inventario_id: int, db: Session = Depends(get_db)):
     actual = buscar_inventario(db, inventario_id)
     comparables = db.scalars(select(Inventario).where(
-        Inventario.id != actual.id, Inventario.cliente == actual.cliente,
+        Inventario.id != actual.id, Inventario.cliente.in_(nombres_equivalentes(actual.cliente)),
         Inventario.categoria == actual.categoria, Inventario.modalidad_conteo == actual.modalidad_conteo,
         Inventario.fecha <= actual.fecha,
     ).options(selectinload(Inventario.items)).order_by(Inventario.fecha.desc(), Inventario.id.desc())).all()

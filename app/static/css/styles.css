@@ -4147,3 +4147,4 @@ tbody tr:last-child td { border-bottom: 0; }
 #schedule-note-delete { color: #b42318; background: #fff0ef; border: 1px solid #f4c8c4; }
 
 .inventory-pagination { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; padding: 12px 16px; font-size: 12px; }
+#refresh-inventory-clients{padding:3px 7px;border:1px solid #c8d3e2;border-radius:5px;background:#f5f8fc;color:#345b88;font:inherit;cursor:pointer}

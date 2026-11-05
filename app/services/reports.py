@@ -4,6 +4,7 @@ from collections import defaultdict
 from datetime import date, timedelta
 
 from app.serializers import metricas_conteo_item
+from app.services.client_catalog import referencia
 
 
 def fecha_inventario(inventario) -> date:
@@ -133,7 +134,7 @@ def filtrar_periodo(
         for inventario in inventarios
         if (desde is None or fecha_cierre_reporte(inventario) >= desde)
         and fecha_cierre_reporte(inventario) <= hasta
-        and (not cliente or inventario.cliente == cliente)
+        and (not cliente or referencia(inventario.cliente)["cliente_valor"] == referencia(cliente)["cliente_valor"])
         and (
             tipo_inventario == "todos"
             or tipo_contenido_inventario(inventario) == tipo_inventario
@@ -244,9 +245,9 @@ def construir_clientes(
     por_cliente_actual: dict[str, list] = defaultdict(list)
     por_cliente_anterior: dict[str, list] = defaultdict(list)
     for inventario in actuales:
-        por_cliente_actual[inventario.cliente].append(inventario)
+        por_cliente_actual[referencia(inventario.cliente)["cliente_valor"]].append(inventario)
     for inventario in anteriores:
-        por_cliente_anterior[inventario.cliente].append(inventario)
+        por_cliente_anterior[referencia(inventario.cliente)["cliente_valor"]].append(inventario)
 
     resultado = []
     for cliente, inventarios in por_cliente_actual.items():
@@ -259,7 +260,7 @@ def construir_clientes(
         ):
             tendencia = actual["confiabilidad"] - anterior["confiabilidad"]
         resultado.append({
-            "cliente": cliente,
+            "cliente": referencia(cliente)["cliente_nombre"],
             "inventarios": len(inventarios),
             "evaluados": actual["evaluados"],
             "confiabilidad": actual["confiabilidad"],
@@ -280,7 +281,7 @@ def construir_clientes(
 def construir_grafico_clientes(inventarios: list) -> list[dict]:
     por_cliente: dict[str, list] = defaultdict(list)
     for inventario in inventarios:
-        por_cliente[inventario.cliente or "Sin cliente"].append(inventario)
+        por_cliente[referencia(inventario.cliente)["cliente_valor"] or "Sin cliente"].append(inventario)
 
     resultado = []
     for cliente, grupo in por_cliente.items():
@@ -298,7 +299,7 @@ def construir_grafico_clientes(inventarios: list) -> list[dict]:
             }
 
         resultado.append({
-            "cliente": cliente,
+            "cliente": referencia(cliente)["cliente_nombre"],
             "programado": serie(programados),
             "no_programado": serie(no_programados),
         })
@@ -525,7 +526,7 @@ def generar_reporte(
         for causa in causas
     }
     todos_clientes = sorted({
-        inventario.cliente
+        referencia(inventario.cliente)["cliente_nombre"]
         for inventario in inventarios_cerrados
         if inventario.cliente
     })
@@ -536,7 +537,7 @@ def generar_reporte(
             not cliente
             or (
                 getattr(programacion, "plantilla", None) is not None
-                and programacion.plantilla.cliente == cliente
+                and referencia(programacion.plantilla.cliente)["cliente_valor"] == referencia(cliente)["cliente_valor"]
             )
         )
         and (
@@ -555,7 +556,7 @@ def generar_reporte(
             "mes_cierre": mes_cierre,
             "meses_cierre": sorted(meses_disponibles, reverse=True),
             "reasignados_mes": reasignados_mes,
-            "cliente": cliente,
+            "cliente": referencia(cliente)["cliente_nombre"],
             "programacion": programacion,
             "tipo_inventario": tipo_inventario,
             "agrupacion": agrupacion,

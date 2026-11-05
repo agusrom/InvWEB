@@ -11,3 +11,8 @@ backups/
 *.db-wal
 *.db-shm
 *.log
+
+# Catálogos y auditorías SQLite: datos operativos, nunca código.
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm

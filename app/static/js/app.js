@@ -1,5 +1,6 @@
 const state = {
     plantillas: [],
+    clientes: [],
     inventarios: [], // Caché de detalles abiertos y cabeceras conocidas.
     inventariosListado: [],
     inventariosSemana: [],
@@ -171,6 +172,11 @@ function registrarEventos() {
         boton.addEventListener("click", () => mostrarVista(boton.dataset.view));
     });
 
+    $("#refresh-inventory-clients").addEventListener("click", async (event) => {
+        const button=event.currentTarget;button.disabled=true;
+        try {const data=await api("/api/clientes");state.clientes=data.clientes;cargarSelectClientes();toast("Lista de clientes actualizada");}
+        catch(error){toast(error.message,true)}finally{button.disabled=false}
+    });
     $("#btn-nuevo-inventario").addEventListener(
         "click",
         () => abrirModalInventario()
@@ -613,6 +619,7 @@ async function cargarInicio() {
         state.causasDiferencia = data.causas_diferencia || [];
         state.tiposInventario = data.tipos_inventario || [];
         state.personas = data.personas || [];
+        state.clientes = data.clientes || [];
         state.configuracionIndicadores = {
             ...state.configuracionIndicadores,
             ...(data.configuracion_indicadores || {}),
@@ -634,6 +641,7 @@ function renderTodo() {
     renderPlantillas();
     cargarSelectPlantillas();
     cargarSelectPersonas();
+    cargarSelectClientes();
     cargarSelectTiposInventario();
 }
 
@@ -768,7 +776,7 @@ function renderInicioOperativo() {
                             title="${escapeHtml(evento.titulo)}"
                         >
                             <strong>${escapeHtml(evento.nombre)}</strong>
-                            <span>${escapeHtml(evento.cliente)} · ${escapeHtml(evento.estado_label)}</span>
+                            <span>${escapeHtml(evento.cliente_nombre || evento.cliente)} · ${escapeHtml(evento.estado_label)}</span>
                         </button>
                     `).join("") : ""}
                     ${notasDiaHtml(iso)}
@@ -866,7 +874,7 @@ function renderInventarios() {
                 <small class="secondary-code">${escapeHtml(tipoInventarioLabel(item.tipo_inventario_codigo, item.categoria))}</small>
             </td>
             <td>
-                <strong>${escapeHtml(item.cliente)}</strong>
+                <strong>${escapeHtml(item.cliente_nombre || item.cliente)}</strong>
                 <small class="inventory-scope ${item.ambito === "CLIENTE" ? "client" : ""}">
                     ${escapeHtml(ambitoInventarioLabel(item.ambito))}
                 </small>
@@ -956,7 +964,7 @@ function renderProgramaciones() {
                 <strong>${escapeHtml(item.plantilla_nombre)}</strong>
                 <small class="secondary-code">${tipoInventarioLabel(item.tipo_inventario_codigo, item.categoria)}</small>
             </td>
-            <td>${escapeHtml(item.cliente)}</td>
+            <td>${escapeHtml(item.cliente_nombre || item.cliente)}</td>
             <td>
                 <strong>${formatearFecha(item.fecha_proxima)}</strong>
                 <small class="secondary-code">
@@ -1144,14 +1152,14 @@ function eventoCalendarioHtml(evento) {
             class="calendar-event ${clase}"
             data-schedule-id="${evento.programacion_id || ""}"
             data-inventory-id="${evento.inventario_id || ""}"
-            title="${escapeHtml(evento.cliente)} · Responsable: ${escapeHtml(
+            title="${escapeHtml(evento.cliente_nombre || evento.cliente)} · Responsable: ${escapeHtml(
                 evento.responsable
             )}${colaboradores
                 ? ` · Colaboradores: ${escapeHtml(colaboradores)}`
                 : ""}"
         >
             <strong>${escapeHtml(evento.plantilla_nombre)}</strong>
-            <span>${escapeHtml(evento.cliente)}</span>
+            <span>${escapeHtml(evento.cliente_nombre || evento.cliente)}</span>
             <small class="calendar-event-category">
                 ${escapeHtml(tipoInventarioLabel(evento.tipo_inventario_codigo, evento.categoria))}
             </small>
@@ -1198,7 +1206,7 @@ function obtenerEventosCalendario(inicio, fin, inventarios = state.inventariosAg
                 inventario_id: inventario.id,
                 plantilla_nombre: programacion?.plantilla_nombre
                     || `Inventario ${inventario.codigo}`,
-                cliente: inventario.cliente,
+                cliente: inventario.cliente_nombre || inventario.cliente,
                 categoria: inventario.categoria,
                 tipo_inventario_codigo: inventario.tipo_inventario_codigo,
                 responsable: inventario.responsable,
@@ -1227,7 +1235,7 @@ function obtenerEventosCalendario(inicio, fin, inventarios = state.inventariosAg
                 programacion_id: programacion.id,
                 inventario_id: null,
                 plantilla_nombre: programacion.plantilla_nombre,
-                cliente: programacion.cliente,
+                cliente: programacion.cliente_nombre || programacion.cliente,
                 categoria: programacion.categoria,
                 tipo_inventario_codigo: programacion.tipo_inventario_codigo,
                 responsable: programacion.responsable,
@@ -1342,7 +1350,7 @@ function tablaCronogramaHtml(titulo, eventos) {
         <tr>
             <td>${escapeHtml(nombreDiaCorto(parsearFechaISO(evento.fecha)))}</td>
             <td>${escapeHtml(formatearFecha(evento.fecha))}</td>
-            <td>${escapeHtml(evento.cliente)}</td>
+            <td>${escapeHtml(evento.cliente_nombre || evento.cliente)}</td>
             <td>${escapeHtml(evento.plantilla_nombre)}</td>
             <td>${escapeHtml(tipoInventarioLabel(evento.tipo_inventario_codigo, evento.categoria))}</td>
             <td>${escapeHtml(evento.responsable)}</td>
@@ -1433,6 +1441,7 @@ function renderPlantillas() {
     const plantillas = state.plantillas.filter((plantilla) => [
         plantilla.nombre,
         plantilla.cliente,
+        plantilla.cliente_nombre || "",
         plantilla.descripcion,
         categoriaPlantillaLabel(plantilla.categoria),
         ...plantilla.items.flatMap((item) => [
@@ -1469,7 +1478,7 @@ function renderPlantillas() {
                     <div class="template-row-details">
                         <div>
                             <small>Cliente</small>
-                            <strong>${escapeHtml(plantilla.cliente)}</strong>
+                            <strong>${escapeHtml(plantilla.cliente_nombre || plantilla.cliente)}</strong>
                         </div>
                         <div>
                             <small>Artículos</small>
@@ -1588,15 +1597,15 @@ function renderPlantillas() {
 function cargarSelectPlantillas() {
     const opciones = state.plantillas.map((x) =>
         `<option value="${x.id}" ${x.activa ? "" : "disabled"}>
-            ${escapeHtml(x.cliente)} · ${escapeHtml(x.nombre)}
+            ${escapeHtml(x.cliente_nombre || x.cliente)} · ${escapeHtml(x.nombre)}
             ${x.activa ? "" : " · INACTIVA"}
         </option>`
     ).join("");
     $("#programacion-plantilla").innerHTML = opciones;
     $("#inventario-plantillas-list").innerHTML = state.plantillas.map((plantilla) => `
-        <label class="inventory-template-option ${plantilla.activa ? "" : "disabled"}" data-template-client="${escapeHtml(plantilla.cliente)}">
+        <label class="inventory-template-option ${plantilla.activa ? "" : "disabled"}" data-template-client="${escapeHtml(plantilla.cliente_nombre || plantilla.cliente)}">
             <input type="checkbox" value="${plantilla.id}" data-inventory-template ${plantilla.activa ? "" : "disabled"}>
-            <span><strong>${escapeHtml(plantilla.nombre)}</strong><small>${escapeHtml(plantilla.cliente)} · ${plantilla.items.length} artículos</small></span>
+            <span><strong>${escapeHtml(plantilla.nombre)}</strong><small>${escapeHtml(plantilla.cliente_nombre || plantilla.cliente)} · ${plantilla.items.length} artículos</small></span>
         </label>
     `).join("");
     filtrarPlantillasInventario();
@@ -1623,10 +1632,10 @@ function plantillasInventarioSeleccionadas() {
 
 function limitarPlantillasPorCliente() {
     const seleccionadas = plantillasInventarioSeleccionadas();
-    const cliente = seleccionadas[0]?.cliente || "";
+    const cliente = seleccionadas[0]?.cliente_valor || seleccionadas[0]?.cliente || "";
     $$('[data-inventory-template]').forEach((input) => {
         const plantilla = state.plantillas.find((item) => item.id === Number(input.value));
-        input.disabled = !plantilla?.activa || Boolean(cliente && plantilla.cliente !== cliente && !input.checked);
+        input.disabled = !plantilla?.activa || Boolean(cliente && (plantilla.cliente_valor || plantilla.cliente) !== cliente && !input.checked);
         input.closest(".inventory-template-option")?.classList.toggle("disabled", input.disabled);
     });
 }
@@ -2940,7 +2949,7 @@ function inventariosHistoricosComparables(actual) {
     const fechaActual = String(actual.fecha || actual.cerrado_en || "");
     return (state.historialInventarios.get(actual.id) || []).filter((inventario) => (
         inventario.id !== actual.id
-        && inventario.cliente === actual.cliente
+        && (inventario.cliente_valor || inventario.cliente) === (actual.cliente_valor || actual.cliente)
         && inventario.categoria === actual.categoria
         && inventario.modalidad_conteo === actual.modalidad_conteo
         && String(inventario.fecha || inventario.cerrado_en || "") <= fechaActual
@@ -4502,6 +4511,7 @@ async function crearInventario(event) {
     const modo = $("#inventario-modo").value;
     const payload = {
         modo,
+        cliente: modo === "PLANTILLA" ? null : $("#inventario-cliente").value,
         fecha: $("#inventario-fecha").value,
         responsable: responsableTexto($("#inventario-responsable")),
         colaboradores: colaboradoresTexto($("#inventario-colaboradores")),
@@ -4817,6 +4827,8 @@ function cambiarModoInventario() {
     const modo = $("#inventario-modo").value;
     const esCiclico = modo === "CICLICO";
     const esManual = modo === "MANUAL";
+    $("#inventario-cliente-wrap").classList.toggle("hidden", !esCiclico && !esManual);
+    $("#inventario-cliente").required = esCiclico || esManual;
     $("#inventario-desde-plantilla").classList.toggle(
         "hidden",
         esCiclico || esManual
@@ -5823,4 +5835,10 @@ function solicitarActualizacionPortada() {
         portadaRequests.agendaKey = null;
         renderCalendario();
     }, 0);
+}
+
+function cargarSelectClientes() {
+    const selected=$("#inventario-cliente").value;
+    $("#inventario-cliente").innerHTML='<option value="">Seleccioná un cliente</option>'+state.clientes.filter(c=>c.activo&&!c.reemplazado_por_id).map(c=>`<option value="${escapeHtml(c.valor)}">${escapeHtml(c.nombre)}</option>`).join('');
+    $("#inventario-cliente").value=selected;
 }

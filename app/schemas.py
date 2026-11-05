@@ -13,6 +13,18 @@ class PlantillaItemEntrada(BaseModel):
     contar_material: bool = True
 
 
+class ClienteEntrada(BaseModel):
+    nombre: str = Field(min_length=1, max_length=120)
+    descripcion: str = Field(default="", max_length=255)
+    activo: bool = True
+    orden: int = Field(default=100, ge=0, le=9999)
+    aliases: list[str] = Field(default_factory=list, max_length=100)
+
+
+class UnificarClienteEntrada(BaseModel):
+    destino_id: int = Field(gt=0)
+
+
 class PlantillaEntrada(BaseModel):
     nombre: str = Field(min_length=1, max_length=150)
     cliente: str = Field(min_length=1, max_length=120)
@@ -58,6 +70,7 @@ class AgregarLoteMaterialEntrada(BaseModel):
 
 
 class InventarioEntrada(BaseModel):
+    cliente: str | None = Field(default=None, max_length=120)
     modo: str = Field(
         default="PLANTILLA",
         pattern="^(PLANTILLA|CICLICO|MANUAL)$",

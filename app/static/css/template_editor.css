@@ -661,3 +661,4 @@ button:disabled { cursor: wait; opacity: 0.6; }
     .pieces-header { align-items: flex-start; padding: 18px; }
 }
 .structure-role.role-material { background:#fff4d9; color:#8a5900; }
+#refresh-template-clients{padding:3px 7px;border:1px solid #c8d3e2;border-radius:5px;background:#f5f8fc;color:#345b88;font:inherit;cursor:pointer}

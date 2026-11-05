@@ -206,7 +206,7 @@ async function loadInventoryOptions(preferredId = null) {
             throw new Error("El inventario solicitado ya no está disponible");
         }
         const chosen = requested > 0 ? requested : inventories[0].id;
-        $("#final-inventory-picker").innerHTML = inventories.map((item) => `<option value="${item.id}" ${item.id === chosen ? 'selected' : ''}>${escapeHtml(item.codigo)} · ${formatDate(item.fecha)} · ${escapeHtml(item.cliente)} · ${escapeHtml(item.estado)}</option>`).join("");
+        $("#final-inventory-picker").innerHTML = inventories.map((item) => `<option value="${item.id}" ${item.id === chosen ? 'selected' : ''}>${escapeHtml(item.codigo)} · ${formatDate(item.fecha)} · ${escapeHtml(item.cliente_nombre || item.cliente)} · ${escapeHtml(item.estado)}</option>`).join("");
         inventoryId = chosen;
         return await changeFinalInventory();
     } catch (error) {
@@ -1334,7 +1334,7 @@ function renderFinalInventory() {
     if (!final) return;
     document.title = state.analysisName ? `${state.analysisName} · Análisis de stock` : `Análisis de stock · ${final.codigo}`;
     $("#analysis-title").textContent = state.analysisName || `Análisis de stock · ${final.codigo}`;
-    $("#final-description").textContent = `${final.cliente} · ${formatDate(final.fecha)} · ${final.contados}/${final.total} códigos completos · ${final.estado}`;
+    $("#final-description").textContent = `${final.cliente_nombre || final.cliente} · ${formatDate(final.fecha)} · ${final.contados}/${final.total} códigos completos · ${final.estado}`;
     const option = document.querySelector(`#final-inventory-picker option[value="${final.id}"]`);
     if (option) option.textContent = `${final.codigo} · ${formatDate(final.fecha)} · ${final.cliente} · ${final.estado}`;
     $("#draft-badge").textContent = final.estado === "Cerrado" ? "INVENTARIO CERRADO" : "PROVISORIA";

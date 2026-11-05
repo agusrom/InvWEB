@@ -68,7 +68,7 @@ function readHomeCache() {
 
 function fillCreateOptions() {
     $("#create-template").innerHTML = state.data.plantillas.filter((item) => item.activa).map((item) =>
-        `<option value="${item.id}">${escapeHtml(item.cliente)} · ${escapeHtml(item.nombre)}</option>`
+        `<option value="${item.id}">${escapeHtml(item.cliente_nombre || item.cliente)} · ${escapeHtml(item.nombre)}</option>`
     ).join("");
     $("#people-list").innerHTML = (state.data.personas || []).map((item) =>
         `<option value="${escapeHtml(item.nombre)}"></option>`
@@ -92,7 +92,7 @@ function inventoryCard(item) {
     const confidence = item.confiabilidad == null ? "—" : `${format(item.confiabilidad)}%`;
     return `<article class="inventory-card">
         <div class="card-head"><strong>${escapeHtml(item.codigo)}</strong><span class="badge ${closed ? "closed" : "open"}">${escapeHtml(item.estado)}</span></div>
-        <h3>${escapeHtml(item.cliente)}</h3><p>${formatDate(item.fecha)} · ${escapeHtml(item.responsable)}</p>
+        <h3>${escapeHtml(item.cliente_nombre || item.cliente)}</h3><p>${formatDate(item.fecha)} · ${escapeHtml(item.responsable)}</p>
         <div class="progress"><span style="width:${Number(item.progreso || 0)}%"></span></div>
         <div class="metric-row"><span>${item.progreso}% cargado</span><span>Confiabilidad ${confidence}</span></div>
         <div class="card-actions"><button data-detail="${item.id}">Ver resultados</button>${closed ? "" : `<a href="/inventarios/${item.id}/movil">Abrir conteo</a>`}</div>
@@ -116,7 +116,7 @@ function openDetail(id) {
             <span class="percentage ${row.dentro_tolerancia === false ? "bad" : ""}"><small>Desvío</small><strong>${row.desvio_porcentaje == null ? "—" : `${signed(row.desvio_porcentaje)}%`}</strong></span>
         </div>
     </div>`).join("");
-    $("#detail-content").innerHTML = `<div class="detail-title"><h2>${escapeHtml(item.codigo)}</h2><p>${escapeHtml(item.cliente)} · ${escapeHtml(item.estado)}</p></div>
+    $("#detail-content").innerHTML = `<div class="detail-title"><h2>${escapeHtml(item.codigo)}</h2><p>${escapeHtml(item.cliente_nombre || item.cliente)} · ${escapeHtml(item.estado)}</p></div>
         <div class="summary-grid"><div><small>Renglones</small><strong>${counted}/${item.items.length}</strong></div><div><small>Sistema total</small><strong>${format(totalSystem)}</strong></div><div><small>Físico total</small><strong>${counted === 0 ? "—" : format(totalPhysical)}</strong></div><div class="total-percentage"><small>Confiabilidad</small><strong>${totalPercentage == null ? "—" : `${format(totalPercentage)}%`}</strong></div></div>
         <div class="detail-items">${rows}</div>`;
     $("#detail-sheet").classList.remove("hidden");

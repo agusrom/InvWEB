@@ -1,4 +1,4 @@
-const state={tipos:[],sectores:[],personas:[]};
+const state={tipos:[],sectores:[],personas:[],clientes:[]};
 const $=s=>document.querySelector(s);
 const $$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
@@ -7,10 +7,16 @@ document.addEventListener("DOMContentLoaded",async()=>{
   $$(".tabs button").forEach(b=>b.onclick=()=>mostrarTab(b.dataset.tab));
   $$("[data-new]").forEach(b=>b.onclick=()=>abrirNuevo(b.dataset.new));
   $$("[data-close]").forEach(b=>b.onclick=()=>b.closest(".backdrop").classList.add("hidden"));
+  $("#form-cliente").onsubmit=guardarCliente;
+  $("#form-unificar").onsubmit=guardarUnificacion;
+  $("#buscar-cliente").oninput=renderClientes;
+  $("#ver-inactivos-clientes").onchange=renderClientes;
+  $("#tabla-clientes").onclick=accionCliente;
+  $("#exportar-catalogos").onclick=()=>{location.href="/api/clientes/exportar"};
   $("#form-tipo").onsubmit=guardarTipo;
   $("#form-sector").onsubmit=guardarSector;
   $("#form-persona").onsubmit=guardarPersona;
-  await cargar();
+  try { await cargar(); } catch(e) { toast(e.message,true); }
 });
 
 async function api(url,options={}){
@@ -19,16 +25,18 @@ async function api(url,options={}){
   return r.status===204?null:r.json();
 }
 async function cargar(){
-  const d=await api("/api/catalogos");
+  const [d,c]=await Promise.all([api("/api/catalogos"),api("/api/clientes")]);
+  state.clientes=c.clientes;
   state.tipos=d.tipos_inventario;state.sectores=d.sectores;state.personas=d.personas;
   render();
 }
 function mostrarTab(tab){
   $$(".tabs button").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));
-  ["tipos","personas","sectores"].forEach(x=>$("#panel-"+x).classList.toggle("hidden",x!==tab));
+  ["clientes","tipos","personas","sectores"].forEach(x=>$("#panel-"+x).classList.toggle("hidden",x!==tab));
 }
 function estado(v){return `<span class="pill ${v?"":"off"}">${v?"Activo":"Inactivo"}</span>`}
 function render(){
+  renderClientes();
   $("#tabla-tipos").innerHTML=state.tipos.map(x=>`<tr><td><b>${esc(x.nombre)}</b><span class="muted">${esc(x.descripcion||x.codigo)}</span></td><td>${esc(x.motor)}</td><td>${x.modalidad==="MEDIOS"?"Vacíos, llenos y rotos":"Estándar"}</td><td>${esc(x.formato_impresion)}</td><td>${estado(x.activo)}</td><td><button class="edit" onclick="editarTipo('${esc(x.codigo)}')">Editar</button></td></tr>`).join("");
   $("#tabla-sectores").innerHTML=state.sectores.map(x=>`<tr><td><b>${esc(x.nombre)}</b></td><td>${esc(x.descripcion||"—")}</td><td>${x.personas}</td><td>${estado(x.activo)}</td><td><button class="edit" onclick="editarSector(${x.id})">Editar</button></td></tr>`).join("");
   $("#tabla-personas").innerHTML=state.personas.map(x=>`<tr><td><b>${esc(x.nombre)}</b></td><td>${esc(x.sector||"Sin sector")}</td><td>${esc(x.legajo||"—")}</td><td>${esc(x.contacto||"—")}</td><td>${estado(x.activo)}</td><td><button class="edit" onclick="editarPersona(${x.id})">Editar</button></td></tr>`).join("");
@@ -36,6 +44,7 @@ function render(){
 }
 function abrir(id){$("#modal-"+id).classList.remove("hidden")}
 function abrirNuevo(tipo){
+  if(tipo==="cliente"){$("#form-cliente").reset();$("#cliente-id").value="";$("#cliente-orden").value=100;$("#cliente-activo").checked=true;$("#titulo-cliente").textContent="Nuevo cliente";$("#cliente-nombres-actuales").textContent="";}
   if(tipo==="tipo"){$("#form-tipo").reset();$("#tipo-codigo").value="";$("#tipo-orden").value=100;$("#tipo-activo").checked=true;$("#titulo-tipo").textContent="Nuevo tipo"}
   if(tipo==="sector"){$("#form-sector").reset();$("#sector-id").value="";$("#sector-orden").value=100;$("#sector-activo").checked=true;$("#titulo-sector").textContent="Nuevo sector"}
   if(tipo==="persona"){$("#form-persona").reset();$("#persona-id").value="";$("#persona-orden").value=100;$("#persona-activa").checked=true;$("#titulo-persona").textContent="Nueva persona"}
@@ -45,10 +54,27 @@ window.editarTipo=c=>{const x=state.tipos.find(v=>v.codigo===c);$("#tipo-codigo"
 window.editarSector=id=>{const x=state.sectores.find(v=>v.id===id);$("#sector-id").value=x.id;$("#sector-nombre").value=x.nombre;$("#sector-descripcion").value=x.descripcion;$("#sector-orden").value=x.orden;$("#sector-activo").checked=x.activo;$("#titulo-sector").textContent="Editar sector";abrir("sector")};
 window.editarPersona=id=>{const x=state.personas.find(v=>v.id===id);$("#persona-id").value=x.id;$("#persona-nombre").value=x.nombre;$("#persona-sector").value=x.sector_id||"";$("#persona-legajo").value=x.legajo;$("#persona-contacto").value=x.contacto;$("#persona-orden").value=x.orden;$("#persona-activa").checked=x.activo;$("#titulo-persona").textContent="Editar persona";abrir("persona")};
 async function enviar(form,url,payload,id){
+  const buttons=[...form.querySelectorAll("button")];buttons.forEach(b=>b.disabled=true);
   try{await api(url,{method:id?"PUT":"POST",body:JSON.stringify(payload)});form.closest(".backdrop").classList.add("hidden");await cargar();toast("Cambios guardados")}
   catch(e){toast(e.message,true)}
+  finally{buttons.forEach(b=>b.disabled=false)}
 }
 function guardarTipo(e){e.preventDefault();const id=$("#tipo-codigo").value;enviar(e.currentTarget,id?"/api/tipos-inventario/"+encodeURIComponent(id):"/api/tipos-inventario",{nombre:$("#tipo-nombre").value.trim(),descripcion:$("#tipo-descripcion").value.trim(),motor:$("#tipo-motor").value,modalidad:$("#tipo-modalidad").value,formato_impresion:$("#tipo-formato").value,orden:Number($("#tipo-orden").value),activo:$("#tipo-activo").checked},id)}
 function guardarSector(e){e.preventDefault();const id=$("#sector-id").value;enviar(e.currentTarget,id?"/api/sectores/"+id:"/api/sectores",{nombre:$("#sector-nombre").value.trim(),descripcion:$("#sector-descripcion").value.trim(),orden:Number($("#sector-orden").value),activo:$("#sector-activo").checked},id)}
 function guardarPersona(e){e.preventDefault();const id=$("#persona-id").value;enviar(e.currentTarget,id?"/api/personas/"+id:"/api/personas",{nombre:$("#persona-nombre").value.trim(),sector_id:$("#persona-sector").value?Number($("#persona-sector").value):null,legajo:$("#persona-legajo").value.trim(),contacto:$("#persona-contacto").value.trim(),orden:Number($("#persona-orden").value),activo:$("#persona-activa").checked},id)}
 function toast(msg,error=false){const x=$("#toast");x.textContent=msg;x.classList.toggle("error",error);x.classList.remove("hidden");setTimeout(()=>x.classList.add("hidden"),3000)}
+
+function renderClientes(){
+  const query=$("#buscar-cliente").value.trim().toLocaleLowerCase();
+  const rows=state.clientes.filter(c=>($("#ver-inactivos-clientes").checked||c.activo&&!c.reemplazado_por_id)&&`${c.nombre} ${c.codigo} ${c.aliases.join(" ")}`.toLocaleLowerCase().includes(query));
+  $("#tabla-clientes").innerHTML=rows.length?rows.map(c=>`<tr><td><b>${esc(c.nombre)}</b><span class="muted">${esc(c.codigo)}</span><small>${esc(c.descripcion)}</small></td><td>${esc(c.aliases.join(" · "))}</td><td>${c.inventarios} inventarios · ${c.plantillas} plantillas</td><td>${c.reemplazado_por_id?'<span class="pill off">Unificado</span>':estado(c.activo)}</td><td>${c.reemplazado_por_id?'':`<button class="edit" data-edit-client="${c.id}">Editar</button> <button class="edit" data-merge-client="${c.id}">Unificar</button> ${!c.inventarios&&!c.plantillas?`<button class="edit" data-delete-client="${c.id}">Eliminar</button>`:''}`}</td></tr>`).join(""):'<tr><td colspan="5">No hay clientes para este filtro. Agregá uno para empezar.</td></tr>';
+}
+function accionCliente(e){
+  const button=e.target.closest('button');if(!button)return;
+  if(button.dataset.editClient){const c=state.clientes.find(c=>c.id===Number(button.dataset.editClient));$("#cliente-id").value=c.id;$("#cliente-nombre").value=c.nombre;$("#cliente-descripcion").value=c.descripcion;$("#cliente-orden").value=c.orden;$("#cliente-activo").checked=c.activo;$("#cliente-aliases").value="";$("#cliente-nombres-actuales").textContent="Nombres asociados: "+c.aliases.join(" · ");$("#titulo-cliente").textContent="Editar cliente";abrir("cliente");}
+  if(button.dataset.mergeClient){const c=state.clientes.find(c=>c.id===Number(button.dataset.mergeClient));$("#unificar-origen").value=c.id;$("#unificar-descripcion").textContent="Asociar los nombres de «"+c.nombre+"» ("+c.inventarios+" inventarios, "+c.plantillas+" plantillas) a otro cliente:";$("#unificar-destino").innerHTML='<option value="">Seleccioná un cliente</option>'+state.clientes.filter(t=>t.id!==c.id&&t.activo&&!t.reemplazado_por_id).map(t=>`<option value="${t.id}">${esc(t.nombre)}</option>`).join("");abrir("unificar");}
+  if(button.dataset.deleteClient)eliminarCliente(Number(button.dataset.deleteClient),button);
+}
+function guardarCliente(e){e.preventDefault();const id=$("#cliente-id").value;enviar(e.currentTarget,id?"/api/clientes/"+id:"/api/clientes",{nombre:$("#cliente-nombre").value,descripcion:$("#cliente-descripcion").value,orden:Number($("#cliente-orden").value),activo:$("#cliente-activo").checked,aliases:$("#cliente-aliases").value.split("\n").map(v=>v.trim()).filter(Boolean)},id);}
+async function guardarUnificacion(e){e.preventDefault();const form=e.currentTarget,button=form.querySelector('button.primary');button.disabled=true;try{await api(`/api/clientes/${$("#unificar-origen").value}/unificar`,{method:"POST",body:JSON.stringify({destino_id:Number($("#unificar-destino").value)})});form.closest('.backdrop').classList.add('hidden');await cargar();toast('Clientes unificados; el historial se conservó');}catch(error){toast(error.message,true)}finally{button.disabled=false}}
+async function eliminarCliente(id,button){if(!confirm('¿Eliminar este cliente sin uso?'))return;button.disabled=true;try{await api('/api/clientes/'+id,{method:'DELETE'});await cargar();toast('Cliente eliminado');}catch(error){toast(error.message,true);button.disabled=false}}
