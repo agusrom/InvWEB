@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, time, timedelta
 import os
 from pathlib import Path
 from time import perf_counter
@@ -16,6 +16,8 @@ from app.services.piece_provider import (
     obtener_estructura_recursiva,
 )
 
+
+VERSION_CALCULO_MOVIMIENTOS = 2
 
 MOVIMIENTOS_DEBUG = os.getenv("MOVIMIENTOS_DEBUG", "0").strip().lower() not in {
     "0", "false", "no", "off",
@@ -267,6 +269,17 @@ def _fechas_cortes_ingreso(inicio: str, fin: str) -> dict[int, date | datetime]:
     }
 
 
+def _limites_consulta(inicio: date | datetime, fin: date | datetime) -> tuple:
+    """Fechas sin hora: excluye el día inicial e incluye entero el día final.
+
+    Los cortes obtenidos como timestamps de remitos conservan su precisión.
+    """
+    desde = inicio if isinstance(inicio, datetime) else datetime.combine(inicio + timedelta(days=1), time.min)
+    hasta = fin if isinstance(fin, datetime) else datetime.combine(fin + timedelta(days=1), time.min)
+    return (">" if isinstance(inicio, datetime) else ">=", desde,
+            "<=" if isinstance(fin, datetime) else "<", hasta)
+
+
 def _filas_ingresos_con_limites(
     fecha_limite_inicial: date | datetime,
     fecha_limite_final: date | datetime,
@@ -276,8 +289,9 @@ def _filas_ingresos_con_limites(
     materiales = sorted(piezas_por_material)
     if production_engine is None or not materiales:
         return []
+    operador_inicio, desde, operador_fin, hasta = _limites_consulta(fecha_limite_inicial, fecha_limite_final)
     consulta = text(
-        """
+        f"""
         SELECT
             TRIM(`CMAT_`) AS codigo,
             SUM(COALESCE(`CANT_`, 0)) AS cantidad,
@@ -286,8 +300,8 @@ def _filas_ingresos_con_limites(
             CAST(TRIM(CAST(`RMTO_` AS CHAR)) AS UNSIGNED) AS remito_numero
         FROM `mtprim06`
         WHERE TRIM(`CODI_`) = 'RC'
-          AND `FECH_` > :fecha_limite_inicial
-          AND `FECH_` <= :fecha_limite_final
+          AND `FECH_` {operador_inicio} :fecha_limite_inicial
+          AND `FECH_` {operador_fin} :fecha_limite_final
           AND UPPER(TRIM(`CMAT_`)) IN :materiales
         GROUP BY TRIM(`CMAT_`), `FECH_`, TRIM(CAST(`RMTO_` AS CHAR)),
                  CAST(TRIM(CAST(`RMTO_` AS CHAR)) AS UNSIGNED)
@@ -298,8 +312,8 @@ def _filas_ingresos_con_limites(
         filas = conexion.execute(
             consulta,
             {
-                "fecha_limite_inicial": fecha_limite_inicial,
-                "fecha_limite_final": fecha_limite_final,
+                "fecha_limite_inicial": desde,
+                "fecha_limite_final": hasta,
                 "materiales": materiales,
             },
         ).mappings().all()
@@ -334,7 +348,7 @@ def _filas_egresos(
             TRIM(`GCOD_`) AS codigo_pieza,
             SUM(COALESCE(`CANT_`, 0)) AS cantidad
         FROM `produc08`
-        WHERE TRIM(`STAT_`) = 'D'
+        WHERE UPPER(TRIM(COALESCE(`STAT_`, ''))) = 'D'
           AND CAST(SUBSTRING_INDEX(TRIM(`CDOC_`), '-', -1) AS UNSIGNED)
                 > :desde
           AND CAST(SUBSTRING_INDEX(TRIM(`CDOC_`), '-', -1) AS UNSIGNED)
@@ -381,7 +395,7 @@ def _filas_egresos_por_fecha(
             TRIM(`GCOD_`) AS codigo_pieza,
             SUM(COALESCE(`CANT_`, 0)) AS cantidad
         FROM `produc08`
-        WHERE TRIM(`STAT_`) = 'D'
+        WHERE UPPER(TRIM(COALESCE(`STAT_`, ''))) = 'D'
           AND DATE(`FECH_`) > :fecha_inicial
           AND DATE(`FECH_`) <= :fecha_final
           AND UPPER(TRIM(`GCOD_`)) IN :padres
@@ -426,7 +440,7 @@ def _fechas_cortes_egreso(inicio: str, fin: str) -> dict[int, date | datetime]:
                         AS numero,
                     MAX(`FECH_`) AS fecha
                 FROM `produc08`
-                WHERE TRIM(`STAT_`) = 'D'
+                WHERE UPPER(TRIM(COALESCE(`STAT_`, ''))) = 'D'
                   AND CAST(
                         SUBSTRING_INDEX(TRIM(`CDOC_`), '-', -1) AS UNSIGNED
                       ) IN (:desde, :hasta)
@@ -456,6 +470,7 @@ def _filas_egresos_con_limites(
             "de códigos válidos está vacía."
         )
         return []
+    operador_inicio, desde, operador_fin, hasta = _limites_consulta(fecha_limite_inicial, fecha_limite_final)
     expresion_remito = (
         "CAST(SUBSTRING_INDEX(TRIM(`CDOC_`), '-', -1) AS UNSIGNED)"
     )
@@ -470,8 +485,8 @@ def _filas_egresos_con_limites(
             MAX(COALESCE(`LACTIVO_`, 0)) AS activo,
             'D' AS estado
         FROM `produc08`
-        WHERE `FECH_` > :fecha_limite_inicial
-          AND `FECH_` <= :fecha_limite_final
+        WHERE `FECH_` {operador_inicio} :fecha_limite_inicial
+          AND `FECH_` {operador_fin} :fecha_limite_final
           AND UPPER(TRIM(COALESCE(`STAT_`, ''))) = 'D'
           AND UPPER(TRIM(`GCOD_`)) IN :codigos
         GROUP BY
@@ -481,8 +496,8 @@ def _filas_egresos_con_limites(
     ).bindparams(bindparam("codigos", expanding=True))
     _debug(
         "Consultando produc08 con filtro de estado y códigos en MySQL. "
-        f"Intervalo: FECH_ > {fecha_limite_inicial!s} y "
-        f"FECH_ <= {fecha_limite_final!s}."
+        f"Intervalo: FECH_ {operador_inicio} {desde!s} y "
+        f"FECH_ {operador_fin} {hasta!s}."
     )
     _debug(
         f"Códigos admitidos por estructura ({len(codigos)}): "
@@ -492,8 +507,8 @@ def _filas_egresos_con_limites(
         filas = conexion.execute(
             consulta,
             {
-                "fecha_limite_inicial": fecha_limite_inicial,
-                "fecha_limite_final": fecha_limite_final,
+                "fecha_limite_inicial": desde,
+                "fecha_limite_final": hasta,
                 "codigos": codigos,
             },
         ).mappings().all()
@@ -622,6 +637,44 @@ def _codigos_estructura(
     return codigos
 
 
+def _padres_de_componentes(codigos: set[str], max_niveles: int = 20) -> set[str]:
+    """Busca hacia arriba en produc10, incluso si el PT no figura en inventarios."""
+    visitados = {normalizar_codigo(c) for c in codigos if normalizar_codigo(c)}
+    pendientes = set(visitados)
+    padres = set()
+
+    def recorrer(buscar):
+        nonlocal pendientes
+        for _ in range(max_niveles):
+            nuevos = {normalizar_codigo(c) for c in buscar(pendientes)} - visitados - {""}
+            if not nuevos:
+                return padres
+            padres.update(nuevos)
+            visitados.update(nuevos)
+            if len(visitados) > 5000:
+                raise RuntimeError("La búsqueda de piezas que consumen los componentes supera 5000 códigos")
+            pendientes = nuevos
+        # Se comprueba si hay más niveles; no se devuelve un total parcial.
+        if {normalizar_codigo(c) for c in buscar(pendientes)} - visitados - {""}:
+            raise RuntimeError(f"La búsqueda de piezas que consumen los componentes supera {max_niveles} niveles")
+        return padres
+
+    if not pendientes:
+        return set()
+    if production_engine is None:
+        from app.services.piece_provider import DEMO_ESTRUCTURA
+        return recorrer(lambda hijos: {padre for padre, componentes in DEMO_ESTRUCTURA.items()
+                                       if any(normalizar_codigo(hijo) in hijos for hijo, _ in componentes)})
+    query = text("""
+        SELECT DISTINCT TRIM(`VCOD_`) AS codigo
+        FROM `produc10`
+        WHERE UPPER(TRIM(`GCOD_`)) IN :codigos
+          AND TRIM(COALESCE(`VCOD_`, '')) <> ''
+    """).bindparams(bindparam("codigos", expanding=True))
+    with production_engine.connect() as connection:
+        return recorrer(lambda hijos: connection.execute(query, {"codigos": sorted(hijos)}).scalars().all())
+
+
 def calcular_movimientos(
     remito_ingreso_inicial: str,
     remito_ingreso_final: str,
@@ -650,6 +703,8 @@ def calcular_movimientos(
     }
     piezas_por_material = _materiales_por_pieza(resultados_permitidos)
     advertencias = []
+    if production_engine is None:
+        advertencias.append("No hay conexión productiva configurada: no se consultaron los ingresos ni los despachos automáticos. Revisá PRODUCTION_DATABASE_URL antes de interpretar los ceros.")
     criterios = {}
 
     def resolver_cortes(
@@ -754,6 +809,7 @@ def calcular_movimientos(
         padres_permitidos,
         cache_estructuras,
     )
+    codigos_egreso.update(_padres_de_componentes(resultados_permitidos))
     egresos = _filas_egresos_con_limites(
         egreso_fecha_desde,
         egreso_fecha_hasta,
@@ -881,4 +937,10 @@ def calcular_movimientos(
         },
         "criterio_ingreso": criterios["ingreso"],
         "criterio_egreso": criterios["egreso"],
+        "diagnostico_egresos": {
+            "fuente_configurada": production_engine is not None,
+            "codigos_consultados": len(codigos_egreso),
+            "despachos_encontrados": len(egresos),
+            "despachos_aplicados": sum(bool(fila.get("componentes")) for fila in egresos),
+        },
     }

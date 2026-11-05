@@ -42,6 +42,7 @@ from app.schemas import (
     PreconciliacionScrapEntrada,
 )
 from app.services.movements import (
+    VERSION_CALCULO_MOVIMIENTOS,
     _materiales_por_pieza,
     _componentes_terminales,
 )
@@ -2100,6 +2101,7 @@ def calcular_preconciliacion(
                 "inicial": {"id": inicial.id, "codigo": inicial.codigo, "fecha": inicial.fecha.isoformat()},
                 "filas": filas,
                 "advertencias": movimientos.get("advertencias", []),
+                "diagnostico_egresos": movimientos.get("diagnostico_egresos", {}),
                 "cortes": movimientos.get("cortes", {
                     "ingreso": {"criterio": movimientos.get("criterio_ingreso", "SIN_INFORMACION")},
                     "egreso": {"criterio": movimientos.get("criterio_egreso", "SIN_INFORMACION")},
@@ -2199,6 +2201,7 @@ def calcular_preconciliacion(
         "contados": len(codigos_finales),
         "total": len({normalizar_codigo(item.codigo) for item in final.items}),
     }
+    result["version_movimientos"] = VERSION_CALCULO_MOVIMIENTOS
     result["calculado_en"] = fecha_calculo()
     result["periodos_consecutivos"] = construir_periodos_consecutivos(
         result["escenarios"], result["inventario_final"], tolerancia, dentro_tolerancia_comparacion,
