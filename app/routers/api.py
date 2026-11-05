@@ -1809,7 +1809,6 @@ def inventarios_disponibles_preconciliacion(db: Session = Depends(get_db)):
             "contados": len(codigos_completos_inventario(inventario)),
         }
         for inventario in inventarios
-        if inventario.items and codigos_completos_inventario(inventario)
     ]
 
 
@@ -2129,6 +2128,12 @@ def calcular_preconciliacion(
         result,
         result["notas_guardadas"],
     )
+    result["inventario_final"] = {
+        "id": final.id, "codigo": final.codigo, "cliente": final.cliente,
+        "fecha": final.fecha.isoformat(), "estado": final.estado,
+        "contados": len(codigos_finales),
+        "total": len({normalizar_codigo(item.codigo) for item in final.items}),
+    }
     return result
 
 
@@ -2179,6 +2184,25 @@ def listar_analisis_guardados(db: Session = Depends(get_db)):
         }
         for item in analisis
     ]
+
+
+@router.post("/preconciliacion/analisis-guardados/{analisis_id}/actualizar-final")
+def actualizar_final_analisis(analisis_id: str, db: Session = Depends(get_db)):
+    guardado = preconciliation_audit.get_analysis(analisis_id)
+    if guardado is None:
+        raise HTTPException(status_code=404, detail="Análisis guardado no encontrado")
+    calculo = calcular_preconciliacion(
+        guardado["final_id"],
+        PreconciliacionCalculoEntrada(inventarios_iniciales=guardado["inventarios_iniciales"]),
+        db,
+    )
+    setup = opciones_preconciliacion(guardado["final_id"], db)
+    if not preconciliation_audit.update_analysis_calculation(analisis_id, calculo):
+        raise HTTPException(status_code=404, detail="El análisis fue eliminado durante la actualización")
+    actualizado = preconciliation_audit.get_analysis(analisis_id)
+    if actualizado is None:
+        raise HTTPException(status_code=404, detail="Análisis guardado no encontrado")
+    return {"analisis": actualizado, "setup": setup}
 
 
 @router.get("/preconciliacion/analisis-guardados/{analisis_id}")

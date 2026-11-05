@@ -69,6 +69,19 @@ Los almacenes locales vigentes se inicializan según los módulos que los usan.
 - Búsqueda de plantillas por nombre o cliente sin perder selecciones.
 - Progreso y confiabilidad juntos en el listado principal.
 
+## Análisis de stock con conteo abierto
+
+Se puede iniciar y guardar un análisis aunque el inventario final siga en conteo
+(incluso sin códigos completos). Se muestra como **PROVISORIA**: los códigos
+incompletos no se interpretan como físico cero y se incorporan al completarse.
+
+El botón **Actualizar inventario final** relee el estado y los conteos guardados
+y recalcula los mismos períodos iniciales. Si el análisis ya está guardado,
+actualiza ese mismo registro sin cambiar su nombre ni duplicarlo; conserva las
+notas y las correcciones de movimientos. Si el recálculo falla conserva la
+fotografía anterior. Hay que terminar de guardar las notas y remitos pendientes
+antes de actualizar. No modifica el stock del inventario ni requiere migraciones.
+
 ## Datos que se deben conservar y respaldar
 
 | Ubicación | Contenido activo |

@@ -291,3 +291,14 @@ def reconcile(final_id, final_date, scenarios, tolerance, within, resolve_manual
             result.append(item)
         write(db, final_id, data)
     return {"escenarios": scenarios, "tolerancia": tolerance, "movimientos": result}
+
+
+def update_analysis_calculation(analysis_id, calculation):
+    """Refresca una fotografía existente sin cambiar nombre, períodos ni auditoría."""
+    with connection() as db:
+        cursor = db.execute(
+            "UPDATE analisis SET calculo = ?, actualizado_en = ? WHERE id = ?",
+            (json.dumps(calculation, ensure_ascii=False),
+             datetime.now().isoformat(timespec="seconds"), analysis_id),
+        )
+        return cursor.rowcount > 0
