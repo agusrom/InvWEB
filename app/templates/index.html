@@ -78,7 +78,7 @@
                             </div>
                             <label class="search">
                                 <span>⌕</span>
-                                <input id="buscar-inventario" type="search" placeholder="Buscar inventario o cliente">
+                                <input id="buscar-inventario" type="search" maxlength="200" placeholder="Buscar inventario o cliente">
                             </label>
                             <select id="filtro-estado" aria-label="Filtrar por estado">
                                 <option>Todos</option>
@@ -104,6 +104,12 @@
                             </thead>
                             <tbody id="tabla-inventarios"></tbody>
                         </table>
+                    </div>
+                    <div class="inventory-pagination" aria-label="Paginación de inventarios">
+                        <button type="button" id="inventarios-prev" class="secondary" disabled>← Anterior</button>
+                        <span id="inventarios-pagina" role="status" aria-live="polite">Cargando inventarios…</span>
+                        <button type="button" id="inventarios-next" class="secondary" disabled>Siguiente →</button>
+                        <button type="button" id="inventarios-reintentar" class="secondary hidden">Reintentar</button>
                     </div>
                     <div id="inventarios-vacio" class="empty hidden">
                         No hay inventarios que coincidan con los filtros.

@@ -178,55 +178,13 @@ def inventario_dict(inventario: Inventario) -> dict:
         ),
         "progreso": progreso,
         **confiabilidad,
-        "items": [
-            {
-                "id": item.id,
-                "codigo": item.codigo,
-                "codigo_cliente": item.codigo_cliente,
-                "codigo_material": item.codigo_material,
-                "descripcion": item.descripcion,
-                "ubicacion": item.ubicacion,
-                "diametro": item.diametro,
-                "largo": item.largo,
-                "espesor": item.espesor,
-                "unidad": item.unidad,
-                "lote": item.lote,
-                "codigo_padre": item.codigo_padre,
-                "nivel": item.nivel,
-                "uso": item.uso,
-                "ruta": item.ruta,
-                "tipo_estructura": item.tipo_estructura,
-                "etapa": item.etapa,
-                "operacion": item.operacion,
-                "titulo_operacion": item.titulo_operacion,
-                "proveedor": item.proveedor,
-                "stock_pendiente": item.stock_pendiente,
-                "stock_sistema": item.stock_sistema,
-                "stock_asignado": item.stock_asignado,
-                "conteo_fisico": item.conteo_fisico,
-                "conteo_vacios": item.conteo_vacios,
-                "conteo_llenos": item.conteo_llenos,
-                "conteo_rotos": item.conteo_rotos,
-                "medios_utilizables": item.conteo_vacios,
-                "contar_material": item.contar_material,
-                "causa_diferencia_codigo": item.causa_diferencia_codigo,
-                "ajustado_sistema": item.ajustado_sistema,
-                "ajustado_sistema_en": (
-                    item.ajustado_sistema_en.isoformat()
-                    if item.ajustado_sistema_en
-                    else None
-                ),
-                "observaciones": item.observaciones,
-                **metricas_conteo_item(item),
-            }
-            for item in inventario.items
-        ],
+        "items": items_inventario_dict(inventario),
         "relacion_reconteo": relaciones["origen"],
         "reconteos_vinculados": relaciones["reconteos"],
     }
 
 
-def programacion_dict(programacion: ProgramacionInventario) -> dict:
+def programacion_dict(programacion: ProgramacionInventario, ejecuciones: int | None = None) -> dict:
     hoy = date.today()
     if not programacion.activa:
         estado = (
@@ -269,5 +227,52 @@ def programacion_dict(programacion: ProgramacionInventario) -> dict:
             if programacion.ultima_ejecucion
             else None
         ),
-        "ejecuciones": len(programacion.inventarios),
+        "ejecuciones": len(programacion.inventarios) if ejecuciones is None else ejecuciones,
     }
+
+
+def items_inventario_dict(inventario):
+    """Renglones sin consultas de relaciones, revisión ni cierres del inventario."""
+    return [
+        {
+            "id": item.id,
+            "codigo": item.codigo,
+            "codigo_cliente": item.codigo_cliente,
+            "codigo_material": item.codigo_material,
+            "descripcion": item.descripcion,
+            "ubicacion": item.ubicacion,
+            "diametro": item.diametro,
+            "largo": item.largo,
+            "espesor": item.espesor,
+            "unidad": item.unidad,
+            "lote": item.lote,
+            "codigo_padre": item.codigo_padre,
+            "nivel": item.nivel,
+            "uso": item.uso,
+            "ruta": item.ruta,
+            "tipo_estructura": item.tipo_estructura,
+            "etapa": item.etapa,
+            "operacion": item.operacion,
+            "titulo_operacion": item.titulo_operacion,
+            "proveedor": item.proveedor,
+            "stock_pendiente": item.stock_pendiente,
+            "stock_sistema": item.stock_sistema,
+            "stock_asignado": item.stock_asignado,
+            "conteo_fisico": item.conteo_fisico,
+            "conteo_vacios": item.conteo_vacios,
+            "conteo_llenos": item.conteo_llenos,
+            "conteo_rotos": item.conteo_rotos,
+            "medios_utilizables": item.conteo_vacios,
+            "contar_material": item.contar_material,
+            "causa_diferencia_codigo": item.causa_diferencia_codigo,
+            "ajustado_sistema": item.ajustado_sistema,
+            "ajustado_sistema_en": (
+                item.ajustado_sistema_en.isoformat()
+                if item.ajustado_sistema_en
+                else None
+            ),
+            "observaciones": item.observaciones,
+            **metricas_conteo_item(item),
+        }
+        for item in inventario.items
+    ]

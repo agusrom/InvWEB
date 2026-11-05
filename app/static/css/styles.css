@@ -4145,3 +4145,5 @@ tbody tr:last-child td { border-bottom: 0; }
 .inventory-reliability .confidence > i { margin: 0; width: 60px; }
 .inventory-reliability .confidence > small { display: none; }
 #schedule-note-delete { color: #b42318; background: #fff0ef; border: 1px solid #f4c8c4; }
+
+.inventory-pagination { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; padding: 12px 16px; font-size: 12px; }

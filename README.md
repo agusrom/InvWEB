@@ -3,6 +3,16 @@
 Aplicación FastAPI para inventarios físicos, plantillas, programaciones,
 conteo PC/móvil, análisis de stock, componentes y reportes.
 
+## Optimización de la portada
+
+El listado carga 25 inventarios por página con filtros en servidor. El detalle
+se solicita al abrir un inventario y el historial al desplegar su análisis.
+Calendario y métricas globales se consultan independientemente del listado.
+Esta mejora no requiere cambios de esquema ni ejecutar SQL de migración.
+La migración de datos queda pospuesta; no ejecutar los SQL de limpieza como
+parte de esta optimización.
+Ver [alcance y validación de rendimiento](docs/rendimiento_portada.md).
+
 ## Estado de la migración
 
 Se retiraron Conciliaciones antiguas y Warehouse/Depósito, incluidos sus modelos,
