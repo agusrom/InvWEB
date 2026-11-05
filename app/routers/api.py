@@ -37,6 +37,7 @@ from app.schedule_notes_store import listar_notas
 from app.schemas import (
     PreconciliacionControlEntrada,
     PreconciliacionManualEntrada,
+    PreconciliacionManualRemitoEntrada,
     PreconciliacionRemitoEntrada,
     PreconciliacionScrapEntrada,
 )
@@ -2348,6 +2349,31 @@ def agregar_movimiento_preconciliacion(inventario_id: int,
     if not payload["codigo"] or not payload["remito"]:
         raise HTTPException(status_code=422, detail="Completá código y remito")
     return preconciliation_audit.add_manual(inventario_id, payload)
+
+
+@router.post("/inventarios/{inventario_id}/preconciliacion/remitos-manuales", status_code=201)
+def agregar_remito_manual_preconciliacion(inventario_id: int,
+    entrada: PreconciliacionManualRemitoEntrada, db: Session = Depends(get_db)):
+    final = buscar_inventario(db, inventario_id)
+    if entrada.fecha > final.fecha:
+        raise HTTPException(status_code=422, detail="La fecha no puede ser posterior al inventario final")
+    header = entrada.model_dump(mode="json", exclude={"renglones", "solicitud_id"})
+    header["remito"] = header["remito"].strip()
+    if not header["remito"]:
+        raise HTTPException(status_code=422, detail="Completá el número de remito")
+    movements, codes = [], set()
+    for index, row in enumerate(entrada.renglones, 1):
+        code = normalizar_codigo(row.codigo)
+        if not code:
+            raise HTTPException(status_code=422, detail=f"Completá el código del renglón {index}")
+        if code in codes:
+            raise HTTPException(status_code=422, detail=f"El código {code} está repetido; unificá su cantidad en un renglón")
+        codes.add(code)
+        movements.append(dict(header, codigo=code, cantidad=row.cantidad))
+    try:
+        return preconciliation_audit.add_manual_many(inventario_id, movements, entrada.solicitud_id)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error))
 
 
 @router.delete("/inventarios/{inventario_id}/preconciliacion/movimientos/{clave}")

@@ -186,3 +186,22 @@ button:disabled { opacity:.6; cursor:wait; }
 @media print{.summary-table th{padding:4px;font-size:6.8px}.summary-table td,.summary-table .numeric,.summary-table .difference{padding:4px;font-size:7px}.summary-piece strong{font-size:8px}.summary-piece em,.summary-piece small,.summary-analysis strong,.summary-analysis span,.summary-analysis small{font-size:6.5px}}
 
 .selector-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Remito manual: una cabecera y múltiples renglones, también en móvil. */
+.manual-remittance-header{display:grid;grid-template-columns:120px 160px minmax(160px,1fr) minmax(220px,2fr);gap:12px;width:100%}
+.manual-lines{display:grid;gap:8px;width:100%;min-width:0}
+.manual-line{display:grid;grid-template-columns:26px minmax(240px,1fr) 150px auto;gap:12px;align-items:end;padding:10px;background:#f6f8fc;border:1px solid var(--line);border-radius:7px}
+.manual-line-number{align-self:center;text-align:center;color:var(--muted);font-weight:700}
+.manual-line input{width:100%;box-sizing:border-box}
+.manual-form .manual-remove,.manual-form .manual-add{background:white;color:var(--blue)}
+.manual-form button:disabled{opacity:.5;cursor:default}
+.manual-remittance-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;width:100%}
+.manual-remittance-actions>span{color:var(--muted);font-size:11px}
+#save-manual-remittance{margin-left:auto}
+#manual-form-status:empty{display:none}
+#manual-form-status{font-size:12px}
+.manual-form #manual-type-help{font-size:12px;margin:0;line-height:1.5}
+@media(max-width:850px){.manual-remittance-header{grid-template-columns:1fr 1fr}.manual-line{grid-template-columns:22px minmax(140px,1fr) 110px}.manual-line .manual-remove{grid-column:2/4;justify-self:end}}
+@media(max-width:500px){.manual-remittance-header{grid-template-columns:1fr}.manual-line{grid-template-columns:22px minmax(0,1fr)}.manual-line .manual-code-field{grid-column:2}.manual-line>label:not(.manual-code-field){grid-column:2}.manual-line .manual-remove{grid-column:2}.manual-line-number{grid-row:1}.manual-line .manual-code-results>button{grid-template-columns:1fr}.manual-remittance-actions{align-items:stretch;flex-direction:column}#save-manual-remittance{margin-left:0}}
+
+.manual-remittance-header label,.manual-line label{font-size:12px}.manual-remittance-header input,.manual-remittance-header select,.manual-line input,.manual-remittance-actions button,.manual-line .manual-remove{min-height:40px;box-sizing:border-box}

@@ -7,6 +7,7 @@ const state = { setup: null, calculation: null, analysisId: null, analysisName: 
 const $ = (selector) => document.querySelector(selector);
 let manualSearchTimer = null;
 let manualSearchController = null;
+let manualRequestId = null;
 let noteSavesPending = 0;
 const failedNoteSaves = new Set();
 
@@ -35,8 +36,21 @@ function registerEvents() {
     $("#new-analysis").addEventListener("click", startNewAnalysis);
     $("#back-to-analyses").addEventListener("click", showAnalysisHome);
     $("#saved-analysis-search").addEventListener("input", renderSavedAnalyses);
-    $("#manual-code-input").addEventListener("input", scheduleManualCodeSearch);
-    $("#manual-code-results").addEventListener("click", chooseManualCode);
+    $("#manual-lines").addEventListener("input", (event) => {
+        if (event.target.matches("[data-manual-code-input]")) scheduleManualCodeSearch(event);
+        event.target.setCustomValidity("");
+    });
+    $("#manual-lines").addEventListener("click", (event) => {
+        if (event.target.closest("[data-manual-code]")) chooseManualCode(event);
+        const remove = event.target.closest("[data-remove-manual-line]");
+        if (remove && !remove.disabled) {
+            remove.closest(".manual-line").remove();
+            hideManualCodeResults();
+            updateManualLines();
+        }
+    });
+    $("#add-manual-line").addEventListener("click", addManualLine);
+    $("#manual-form [name=tipo]").addEventListener("change", updateManualType);
     ["#movement-search", "#movement-scenario"].forEach((id) => $(id).addEventListener(id === "#movement-search" ? "input" : "change", renderMovements));
     $("#manual-form").addEventListener("submit", addManual);
     $("#movements-panel").addEventListener("click", movementAction);
@@ -1105,68 +1119,149 @@ async function saveRemittance(group, button) {
     }
 }
 
-function scheduleManualCodeSearch(event) {
-    clearTimeout(manualSearchTimer);
-    const query = event.target.value.trim();
-    if (query.length < 2) {
-        hideManualCodeResults();
-        return;
-    }
-    manualSearchTimer = setTimeout(() => searchManualCodes(query), 220);
+function updateManualLines() {
+    const rows = [...document.querySelectorAll("#manual-lines .manual-line")];
+    rows.forEach((row, index) => {
+        row.querySelector(".manual-line-number").textContent = index + 1;
+        const remove = row.querySelector("[data-remove-manual-line]");
+        remove.disabled = rows.length === 1;
+        remove.setAttribute("aria-label", `Quitar renglón ${index + 1}`);
+    });
+    $("#manual-line-count").textContent = `${rows.length} ${rows.length === 1 ? "renglón" : "renglones"}`;
+    $("#add-manual-line").disabled = rows.length >= 200;
 }
 
-async function searchManualCodes(query) {
+function addManualLine() {
+    if (document.querySelectorAll("#manual-lines .manual-line").length >= 200) return;
+    const row = $("#manual-lines .manual-line").cloneNode(true);
+    row.querySelectorAll("input").forEach((input) => {
+        input.value = "";
+        input.removeAttribute("id");
+        input.setCustomValidity("");
+    });
+    const results = row.querySelector(".manual-code-results");
+    results.removeAttribute("id");
+    results.innerHTML = "";
+    results.classList.add("hidden");
+    $("#manual-lines").append(row);
+    updateManualLines();
+    row.querySelector("[data-manual-code-input]").focus();
+}
+
+function updateManualType() {
+    hideManualCodeResults();
+    const outgoing = $("#manual-form [name=tipo]").value === "OUT";
+    $("#manual-type-help").textContent = outgoing
+        ? "Cargá la pieza terminada y la cantidad despachada. Se explota su estructura y se descuentan únicamente los componentes que participan en el análisis."
+        : "Ingresá los códigos de MP recibidos y sus cantidades. Podés buscar por código o descripción.";
+    document.querySelectorAll("[data-manual-code-input]").forEach((input) => {
+        input.placeholder = outgoing ? "Buscar pieza terminada o componente" : "Buscar materia prima o pieza";
+    });
+}
+
+function scheduleManualCodeSearch(event) {
+    hideManualCodeResults();
+    const input = event.target;
+    const query = input.value.trim();
+    if (query.length < 2) return;
+    manualSearchTimer = setTimeout(() => searchManualCodes(query, input), 220);
+}
+
+async function searchManualCodes(query, input) {
     if (manualSearchController) manualSearchController.abort();
-    manualSearchController = new AbortController();
-    const results = $("#manual-code-results");
-    results.innerHTML = '<span class="manual-search-state">Buscando piezas y materias primas…</span>';
+    const controller = new AbortController();
+    manualSearchController = controller;
+    const results = input.closest(".manual-line").querySelector(".manual-code-results");
+    const outgoing = $("#manual-form [name=tipo]").value === "OUT";
+    results.innerHTML = '<span class="manual-search-state">Buscando códigos…</span>';
     results.classList.remove("hidden");
     try {
         const encoded = encodeURIComponent(query);
         const [pieces, materials] = await Promise.all([
-            api(`/api/busqueda/piezas?q=${encoded}&limite=8`, { signal: manualSearchController.signal }),
-            api(`/api/busqueda/materiales?q=${encoded}&limite=8`, { signal: manualSearchController.signal }),
+            api(`/api/busqueda/piezas?q=${encoded}&limite=8`, { signal: controller.signal }),
+            outgoing ? Promise.resolve({ resultados: [] }) : api(`/api/busqueda/materiales?q=${encoded}&limite=8`, { signal: controller.signal }),
         ]);
-        if ($("#manual-code-input").value.trim() !== query) return;
+        if (controller.signal.aborted || !input.isConnected || input.value.trim() !== query) return;
         const options = [
-            ...(pieces.resultados || []).map((item) => ({ ...item, tipo: "PIEZA" })),
             ...(materials.resultados || []).map((item) => ({ ...item, tipo: "MP" })),
+            ...(pieces.resultados || []).map((item) => ({ ...item, tipo: "PIEZA" })),
         ];
         results.innerHTML = options.length ? options.map((item) => `<button type="button" data-manual-code="${escapeHtml(item.codigo)}">
             <span><b>${escapeHtml(item.codigo)}</b><em>${item.tipo}</em></span>
             <small>${escapeHtml(item.descripcion || "Sin descripción")}${item.codigo_cliente ? ` · Cliente: ${escapeHtml(item.codigo_cliente)}` : ""}</small>
-        </button>`).join("") : '<span class="manual-search-state">No se encontraron piezas ni materias primas.</span>';
+        </button>`).join("") : '<span class="manual-search-state">No se encontraron códigos.</span>';
     } catch (error) {
-        if (error.name !== "AbortError") results.innerHTML = `<span class="manual-search-state error">${escapeHtml(error.message)}</span>`;
+        if (error.name !== "AbortError" && input.isConnected) results.innerHTML = `<span class="manual-search-state error">${escapeHtml(error.message)}</span>`;
     }
 }
 
 function chooseManualCode(event) {
     const option = event.target.closest("[data-manual-code]");
     if (!option) return;
-    $("#manual-code-input").value = option.dataset.manualCode;
+    const row = option.closest(".manual-line");
+    const input = row.querySelector("[data-manual-code-input]");
+    input.value = option.dataset.manualCode;
+    input.setCustomValidity("");
     hideManualCodeResults();
-    $("#manual-form [name=cantidad]").focus();
+    row.querySelector("[data-manual-quantity]").focus();
 }
 
 function hideManualCodeResults() {
-    $("#manual-code-results").classList.add("hidden");
+    clearTimeout(manualSearchTimer);
+    if (manualSearchController) manualSearchController.abort();
+    document.querySelectorAll(".manual-code-results").forEach((results) => results.classList.add("hidden"));
+}
+
+function resetManualRemittance() {
+    const form = $("#manual-form");
+    form.querySelectorAll(".manual-line").forEach((row, index) => { if (index) row.remove(); });
+    form.querySelectorAll("[data-manual-code-input], [data-manual-quantity], [name=remito], [name=observacion]").forEach((input) => {
+        input.value = "";
+        input.setCustomValidity("");
+    });
+    manualRequestId = null;
+    hideManualCodeResults();
+    updateManualLines();
 }
 
 async function addManual(event) {
     event.preventDefault();
     const form = event.target;
+    if (mutationPending || state.busy) return toast("Esperá a que termine la operación actual", true);
+    const codes = new Set();
+    const rows = [...form.querySelectorAll(".manual-line")];
+    rows.forEach((row) => {
+        const input = row.querySelector("[data-manual-code-input]");
+        const code = input.value.trim().toUpperCase();
+        input.setCustomValidity(!code ? "Completá el código" : codes.has(code) ? "Código repetido: unificá su cantidad en un renglón" : "");
+        codes.add(code);
+    });
     if (!form.reportValidity()) return;
     const payload = Object.fromEntries(new FormData(form));
-    payload.cantidad = Number(payload.cantidad);
-    const button = form.querySelector("button");
-    button.disabled = true;
+    payload.renglones = rows.map((row) => ({
+        codigo: row.querySelector("[data-manual-code-input]").value.trim(),
+        cantidad: Number(row.querySelector("[data-manual-quantity]").value),
+    }));
+    // Un reintento de red no debe duplicar un remito que pudo haberse guardado.
+    manualRequestId ||= globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    payload.solicitud_id = manualRequestId;
+    hideManualCodeResults();
+    const controls = [...form.querySelectorAll("input, select, button"), ...document.querySelectorAll("#final-inventory-picker, #back-to-analyses, #new-analysis, #initial-options input, #calculate, #refresh-final")];
+    const disabled = controls.map((input) => input.disabled);
+    controls.forEach((input) => { input.disabled = true; });
+    const status = $("#manual-form-status");
+    status.textContent = "Guardando todos los renglones y recalculando…";
     try {
-        if (await mutate(`/api/inventarios/${inventoryId}/preconciliacion/movimientos`, "POST", payload)) {
-            form.reset();
-            hideManualCodeResults();
+        if (await mutate(`/api/inventarios/${inventoryId}/preconciliacion/remitos-manuales`, "POST", payload)) {
+            resetManualRemittance();
+            status.textContent = "Remito guardado. Sus renglones se pueden revisar en el registro de ingresos o egresos.";
+        } else {
+            status.textContent = "No se pudo confirmar el guardado. Los datos se conservaron para reintentar.";
         }
-    } finally { button.disabled = false; }
+    } finally {
+        controls.forEach((input, index) => { if (input.isConnected) input.disabled = disabled[index]; });
+        updateManualLines();
+    }
 }
 
 async function saveScrap(event) {

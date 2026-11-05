@@ -306,6 +306,20 @@ class PreconciliacionManualEntrada(BaseModel):
     observacion: str = Field(default="", max_length=1500)
 
 
+class PreconciliacionManualRenglonEntrada(BaseModel):
+    codigo: str = Field(min_length=1, max_length=80)
+    cantidad: float = Field(gt=0, allow_inf_nan=False)
+
+
+class PreconciliacionManualRemitoEntrada(BaseModel):
+    tipo: str = Field(pattern="^(IN|OUT)$")
+    fecha: date
+    remito: str = Field(min_length=1, max_length=100)
+    observacion: str = Field(default="", max_length=1500)
+    solicitud_id: str = Field(min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9-]+$")
+    renglones: list[PreconciliacionManualRenglonEntrada] = Field(min_length=1, max_length=200)
+
+
 class PreconciliacionScrapEntrada(BaseModel):
     inicial_id: int
     codigo: str = Field(min_length=1, max_length=80)
