@@ -77,7 +77,7 @@ class UnifiedPreconciliationUiTests(unittest.TestCase):
         self.assertIn('id="summary-scenario"', self.template)
         self.assertNotIn('id="analysis-indicators"', self.template)
         self.assertNotIn('id="scenario-indicators"', self.template)
-        self.assertIn('good * 100 / rows.length', self.script)
+        self.assertIn('good * 100 / evaluated.length', self.script)
         self.assertIn('CONFIABILIDAD DE LA CONCILIACIÓN', self.script)
         self.assertIn('state.activeView = "SUMMARY"', self.script)
 

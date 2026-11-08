@@ -747,8 +747,8 @@ def calcular_movimientos(
         )
     # produc08 puede contener el padre, un subconjunto o un componente devuelto
     # por separado. Se admiten todos los códigos pertenecientes a la estructura
-    # de los padres comunes, pero el resultado final sigue limitado a los
-    # renglones comparables de la conciliación.
+    # de los padres de cualquiera de los inventarios; el resultado se limita
+    # a los componentes terminales de esas estructuras.
     cache_estructuras: dict[str, list] = {}
     codigos_egreso = _codigos_estructura(
         padres_permitidos,
@@ -825,7 +825,7 @@ def calcular_movimientos(
             if codigo not in resultados_permitidos:
                 _debug(
                     f"Componente resultante {codigo!r} descartado porque no "
-                    "existe como renglón comparable en ambos inventarios."
+                    "pertenece al universo de componentes del análisis."
                 )
                 continue
             equivalente = fila["cantidad"] * componente["uso"]

@@ -7,6 +7,9 @@ const state = { setup: null, calculation: null, analysisId: null, analysisName: 
 const $ = (selector) => document.querySelector(selector);
 let manualSearchTimer = null;
 let manualSearchController = null;
+let manualRequestId = null;
+let noteSavesPending = 0;
+const failedNoteSaves = new Set();
 
 document.addEventListener("DOMContentLoaded", async () => {
     registerEvents();
@@ -33,8 +36,21 @@ function registerEvents() {
     $("#new-analysis").addEventListener("click", startNewAnalysis);
     $("#back-to-analyses").addEventListener("click", showAnalysisHome);
     $("#saved-analysis-search").addEventListener("input", renderSavedAnalyses);
-    $("#manual-code-input").addEventListener("input", scheduleManualCodeSearch);
-    $("#manual-code-results").addEventListener("click", chooseManualCode);
+    $("#manual-lines").addEventListener("input", (event) => {
+        if (event.target.matches("[data-manual-code-input]")) scheduleManualCodeSearch(event);
+        event.target.setCustomValidity("");
+    });
+    $("#manual-lines").addEventListener("click", (event) => {
+        if (event.target.closest("[data-manual-code]")) chooseManualCode(event);
+        const remove = event.target.closest("[data-remove-manual-line]");
+        if (remove && !remove.disabled) {
+            remove.closest(".manual-line").remove();
+            hideManualCodeResults();
+            updateManualLines();
+        }
+    });
+    $("#add-manual-line").addEventListener("click", addManualLine);
+    $("#manual-form [name=tipo]").addEventListener("change", updateManualType);
     ["#movement-search", "#movement-scenario"].forEach((id) => $(id).addEventListener(id === "#movement-search" ? "input" : "change", renderMovements));
     $("#manual-form").addEventListener("submit", addManual);
     $("#movements-panel").addEventListener("click", movementAction);
@@ -61,6 +77,7 @@ function registerEvents() {
     $("#conciliation-diffusion").addEventListener("click", openConciliationDiffusion);
     $("#print-view").addEventListener("click", printCurrentView);
     $("#calculate").addEventListener("click", calculate);
+    $("#refresh-final").addEventListener("click", refreshFinalInventory);
     $("#initial-options").addEventListener("change", limitSelection);
     $("#search").addEventListener("input", renderRows);
     $("#diagnosis-filter").addEventListener("change", renderRows);
@@ -126,6 +143,7 @@ async function saveAnalysis() {
         state.analysisId = saved.id;
         state.analysisName = name;
         state.calculation = saved.calculo;
+        renderFinalInventory();
         buildRows();
         renderAll();
         await loadSavedAnalyses();
@@ -176,15 +194,19 @@ async function startNewAnalysis() {
 async function loadInventoryOptions(preferredId = null) {
     try {
         const inventories = await api("/api/preconciliacion/inventarios-disponibles");
-        if (!inventories.length) throw new Error("No hay inventarios contados disponibles para analizar");
+        if (!inventories.length) throw new Error("No hay inventarios disponibles para analizar");
         const requested = Number(preferredId || new URLSearchParams(location.search).get("inventario"));
-        const chosen = inventories.some((item) => item.id === requested) ? requested : inventories[0].id;
+        if (requested > 0 && !inventories.some((item) => item.id === requested)) {
+            throw new Error("El inventario solicitado ya no está disponible");
+        }
+        const chosen = requested > 0 ? requested : inventories[0].id;
         $("#final-inventory-picker").innerHTML = inventories.map((item) => `<option value="${item.id}" ${item.id === chosen ? 'selected' : ''}>${escapeHtml(item.codigo)} · ${formatDate(item.fecha)} · ${escapeHtml(item.cliente)} · ${escapeHtml(item.estado)}</option>`).join("");
         inventoryId = chosen;
-        await changeFinalInventory();
+        return await changeFinalInventory();
     } catch (error) {
         $("#selector-message").textContent = error.message;
         $("#selector-message").classList.add("error");
+        return false;
     }
 }
 
@@ -199,7 +221,7 @@ async function changeFinalInventory() {
     $("#results").classList.add("hidden");
     $("#initial-options").innerHTML = '<p class="empty">Cargando períodos comparables…</p>';
     renderSaveButton();
-    await loadSetup();
+    return await loadSetup();
 }
 
 async function loadSavedAnalyses() {
@@ -255,11 +277,12 @@ async function loadSavedAnalysis(analysisId) {
         showAnalysisWorkspace();
         const saved = await api(`/api/preconciliacion/analisis-guardados/${analysisId}`);
         inventoryId = Number(saved.final_id);
-        if (standalone) await loadInventoryOptions(inventoryId);
-        else await loadSetup();
+        const loaded = standalone ? await loadInventoryOptions(inventoryId) : await loadSetup();
+        if (!loaded) return;
         const selected = new Set(saved.inventarios_iniciales.map(Number));
         document.querySelectorAll("#initial-options input").forEach((input) => { input.checked = selected.has(Number(input.value)); });
         state.calculation = saved.calculo;
+        renderFinalInventory();
         if (state.calculation.notas_guardadas) state.setup.notas = state.calculation.notas_guardadas;
         state.analysisId = saved.id;
         state.analysisName = saved.nombre;
@@ -293,15 +316,13 @@ async function api(url, options = {}) {
 async function loadSetup() {
     try {
         state.setup = await api(`/api/inventarios/${inventoryId}/preconciliacion`);
-        const final = state.setup.final;
-        document.title = `Análisis de stock · ${final.codigo}`;
-        $("#analysis-title").textContent = `Análisis de stock · ${final.codigo}`;
-        $("#final-description").textContent = `${final.cliente} · ${formatDate(final.fecha)} · ${final.contados}/${final.total} códigos completos · ${final.estado}`;
-        $("#draft-badge").textContent = final.estado === "Cerrado" ? "INVENTARIO CERRADO" : "PROVISORIA";
+        renderFinalInventory();
         renderOptions();
+        return true;
     } catch (error) {
         $("#selector-message").textContent = error.message;
         $("#selector-message").classList.add("error");
+        return false;
     }
 }
 
@@ -345,6 +366,7 @@ async function calculate(refresh = false) {
             state.analysisName = "";
             state.activeView = "SUMMARY";
         }
+        renderFinalInventory();
         buildRows();
         renderAll();
         renderSaveButton();
@@ -384,6 +406,7 @@ function buildRows() {
 function diagnose(row) {
     const scenarios = row.scenarios;
     if (scenarios.length !== state.calculation.escenarios.length) return diagnosis("REVIEW", "Comparación incompleta", "Faltan resultados de uno o más escenarios; revisá las advertencias.", "Baja", "Completar los escenarios antes de decidir", "REVISAR_MOVIMIENTOS");
+    if (scenarios.some((item) => item.conteo_completo === false)) return diagnosis("REVIEW", "Conteo pendiente", "El esperado incluye los movimientos del período. Completá el conteo y actualizá el inventario final para comparar.", "Pendiente", "Completar conteo y actualizar", "PENDIENTE");
     const systemOk = scenarios[0]?.sistema_ok ?? false;
     const reconciliationOk = scenarios.map((item) => item.conciliacion_ok);
     const allReconciliationOk = reconciliationOk.length > 0 && reconciliationOk.every(Boolean);
@@ -429,15 +452,16 @@ function setAnalysisView(view) {
 function renderSummaryView() {
     const scenario = selectedSummaryScenario();
     const rows = scenario?.filas || [];
-    const good = rows.filter((item) => item.conciliacion_ok).length;
-    const reliability = rows.length ? good * 100 / rows.length : null;
+    const evaluated = rows.filter((item) => item.conteo_completo !== false);
+    const good = evaluated.filter((item) => item.conciliacion_ok).length;
+    const reliability = evaluated.length ? good * 100 / evaluated.length : null;
     const tolerance = state.calculation?.tolerancia ?? state.setup?.tolerancia ?? 5;
     const tone = reliability === null ? "neutral" : reliability >= 95 ? "good" : reliability >= 80 ? "warning" : "bad";
     $("#summary-reliability").className = `summary-reliability ${tone}`;
     $("#summary-reliability").innerHTML = scenario ? `
         <div><span>CONFIABILIDAD DE LA CONCILIACIÓN</span><small>${formatDate(scenario.inicial.fecha)} · ${escapeHtml(scenario.inicial.codigo)} · tolerancia ±${number(tolerance)}%</small></div>
         <strong>${compactPercentage(reliability)}</strong>
-        <em>${good} grupos/piezas OK de ${rows.length}</em>
+        <em>${good} grupos/piezas OK de ${evaluated.length} evaluados · ${rows.length - evaluated.length} pendientes</em>
     ` : '<p class="empty">No hay un escenario de conciliación disponible.</p>';
     renderSummaryTable();
 }
@@ -486,7 +510,7 @@ function renderSummaryTable() {
             const analysis = note.causa || note.observacion || note.estado ? `<strong>${escapeHtml(summaryStatus(note))}</strong><span>${escapeHtml(causeLabel(note.causa))}</span>${note.observacion ? `<small>${escapeHtml(note.observacion)}</small>` : ""}` : '<strong>Pendiente</strong><span>Sin causa asignada</span>';
             return `<tr class="${item.conciliacion_ok ? "conciliation-ok" : "conciliation-bad"}">
                 <td><span class="summary-piece"><strong>${item.es_grupo_mp ? `MP ${escapeHtml(item.codigo_material)} compartida` : escapeHtml(item.codigo)}</strong>${item.es_grupo_mp ? `<span class="shared-piece-codes">${item.codigos.map((codigo) => `<b>${escapeHtml(codigo)}</b>`).join("")}</span>` : ""}${item.codigo_cliente ? `<em>Cliente: ${escapeHtml(item.codigo_cliente)}</em>` : ""}<small>${escapeHtml(item.descripcion || "Sin descripción")}</small></span></td>
-                <td class="numeric">${number(item.fisico_inicial)}</td><td class="numeric positive">${signed(item.ingresos)}</td><td class="numeric negative">${signed(-Number(item.egresos || 0))}</td><td class="numeric">${number(item.esperado)}</td><td class="numeric">${number(item.conteo_explotado_actual ?? item.fisico_actual)}</td>
+                <td class="numeric">${number(item.fisico_inicial)}</td><td class="numeric positive">${signed(item.ingresos)}</td><td class="numeric negative">${signed(-Number(item.egresos || 0))}</td><td class="numeric">${number(item.esperado)}</td><td class="numeric">${item.conteo_completo === false ? `Pendiente (parcial: ${number(item.conteo_parcial)})` : number(item.conteo_explotado_actual ?? item.fisico_actual)}</td>
                 <td class="numeric difference ${item.conciliacion_ok ? "ok" : "bad"}">${signed(item.diferencia_conciliacion)}</td><td class="numeric difference ${item.conciliacion_ok ? "ok" : "bad"}">${percentage(item.porcentaje_desvio_conciliacion)}</td>
                 <td><span class="summary-analysis">${analysis}</span></td><td><button type="button" class="summary-detail-button" data-open-piece="${escapeHtml(item.codigo)}">Ver detalle</button></td>
             </tr>`;
@@ -738,7 +762,7 @@ function scenarioDetailHtml(item) {
             <small>Egresos <b class="negative">−${number(item.egresos)}</b></small>
             <small class="scenario-scrap">Scrap <b>${number(item.scrap)}</b></small>
             <small class="scenario-expected">Esperado explotado <b>${number(item.esperado)}</b></small>
-            <small class="scenario-current">Conteo actual explotado <b>${number(item.conteo_explotado_actual ?? item.fisico_actual)}</b></small>
+            <small class="scenario-current">Conteo actual explotado <b>${item.conteo_completo === false ? `Pendiente (parcial: ${number(item.conteo_parcial)})` : number(item.conteo_explotado_actual ?? item.fisico_actual)}</b></small>
             <span class="reconciliation-difference ${item.conciliacion_ok ? "ok" : "bad"}"><small>Físico explotado vs. esperado</small><strong>${signed(item.diferencia_conciliacion)}</strong><b>${percentage(item.porcentaje_desvio_conciliacion)}</b></span>
             <em class="detail-action">▾ Ver remitos</em>
         </summary>
@@ -771,6 +795,7 @@ function causeOptions(selected = "") {
 function handleAnalysisChange(event) {
     const card = event.target.closest("[data-code]");
     if (card && (event.target.dataset.note || event.target.dataset.check)) {
+        card.dataset.inventoryId = String(inventoryId);
         updateChecklistSummary(card);
         saveNote(card);
     }
@@ -779,26 +804,36 @@ function handleAnalysisChange(event) {
 function handleAnalysisInput(event) {
     const card = event.target.closest("[data-code]");
     if (!card || event.target.dataset.note !== "observacion") return;
-    clearTimeout(state.timers.get(card.dataset.code));
-    state.timers.set(card.dataset.code, setTimeout(() => saveNote(card), 650));
+    card.dataset.inventoryId = String(inventoryId);
+    const key = `${inventoryId}:${card.dataset.code}`;
+    clearTimeout(state.timers.get(key));
+    state.timers.set(key, setTimeout(() => saveNote(card), 650));
 }
 
 async function saveNote(card) {
+    const finalId = Number(card.dataset.inventoryId) || inventoryId;
+    const key = `${finalId}:${card.dataset.code}`;
+    clearTimeout(state.timers.get(key));
+    state.timers.delete(key);
     const payload = { codigo: card.dataset.code };
     card.querySelectorAll("[data-note]").forEach((input) => { payload[input.dataset.note] = input.value; });
     payload.controles = {};
     card.querySelectorAll("[data-check]").forEach((input) => { payload.controles[input.dataset.check] = input.checked; });
     const status = card.querySelector(".save-state");
     status.textContent = "Guardando…";
+    noteSavesPending += 1;
     try {
-        const saved = await api(`/api/inventarios/${inventoryId}/preconciliacion/nota`, { method: "PUT", body: JSON.stringify(payload) });
+        const saved = await api(`/api/inventarios/${finalId}/preconciliacion/nota`, { method: "PUT", body: JSON.stringify(payload) });
+        failedNoteSaves.delete(key);
+        if (finalId !== inventoryId) return;
         state.setup.notas[card.dataset.code] = saved;
         status.textContent = "✓ Guardado";
         renderSummaryView();
     } catch (error) {
+        failedNoteSaves.add(key);
         status.textContent = "Error al guardar";
         toast(error.message, true);
-    }
+    } finally { noteSavesPending -= 1; }
 }
 
 function updateChecklistSummary(card) {
@@ -828,8 +863,8 @@ function toast(message, error = false) {
     setTimeout(() => element.classList.add("hidden"), 3200);
 }
 function normalize(value) { return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
-function number(value) { return new Intl.NumberFormat("es-AR", { maximumFractionDigits: 2 }).format(Number(value || 0)); }
-function signed(value) { const numeric = Number(value || 0); return `${numeric > 0 ? "+" : ""}${number(numeric)}`; }
+function number(value) { if (value === null || value === undefined) return "—"; return new Intl.NumberFormat("es-AR", { maximumFractionDigits: 2 }).format(Number(value || 0)); }
+function signed(value) { if (value === null || value === undefined) return "—"; const numeric = Number(value || 0); return `${numeric > 0 ? "+" : ""}${number(numeric)}`; }
 function percentage(value) { return value === null || value === undefined ? "—" : `${signed(value)}%`; }
 function formatDate(value) { const [y, m, d] = String(value).slice(0, 10).split("-"); return `${d}/${m}/${y}`; }
 function formatDateTime(value) { const date = new Date(value); return Number.isNaN(date.getTime()) ? String(value || "") : date.toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" }); }
@@ -1084,68 +1119,149 @@ async function saveRemittance(group, button) {
     }
 }
 
-function scheduleManualCodeSearch(event) {
-    clearTimeout(manualSearchTimer);
-    const query = event.target.value.trim();
-    if (query.length < 2) {
-        hideManualCodeResults();
-        return;
-    }
-    manualSearchTimer = setTimeout(() => searchManualCodes(query), 220);
+function updateManualLines() {
+    const rows = [...document.querySelectorAll("#manual-lines .manual-line")];
+    rows.forEach((row, index) => {
+        row.querySelector(".manual-line-number").textContent = index + 1;
+        const remove = row.querySelector("[data-remove-manual-line]");
+        remove.disabled = rows.length === 1;
+        remove.setAttribute("aria-label", `Quitar renglón ${index + 1}`);
+    });
+    $("#manual-line-count").textContent = `${rows.length} ${rows.length === 1 ? "renglón" : "renglones"}`;
+    $("#add-manual-line").disabled = rows.length >= 200;
 }
 
-async function searchManualCodes(query) {
+function addManualLine() {
+    if (document.querySelectorAll("#manual-lines .manual-line").length >= 200) return;
+    const row = $("#manual-lines .manual-line").cloneNode(true);
+    row.querySelectorAll("input").forEach((input) => {
+        input.value = "";
+        input.removeAttribute("id");
+        input.setCustomValidity("");
+    });
+    const results = row.querySelector(".manual-code-results");
+    results.removeAttribute("id");
+    results.innerHTML = "";
+    results.classList.add("hidden");
+    $("#manual-lines").append(row);
+    updateManualLines();
+    row.querySelector("[data-manual-code-input]").focus();
+}
+
+function updateManualType() {
+    hideManualCodeResults();
+    const outgoing = $("#manual-form [name=tipo]").value === "OUT";
+    $("#manual-type-help").textContent = outgoing
+        ? "Cargá la pieza terminada y la cantidad despachada. Se explota su estructura y se descuentan únicamente los componentes que participan en el análisis."
+        : "Ingresá los códigos de MP recibidos y sus cantidades. Podés buscar por código o descripción.";
+    document.querySelectorAll("[data-manual-code-input]").forEach((input) => {
+        input.placeholder = outgoing ? "Buscar pieza terminada o componente" : "Buscar materia prima o pieza";
+    });
+}
+
+function scheduleManualCodeSearch(event) {
+    hideManualCodeResults();
+    const input = event.target;
+    const query = input.value.trim();
+    if (query.length < 2) return;
+    manualSearchTimer = setTimeout(() => searchManualCodes(query, input), 220);
+}
+
+async function searchManualCodes(query, input) {
     if (manualSearchController) manualSearchController.abort();
-    manualSearchController = new AbortController();
-    const results = $("#manual-code-results");
-    results.innerHTML = '<span class="manual-search-state">Buscando piezas y materias primas…</span>';
+    const controller = new AbortController();
+    manualSearchController = controller;
+    const results = input.closest(".manual-line").querySelector(".manual-code-results");
+    const outgoing = $("#manual-form [name=tipo]").value === "OUT";
+    results.innerHTML = '<span class="manual-search-state">Buscando códigos…</span>';
     results.classList.remove("hidden");
     try {
         const encoded = encodeURIComponent(query);
         const [pieces, materials] = await Promise.all([
-            api(`/api/busqueda/piezas?q=${encoded}&limite=8`, { signal: manualSearchController.signal }),
-            api(`/api/busqueda/materiales?q=${encoded}&limite=8`, { signal: manualSearchController.signal }),
+            api(`/api/busqueda/piezas?q=${encoded}&limite=8`, { signal: controller.signal }),
+            outgoing ? Promise.resolve({ resultados: [] }) : api(`/api/busqueda/materiales?q=${encoded}&limite=8`, { signal: controller.signal }),
         ]);
-        if ($("#manual-code-input").value.trim() !== query) return;
+        if (controller.signal.aborted || !input.isConnected || input.value.trim() !== query) return;
         const options = [
-            ...(pieces.resultados || []).map((item) => ({ ...item, tipo: "PIEZA" })),
             ...(materials.resultados || []).map((item) => ({ ...item, tipo: "MP" })),
+            ...(pieces.resultados || []).map((item) => ({ ...item, tipo: "PIEZA" })),
         ];
         results.innerHTML = options.length ? options.map((item) => `<button type="button" data-manual-code="${escapeHtml(item.codigo)}">
             <span><b>${escapeHtml(item.codigo)}</b><em>${item.tipo}</em></span>
             <small>${escapeHtml(item.descripcion || "Sin descripción")}${item.codigo_cliente ? ` · Cliente: ${escapeHtml(item.codigo_cliente)}` : ""}</small>
-        </button>`).join("") : '<span class="manual-search-state">No se encontraron piezas ni materias primas.</span>';
+        </button>`).join("") : '<span class="manual-search-state">No se encontraron códigos.</span>';
     } catch (error) {
-        if (error.name !== "AbortError") results.innerHTML = `<span class="manual-search-state error">${escapeHtml(error.message)}</span>`;
+        if (error.name !== "AbortError" && input.isConnected) results.innerHTML = `<span class="manual-search-state error">${escapeHtml(error.message)}</span>`;
     }
 }
 
 function chooseManualCode(event) {
     const option = event.target.closest("[data-manual-code]");
     if (!option) return;
-    $("#manual-code-input").value = option.dataset.manualCode;
+    const row = option.closest(".manual-line");
+    const input = row.querySelector("[data-manual-code-input]");
+    input.value = option.dataset.manualCode;
+    input.setCustomValidity("");
     hideManualCodeResults();
-    $("#manual-form [name=cantidad]").focus();
+    row.querySelector("[data-manual-quantity]").focus();
 }
 
 function hideManualCodeResults() {
-    $("#manual-code-results").classList.add("hidden");
+    clearTimeout(manualSearchTimer);
+    if (manualSearchController) manualSearchController.abort();
+    document.querySelectorAll(".manual-code-results").forEach((results) => results.classList.add("hidden"));
+}
+
+function resetManualRemittance() {
+    const form = $("#manual-form");
+    form.querySelectorAll(".manual-line").forEach((row, index) => { if (index) row.remove(); });
+    form.querySelectorAll("[data-manual-code-input], [data-manual-quantity], [name=remito], [name=observacion]").forEach((input) => {
+        input.value = "";
+        input.setCustomValidity("");
+    });
+    manualRequestId = null;
+    hideManualCodeResults();
+    updateManualLines();
 }
 
 async function addManual(event) {
     event.preventDefault();
     const form = event.target;
+    if (mutationPending || state.busy) return toast("Esperá a que termine la operación actual", true);
+    const codes = new Set();
+    const rows = [...form.querySelectorAll(".manual-line")];
+    rows.forEach((row) => {
+        const input = row.querySelector("[data-manual-code-input]");
+        const code = input.value.trim().toUpperCase();
+        input.setCustomValidity(!code ? "Completá el código" : codes.has(code) ? "Código repetido: unificá su cantidad en un renglón" : "");
+        codes.add(code);
+    });
     if (!form.reportValidity()) return;
     const payload = Object.fromEntries(new FormData(form));
-    payload.cantidad = Number(payload.cantidad);
-    const button = form.querySelector("button");
-    button.disabled = true;
+    payload.renglones = rows.map((row) => ({
+        codigo: row.querySelector("[data-manual-code-input]").value.trim(),
+        cantidad: Number(row.querySelector("[data-manual-quantity]").value),
+    }));
+    // Un reintento de red no debe duplicar un remito que pudo haberse guardado.
+    manualRequestId ||= globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    payload.solicitud_id = manualRequestId;
+    hideManualCodeResults();
+    const controls = [...form.querySelectorAll("input, select, button"), ...document.querySelectorAll("#final-inventory-picker, #back-to-analyses, #new-analysis, #initial-options input, #calculate, #refresh-final")];
+    const disabled = controls.map((input) => input.disabled);
+    controls.forEach((input) => { input.disabled = true; });
+    const status = $("#manual-form-status");
+    status.textContent = "Guardando todos los renglones y recalculando…";
     try {
-        if (await mutate(`/api/inventarios/${inventoryId}/preconciliacion/movimientos`, "POST", payload)) {
-            form.reset();
-            hideManualCodeResults();
+        if (await mutate(`/api/inventarios/${inventoryId}/preconciliacion/remitos-manuales`, "POST", payload)) {
+            resetManualRemittance();
+            status.textContent = "Remito guardado. Sus renglones se pueden revisar en el registro de ingresos o egresos.";
+        } else {
+            status.textContent = "No se pudo confirmar el guardado. Los datos se conservaron para reintentar.";
         }
-    } finally { button.disabled = false; }
+    } finally {
+        controls.forEach((input, index) => { if (input.isConnected) input.disabled = disabled[index]; });
+        updateManualLines();
+    }
 }
 
 async function saveScrap(event) {
@@ -1158,4 +1274,70 @@ async function saveScrap(event) {
     try {
         await mutate(`/api/inventarios/${inventoryId}/preconciliacion/scrap`, "PUT", { inicial_id: Number(button.dataset.saveScrap), codigo: card.dataset.code, cantidad: Number(input.value) });
     } finally { button.disabled = false; }
+}
+
+
+function renderFinalInventory() {
+    const final = state.calculation?.inventario_final || state.setup?.final;
+    if (!final) return;
+    document.title = `Análisis de stock · ${final.codigo}`;
+    $("#analysis-title").textContent = `Análisis de stock · ${final.codigo}`;
+    $("#final-description").textContent = `${final.cliente} · ${formatDate(final.fecha)} · ${final.contados}/${final.total} códigos completos · ${final.estado}`;
+    const option = document.querySelector(`#final-inventory-picker option[value="${final.id}"]`);
+    if (option) option.textContent = `${final.codigo} · ${formatDate(final.fecha)} · ${final.cliente} · ${final.estado}`;
+    $("#draft-badge").textContent = final.estado === "Cerrado" ? "INVENTARIO CERRADO" : "PROVISORIA";
+    $("#final-refresh-status").textContent = final.estado !== "Cerrado"
+        ? "Análisis provisorio. Las piezas y sus componentes ya están incluidos. Los conteos incompletos se muestran pendientes; completalos y actualizá el inventario final."
+        : "Podés actualizar el inventario final para incorporar sus últimos datos guardados.";
+}
+
+async function refreshFinalInventory() {
+    if (!state.setup) return;
+    if (state.busy || mutationPending) return toast("Esperá a que termine la operación actual", true);
+    if (state.timers.size || noteSavesPending || [...failedNoteSaves].some((key) => key.startsWith(`${inventoryId}:`)) || document.querySelector(".remittance-group.dirty")) {
+        toast("Hay notas o cambios de remitos pendientes. Guardalos antes de actualizar el inventario final.", true);
+        return;
+    }
+    const finalId = inventoryId;
+    const analysisId = state.analysisId;
+    const ids = state.calculation ? state.calculation.escenarios.map((s) => Number(s.inicial.id)) : selectedIds();
+    const controls = [...document.querySelectorAll("#refresh-final, #calculate, #save-analysis, #final-inventory-picker, #initial-options input, #piece-results input, #piece-results textarea, #piece-results select, #piece-results button, #movements-panel input, #movements-panel textarea, #movements-panel select, #movements-panel button, #manual-form input, #manual-form button, #back-to-analyses, #new-analysis")];
+    const previousDisabled = controls.map((control) => control.disabled);
+    controls.forEach((control) => { control.disabled = true; });
+    const button = $("#refresh-final");
+    state.busy = true;
+    button.textContent = "Actualizando inventario final…";
+    try {
+        let setup, calculation, refreshed;
+        if (analysisId) {
+            refreshed = await api(`/api/preconciliacion/analisis-guardados/${analysisId}/actualizar-final`, { method: "POST" });
+            setup = refreshed.setup;
+            calculation = refreshed.analisis.calculo;
+        } else {
+            setup = await api(`/api/inventarios/${finalId}/preconciliacion`);
+            calculation = ids.length ? await api(`/api/inventarios/${finalId}/preconciliacion/calcular`, {
+                method: "POST", body: JSON.stringify({ inventarios_iniciales: ids }),
+            }) : null;
+        }
+        if (inventoryId !== finalId || state.analysisId !== analysisId) return;
+        state.setup = setup;
+        state.calculation = calculation;
+        if (refreshed) state.analysisName = refreshed.analisis.nombre;
+        renderOptions();
+        document.querySelectorAll("#initial-options input").forEach((input) => { input.checked = ids.includes(Number(input.value)); });
+        if (calculation) {
+            buildRows();
+            renderAll();
+            $("#results").classList.remove("hidden");
+        }
+        renderFinalInventory();
+        renderSaveButton();
+        await loadSavedAnalyses();
+        toast(analysisId ? "Inventario final actualizado y análisis guardado" : "Inventario final actualizado");
+    } catch (error) { toast(error.message, true); }
+    finally {
+        state.busy = false;
+        controls.forEach((control, index) => { control.disabled = previousDisabled[index]; });
+        button.textContent = "↻ Actualizar inventario final";
+    }
 }

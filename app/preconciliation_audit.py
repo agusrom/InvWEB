@@ -186,6 +186,29 @@ def add_manual(final_id, movement):
     return {"clave": key}
 
 
+def add_manual_many(final_id, movements, request_id):
+    """Guarda un remito completo una sola vez, incluso si se reintenta el envío."""
+    fields = ("tipo", "fecha", "remito", "codigo", "cantidad", "observacion")
+    with connection() as db:
+        data = read(db, final_id)
+        previous = [m for m in data["movimientos"].values()
+                    if m.get("solicitud_id") == request_id]
+        if previous:
+            signature = lambda rows: sorted(tuple(row.get(f) for f in fields) for row in rows)
+            if signature(previous) != signature(movements):
+                raise ValueError("Este envío ya fue guardado con otros renglones. Revisá el remito antes de continuar.")
+            return {"claves": [m["clave"] for m in previous], "reutilizado": True}
+        keys = []
+        for movement in movements:
+            key = "MANUAL-" + uuid4().hex
+            data["movimientos"][key] = dict(movement, clave=key, manual=True,
+                solicitud_id=request_id, cantidad_original=movement["cantidad"],
+                cantidad_editada=None, verificado=False, excluidos=[], escenarios=[])
+            keys.append(key)
+        write(db, final_id, data)
+    return {"claves": keys, "reutilizado": False}
+
+
 def set_scrap(final_id, initial_id, code, quantity):
     with connection() as db:
         data = read(db, final_id)
@@ -291,3 +314,14 @@ def reconcile(final_id, final_date, scenarios, tolerance, within, resolve_manual
             result.append(item)
         write(db, final_id, data)
     return {"escenarios": scenarios, "tolerancia": tolerance, "movimientos": result}
+
+
+def update_analysis_calculation(analysis_id, calculation):
+    """Refresca una fotografía existente sin cambiar nombre, períodos ni auditoría."""
+    with connection() as db:
+        cursor = db.execute(
+            "UPDATE analisis SET calculo = ?, actualizado_en = ? WHERE id = ?",
+            (json.dumps(calculation, ensure_ascii=False),
+             datetime.now().isoformat(timespec="seconds"), analysis_id),
+        )
+        return cursor.rowcount > 0

@@ -1,6 +1,16 @@
 const state = {
     plantillas: [],
-    inventarios: [],
+    inventarios: [], // Caché de detalles abiertos y cabeceras conocidas.
+    inventariosListado: [],
+    inventariosSemana: [],
+    inventariosAgenda: [],
+    historialInventarios: new Map(),
+    paginaInventarios: 1,
+    totalInventarios: 0,
+    listadoCargando: true,
+    listadoError: false,
+    paginasInventarios: 1,
+    metricasPortada: { preparacion: 0, conteo: 0, diferencias: 0 },
     programaciones: [],
     notasCronograma: [],
     causasDiferencia: [],
@@ -319,8 +329,8 @@ function registrarEventos() {
             menu.open = false;
         });
     }, true);
-    $("#buscar-inventario").addEventListener("input", renderInventarios);
-    $("#filtro-estado").addEventListener("change", renderInventarios);
+    $("#buscar-inventario").addEventListener("input", programarCargaInventarios);
+    $("#filtro-estado").addEventListener("change", () => { state.paginaInventarios = 1; cargarListadoInventarios(); });
     $("#filtro-programacion").addEventListener("change", renderProgramaciones);
     $$(".schedule-view-tab").forEach((boton) => {
         boton.addEventListener("click", () => {
@@ -361,9 +371,13 @@ function registrarEventos() {
                 item.classList.toggle("active", item === boton);
             });
             $("#filtro-estado").value = "Todos";
-            renderInventarios();
+            state.paginaInventarios = 1;
+            cargarListadoInventarios();
         });
     });
+    $("#inventarios-prev").addEventListener("click", () => { state.paginaInventarios -= 1; cargarListadoInventarios(); });
+    $("#inventarios-next").addEventListener("click", () => { state.paginaInventarios += 1; cargarListadoInventarios(); });
+    $("#inventarios-reintentar").addEventListener("click", cargarListadoInventarios);
     $("#inventario-buscar-plantilla").addEventListener("input", filtrarPlantillasInventario);
     $("#inventario-plantillas-list").addEventListener("change", () => {
         limitarPlantillasPorCliente();
@@ -439,7 +453,9 @@ function registrarEventos() {
     });
 }
 
+let solicitudesApi = 0;
 async function api(url, options = {}) {
+    solicitudesApi += 1;
     mostrarLoading(true);
     try {
         const esFormulario = options.body instanceof FormData;
@@ -457,7 +473,8 @@ async function api(url, options = {}) {
         if (!response.ok) throw new Error(body?.detail || "No se pudo completar la operación");
         return body;
     } finally {
-        mostrarLoading(false);
+        solicitudesApi -= 1;
+        mostrarLoading(solicitudesApi > 0);
     }
 }
 
@@ -588,7 +605,7 @@ function hideCyclicSuggestions() {
 
 async function cargarInicio() {
     try {
-        const data = await api("/api/inicio");
+        const data = await api("/api/inicio?ligero=true");
         state.plantillas = data.plantillas;
         state.inventarios = data.inventarios;
         state.programaciones = data.programaciones || [];
@@ -608,6 +625,7 @@ async function cargarInicio() {
 }
 
 function renderTodo() {
+    solicitarActualizacionPortada();
     renderMetricas();
     renderInicioOperativo();
     renderInventarios();
@@ -694,14 +712,13 @@ function idsPersonasPorNombres(texto) {
 function renderMetricas() {
     const { inicio, fin } = rangoSemanaActual();
     $("#metric-semana").textContent = eventosSemanaInicio(inicio, fin).length;
-    $("#metric-preparacion").textContent = state.inventarios.filter((x) => x.estado === "En preparación").length;
-    $("#metric-conteo").textContent = state.inventarios.filter((x) => x.estado === "En conteo").length;
-    $("#metric-diferencias").textContent = state.inventarios.filter(
-        (inventario) => resumenInventario(inventario).diferencias > 0
-    ).length;
+    $("#metric-preparacion").textContent = state.metricasPortada.preparacion;
+    $("#metric-conteo").textContent = state.metricasPortada.conteo;
+    $("#metric-diferencias").textContent = state.metricasPortada.diferencias;
 }
 
 function resumenInventario(inventario) {
+    if (inventario.resumen) return inventario.resumen;
     const items = inventario.items || [];
     const total = items.length;
     const contados = items.filter((item) => item.conteo_fisico !== null).length;
@@ -790,7 +807,7 @@ function eventosSemanaInicio(inicio, fin) {
     const finIso = fechaISO(fin);
     const eventos = [];
 
-    state.inventarios.forEach((inventario) => {
+    state.inventariosSemana.forEach((inventario) => {
         const fechaReal = String(inventario.fecha || "");
         const fechaProgramada = String(inventario.fecha_programada || "");
         const fecha = fechaReal >= inicioIso && fechaReal <= finIso
@@ -812,7 +829,7 @@ function eventosSemanaInicio(inicio, fin) {
         });
     });
 
-    obtenerEventosCalendario(inicio, fin)
+    obtenerEventosCalendario(inicio, fin, state.inventariosSemana)
         .filter((evento) => !evento.inventario_id && evento.estado !== "PAUSADO")
         .forEach((evento) => eventos.push({
             fecha: evento.fecha,
@@ -833,27 +850,13 @@ function eventosSemanaInicio(inicio, fin) {
 }
 
 function renderInventarios() {
-    const texto = $("#buscar-inventario").value.trim().toLowerCase();
-    const estado = $("#filtro-estado").value;
-    const filtrados = state.inventarios.filter((item) => {
-        const coincideTexto = [
-            item.codigo,
-            item.cliente,
-            item.responsable,
-            item.colaboradores,
-            item.observaciones,
-            ambitoInventarioLabel(item.ambito),
-        ].join(" ").toLowerCase().includes(texto);
-        const coincideEstado = estado === "Todos" || item.estado === estado;
-        const coincideVista =
-            state.vistaInventarios === "TODOS"
-            || (state.vistaInventarios === "REALIZADOS" && item.estado === "Cerrado")
-            || (state.vistaInventarios === "EN_CURSO" && item.estado !== "Cerrado");
-        return coincideTexto && coincideEstado && coincideVista;
-    });
-
-    $("#inventarios-total").textContent = `${filtrados.length} inventarios en esta vista`;
-    $("#inventarios-vacio").classList.toggle("hidden", filtrados.length !== 0);
+    const filtrados = state.inventariosListado;
+    $("#inventarios-total").textContent = `${state.totalInventarios} inventarios en esta vista`;
+    $("#inventarios-pagina").textContent = state.listadoCargando ? "Cargando inventarios…"
+        : state.listadoError ? "No se pudo actualizar el listado" : `Página ${state.paginaInventarios} de ${state.paginasInventarios}`;
+    $("#inventarios-prev").disabled = state.listadoCargando || state.paginaInventarios <= 1;
+    $("#inventarios-next").disabled = state.listadoCargando || state.paginaInventarios >= state.paginasInventarios;
+    $("#inventarios-vacio").classList.toggle("hidden", filtrados.length !== 0 || state.listadoCargando || state.listadoError);
     $("#tabla-inventarios").innerHTML = filtrados.map((item) => {
         const resumen = resumenInventario(item);
         return `
@@ -1065,7 +1068,7 @@ function moverCalendario(direccion) {
     renderCalendario();
 }
 
-function renderCalendario() {
+function dibujarCalendario() {
     const { inicio, fin, dias, titulo } = rangoCalendario();
     const eventos = obtenerEventosCalendario(inicio, fin);
     const eventosPorFecha = new Map();
@@ -1165,7 +1168,7 @@ function eventoCalendarioHtml(evento) {
     `;
 }
 
-function obtenerEventosCalendario(inicio, fin) {
+function obtenerEventosCalendario(inicio, fin, inventarios = state.inventariosAgenda) {
     const inicioIso = fechaISO(inicio);
     const finIso = fechaISO(fin);
     const programacionesPorId = new Map(
@@ -1174,7 +1177,7 @@ function obtenerEventosCalendario(inicio, fin) {
     const eventos = [];
     const ocupados = new Set();
 
-    state.inventarios
+    inventarios
         .filter((item) => (
             item.fecha_programada
             && item.fecha_programada >= inicioIso
@@ -1309,8 +1312,8 @@ function rangoCalendario() {
     };
 }
 
-function datosCronogramaActual() {
-    renderCalendario();
+async function datosCronogramaActual() {
+    if (!await renderCalendario(true)) return null;
     const { titulo, eventos } = renderCalendario.datos;
     if (!eventos.length) {
         toast("No hay inventarios en el período seleccionado", true);
@@ -1372,7 +1375,7 @@ function tablaCronogramaHtml(titulo, eventos) {
 }
 
 async function copiarTablaCronograma() {
-    const datos = datosCronogramaActual();
+    const datos = await datosCronogramaActual();
     if (!datos) return;
     const texto = textoCronograma(datos.titulo, datos.eventos);
     const html = tablaCronogramaHtml(datos.titulo, datos.eventos);
@@ -1385,7 +1388,7 @@ async function copiarTablaCronograma() {
 }
 
 async function copiarImagenCronograma() {
-    const datos = datosCronogramaActual();
+    const datos = await datosCronogramaActual();
     if (!datos) return;
     mostrarLoading(true);
     try {
@@ -1413,8 +1416,9 @@ async function copiarImagenCronograma() {
     }
 }
 
-function imprimirCronograma() {
+async function imprimirCronograma() {
     cambiarVistaProgramaciones("CALENDARIO");
+    if (!await renderCalendario(true)) return;
     document.body.classList.add("calendar-printing");
     const limpiar = () => {
         document.body.classList.remove("calendar-printing");
@@ -1662,14 +1666,25 @@ function renderResumenPlantilla() {
     actualizarDisponibilidadModalidadMedios();
 }
 
-function abrirDetalle(id) {
-    state.inventarioSeleccionado = state.inventarios.find((x) => x.id === id);
-    state.componentesInventario = null;
-    state.datosInventarioAbiertos = false;
-    state.remitosAbiertos = false;
-    state.focoDiferenciasAbierto = false;
-    renderDetalle();
-    mostrarVista("detalle");
+let detalleRequest = 0;
+async function abrirDetalle(id) {
+    const request = ++detalleRequest;
+    try {
+        const inv = await api(`/api/portada/detalle/${id}`);
+        if (request !== detalleRequest) return;
+        recordarInventarios([...(inv.inventarios_relacionados || []), inv]);
+        state.inventarioSeleccionado = inv;
+        state.historialInventarios.clear();
+        for (const cached of state.inventarios) {
+            if (cached.id !== id) delete cached.items;
+        }
+        state.componentesInventario = null;
+        state.datosInventarioAbiertos = false;
+        state.remitosAbiertos = false;
+        state.focoDiferenciasAbierto = false;
+        renderDetalle();
+        mostrarVista("detalle");
+    } catch (error) { if (request === detalleRequest) toast(error.message, true); }
 }
 
 function alternarDatosInventario() {
@@ -2923,7 +2938,7 @@ function gruposComparablesInventario(inventario) {
 
 function inventariosHistoricosComparables(actual) {
     const fechaActual = String(actual.fecha || actual.cerrado_en || "");
-    return state.inventarios.filter((inventario) => (
+    return (state.historialInventarios.get(actual.id) || []).filter((inventario) => (
         inventario.id !== actual.id
         && inventario.cliente === actual.cliente
         && inventario.categoria === actual.categoria
@@ -2949,6 +2964,9 @@ function historialPieza(actual, codigo) {
 }
 
 function historialPiezaHtml(actual, codigo) {
+    if (!state.historialInventarios.has(actual.id)) {
+        return '<span class="difference-history-empty">Consultá los antecedentes desde el análisis</span>';
+    }
     const registros = historialPieza(actual, codigo);
     if (!registros.length) {
         return '<span class="difference-history-empty">Sin conteos anteriores comparables</span>';
@@ -2970,6 +2988,9 @@ function diagnosticoDiferencia(actual, grupo) {
     }
     if (grupo.metricas.dentro_tolerancia === true) {
         return { clase: "ok", etiqueta: "Dentro de tolerancia", detalle: "El conteo actual no presenta una diferencia relevante." };
+    }
+    if (!state.historialInventarios.has(actual.id)) {
+        return { clase: "unknown", etiqueta: "Consultar antecedentes", detalle: "Abrí el análisis para revisar los conteos anteriores." };
     }
     if (!historial.length) {
         return { clase: "unknown", etiqueta: "Sin antecedentes", detalle: "Conviene recontar antes de confirmar la causa." };
@@ -3001,7 +3022,14 @@ function diagnosticoDiferencia(actual, grupo) {
     return { clase: "review", etiqueta: "Revisar evolución", detalle: "Hay antecedentes, pero el patrón todavía no es concluyente." };
 }
 
-function alternarFocoDiferencias() {
+async function alternarFocoDiferencias() {
+    const inv = state.inventarioSeleccionado;
+    if (!state.focoDiferenciasAbierto) {
+        try { await cargarHistorialInventario(inv); }
+        catch (error) { toast(error.message, true); return; }
+        if (state.inventarioSeleccionado?.id !== inv.id) return;
+        renderDifferenceFocus(inv);
+    }
     state.focoDiferenciasAbierto = !state.focoDiferenciasAbierto;
     const content = $("#difference-focus-content");
     const button = $("#btn-toggle-difference-focus");
@@ -3469,12 +3497,17 @@ function renderDetalle() {
         });
     });
     $$(".piece-analysis-toggle").forEach((button) => {
-        button.addEventListener("click", () => {
+        button.addEventListener("click", async () => {
             const row = $(`#piece-analysis-${button.dataset.pieceAnalysis}`);
             const abierta = !row.classList.toggle("hidden");
             button.setAttribute("aria-expanded", String(abierta));
             const slot = row.querySelector("[data-piece-history-slot]");
             if (abierta && slot && slot.dataset.loaded !== "true") {
+                slot.textContent = "Consultando historial…";
+                try { await cargarHistorialInventario(item); }
+                catch (error) { slot.textContent = error.message; return; }
+                if (state.inventarioSeleccionado?.id !== item.id || !slot.isConnected) return;
+
                 const group = agruparItemsPorPieza(
                     item.items,
                     item.categoria === "PIEZAS",
@@ -4707,12 +4740,14 @@ function reemplazarProgramacion(actualizada) {
 
 function reemplazarInventario(actualizado) {
     const indice = state.inventarios.findIndex((x) => x.id === actualizado.id);
-    state.inventarios[indice] = actualizado;
+    if (indice >= 0) state.inventarios[indice] = actualizado;
+    else state.inventarios.push(actualizado);
     state.inventarioSeleccionado = actualizado;
+    solicitarActualizacionPortada();
 }
 
 function obtenerUltimoInventarioProgramacion(programacionId) {
-    return state.inventarios
+    return [...state.inventarios, state.programaciones.find((p) => p.id === programacionId)?.ultimo_inventario].filter(Boolean)
         .filter((inventario) => inventario.programacion_id === programacionId)
         .sort((a, b) => b.id - a.id)[0] || null;
 }
@@ -5661,4 +5696,131 @@ async function eliminarNotaCronograma() {
         $("#schedule-note-delete").disabled = false;
         $("#schedule-note-save").disabled = false;
     }
+}
+
+
+const portadaRequests = { listado: 0, resumen: 0, agenda: 0, timer: null, controller: null, agendaKey: null, agendaPending: null };
+
+function recordarInventarios(inventarios) {
+    for (const inv of inventarios) {
+        const index = state.inventarios.findIndex((item) => item.id === inv.id);
+        if (index < 0) state.inventarios.push(inv);
+        else state.inventarios[index] = { ...state.inventarios[index], ...inv };
+    }
+}
+
+function programarCargaInventarios() {
+    state.paginaInventarios = 1;
+    portadaRequests.listado += 1;
+    portadaRequests.controller?.abort();
+    clearTimeout(portadaRequests.timer);
+    portadaRequests.timer = setTimeout(cargarListadoInventarios, 250);
+}
+
+async function cargarListadoInventarios() {
+    clearTimeout(portadaRequests.timer);
+    const request = ++portadaRequests.listado;
+    portadaRequests.controller?.abort();
+    const controller = new AbortController();
+    portadaRequests.controller = controller;
+    const query = new URLSearchParams({ pagina: Math.max(1, state.paginaInventarios), por_pagina: 25,
+        buscar: $("#buscar-inventario").value.trim(), estado: $("#filtro-estado").value, vista: state.vistaInventarios });
+    state.listadoCargando = true;
+    state.listadoError = false;
+    renderInventarios();
+    $("#tabla-inventarios").setAttribute("aria-busy", "true");
+    $("#inventarios-reintentar").classList.add("hidden");
+    try {
+        const data = await api(`/api/portada/inventarios?${query}`, { signal: controller.signal });
+        if (request !== portadaRequests.listado) return;
+        state.inventariosListado = data.inventarios;
+        state.paginaInventarios = data.pagina;
+        state.paginasInventarios = data.paginas;
+        state.totalInventarios = data.total;
+        recordarInventarios(data.inventarios);
+        state.listadoCargando = false;
+        renderInventarios();
+    } catch (error) {
+        if (error.name === "AbortError" || request !== portadaRequests.listado) return;
+        state.listadoCargando = false;
+        state.listadoError = true;
+        renderInventarios();
+        $("#inventarios-reintentar").classList.remove("hidden");
+        toast(error.message, true);
+    } finally {
+        if (request === portadaRequests.listado) $("#tabla-inventarios").setAttribute("aria-busy", "false");
+    }
+}
+
+async function refrescarResumenPortada() {
+    const request = ++portadaRequests.resumen;
+    const { inicio, fin } = rangoSemanaActual();
+    try {
+        const [metricas, semana] = await Promise.all([
+            api("/api/portada/metricas"),
+            api(`/api/portada/calendario?desde=${fechaISO(inicio)}&hasta=${fechaISO(fin)}`),
+        ]);
+        if (request !== portadaRequests.resumen) return;
+        state.metricasPortada = metricas;
+        state.inventariosSemana = semana.inventarios;
+        recordarInventarios(semana.inventarios);
+        renderMetricas();
+        renderInicioOperativo();
+    } catch (error) { if (request === portadaRequests.resumen) toast(error.message, true); }
+}
+
+function renderCalendario(force = false) {
+    if (!force && state.vistaProgramaciones !== "CALENDARIO") return Promise.resolve(false);
+    const { inicio, fin } = rangoCalendario();
+    const key = `${fechaISO(inicio)}|${fechaISO(fin)}`;
+    if (portadaRequests.agendaKey === key) { dibujarCalendario(); return Promise.resolve(true); }
+    if (portadaRequests.agendaPending === key) return portadaRequests.agendaPromise;
+    portadaRequests.agendaPromise = cargarAgendaCalendario(key, inicio, fin);
+    return portadaRequests.agendaPromise;
+}
+
+async function cargarAgendaCalendario(key, inicio, fin) {
+    const request = ++portadaRequests.agenda;
+    portadaRequests.agendaPending = key;
+    $("#calendar-title").textContent = rangoCalendario().titulo;
+    $("#calendar-grid").innerHTML = '<p role="status">Cargando calendario…</p>';
+    $("#calendar-empty").classList.add("hidden");
+    try {
+        const data = await api(`/api/portada/calendario?desde=${fechaISO(inicio)}&hasta=${fechaISO(fin)}`);
+        if (request !== portadaRequests.agenda || key !== `${fechaISO(rangoCalendario().inicio)}|${fechaISO(rangoCalendario().fin)}`) return false;
+        state.inventariosAgenda = data.inventarios;
+        recordarInventarios(data.inventarios);
+        portadaRequests.agendaKey = key;
+        dibujarCalendario();
+        return true;
+    } catch (error) {
+        if (request === portadaRequests.agenda) {
+            $("#calendar-grid").innerHTML = '<div role="alert">No se pudo cargar el calendario. <button type="button" id="calendar-retry">Reintentar</button></div>';
+            $("#calendar-retry").addEventListener("click", () => renderCalendario(true));
+            toast(error.message, true);
+        }
+        return false;
+    } finally { if (request === portadaRequests.agenda) portadaRequests.agendaPending = null; }
+}
+
+const historialRequests = new Map();
+async function cargarHistorialInventario(inv) {
+    if (state.historialInventarios.has(inv.id)) return;
+    if (!historialRequests.has(inv.id)) {
+        historialRequests.set(inv.id, api(`/api/portada/historial/${inv.id}`).then((data) => {
+            if (state.inventarioSeleccionado?.id === inv.id) state.historialInventarios.set(inv.id, data.inventarios);
+        }).finally(() => historialRequests.delete(inv.id)));
+    }
+    await historialRequests.get(inv.id);
+}
+
+let portadaRefreshTimer = null;
+function solicitarActualizacionPortada() {
+    clearTimeout(portadaRefreshTimer);
+    portadaRefreshTimer = setTimeout(() => {
+        cargarListadoInventarios();
+        refrescarResumenPortada();
+        portadaRequests.agendaKey = null;
+        renderCalendario();
+    }, 0);
 }

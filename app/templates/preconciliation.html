@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ 'Análisis de stock' if not inventario_id else 'Análisis de stock · ' ~ inventario_codigo }}</title>
-    <link rel="stylesheet" href="/static/css/preconciliation.css?v=26">
+    <link rel="stylesheet" href="/static/css/preconciliation.css?v=28">
 </head>
 <body data-inventory-id="{{ inventario_id }}" data-standalone="{{ 'true' if not inventario_id else 'false' }}">
     <header class="pre-header">
@@ -36,9 +36,13 @@
             <section class="selector-panel">
                 <div class="selector-heading">
                     <div><h2>¿Desde qué inventarios querés comparar?</h2><p>Elegí hasta cuatro. El inventario actual queda fijo como resultado final.</p></div>
-                    <button id="calculate" type="button">Calcular escenarios</button>
+                    <div class="selector-actions">
+                        <button id="refresh-final" type="button" title="Releer el conteo y estado del inventario final sin cambiar los inventarios iniciales">↻ Actualizar inventario final</button>
+                        <button id="calculate" type="button">Calcular escenarios</button>
+                    </div>
                 </div>
                 <div id="initial-options" class="initial-options"></div>
+                <p id="final-refresh-status" class="message" role="status"></p>
                 <p id="selector-message" class="message"></p>
             </section>
 
@@ -128,19 +132,33 @@
                                 <span><strong>Agregar ingreso o egreso manual</strong><small>Para remitos ausentes en el origen</small></span>
                             </summary>
                             <form id="manual-form" class="manual-form">
-                                <label>Tipo<select name="tipo"><option value="IN">Ingreso</option><option value="OUT">Egreso</option></select></label>
-                                <label>Fecha<input name="fecha" type="date" required></label>
-                                <label>Remito<input name="remito" maxlength="100" required></label>
-                                <label class="manual-code-field">Pieza / material
-                                    <span class="manual-code-search">
-                                        <input id="manual-code-input" name="codigo" maxlength="80" required autocomplete="off" placeholder="Escribí código o descripción">
-                                        <span id="manual-code-results" class="manual-code-results hidden"></span>
-                                    </span>
-                                </label>
-                                <label>Cantidad<input name="cantidad" type="number" min="0.000001" step="any" required></label>
-                                <label>Observación<input name="observacion" maxlength="1500"></label>
-                                <button type="submit">Agregar y recalcular</button>
-                                <p>El movimiento se aplica después de la fecha inicial y hasta la fecha final inclusive. Los egresos de piezas padre se convierten a sus componentes.</p>
+                                <div class="manual-remittance-header">
+                                    <label>Tipo<select name="tipo"><option value="IN">Ingreso</option><option value="OUT">Egreso</option></select></label>
+                                    <label>Fecha<input name="fecha" type="date" required></label>
+                                    <label>Remito<input name="remito" maxlength="100" required placeholder="Número de remito"></label>
+                                    <label class="manual-observation">Observación del remito<input name="observacion" maxlength="1500" placeholder="Opcional · se aplica a todos los renglones"></label>
+                                </div>
+                                <p id="manual-type-help">Ingresá los códigos de MP recibidos y sus cantidades. Podés buscar por código o descripción.</p>
+                                <div id="manual-lines" class="manual-lines">
+                                    <div class="manual-line">
+                                        <span class="manual-line-number">1</span>
+                                        <label class="manual-code-field">Código / descripción
+                                            <span class="manual-code-search">
+                                                <input id="manual-code-input" data-manual-code-input maxlength="80" required autocomplete="off" placeholder="Buscar materia prima o pieza">
+                                                <span id="manual-code-results" class="manual-code-results hidden" role="group" aria-label="Resultados de búsqueda"></span>
+                                            </span>
+                                        </label>
+                                        <label>Cantidad<input data-manual-quantity type="number" min="0.000001" step="any" required></label>
+                                        <button type="button" data-remove-manual-line class="manual-remove" aria-label="Quitar renglón 1" disabled>Quitar</button>
+                                    </div>
+                                </div>
+                                <div class="manual-remittance-actions">
+                                    <button type="button" id="add-manual-line" class="manual-add">＋ Agregar renglón</button>
+                                    <span id="manual-line-count" role="status">1 renglón</span>
+                                    <button type="submit" id="save-manual-remittance">Guardar remito y recalcular</button>
+                                </div>
+                                <p id="manual-form-status" role="status" aria-live="polite"></p>
+                                <p>Se guardan todos los renglones juntos. El remito se aplica después de la fecha inicial y hasta la fecha del inventario final inclusive.</p>
                             </form>
                         </details>
                     </div>
@@ -185,6 +203,6 @@
     </main>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/static/js/preconciliation.js?v=27" defer></script>
+    <script src="/static/js/preconciliation.js?v=30" defer></script>
 </body>
 </html>

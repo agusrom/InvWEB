@@ -3,6 +3,16 @@
 Aplicación FastAPI para inventarios físicos, plantillas, programaciones,
 conteo PC/móvil, análisis de stock, componentes y reportes.
 
+## Optimización de la portada
+
+El listado carga 25 inventarios por página con filtros en servidor. El detalle
+se solicita al abrir un inventario y el historial al desplegar su análisis.
+Calendario y métricas globales se consultan independientemente del listado.
+Esta mejora no requiere cambios de esquema ni ejecutar SQL de migración.
+La migración de datos queda pospuesta; no ejecutar los SQL de limpieza como
+parte de esta optimización.
+Ver [alcance y validación de rendimiento](docs/rendimiento_portada.md).
+
 ## Estado de la migración
 
 Se retiraron Conciliaciones antiguas y Warehouse/Depósito, incluidos sus modelos,
@@ -58,6 +68,22 @@ Los almacenes locales vigentes se inicializan según los módulos que los usan.
   con confirmación. Si el guardado falla se conserva el texto.
 - Búsqueda de plantillas por nombre o cliente sin perder selecciones.
 - Progreso y confiabilidad juntos en el listado principal.
+
+## Análisis de stock con conteo abierto
+
+Se puede iniciar y guardar un análisis aunque el inventario final siga en conteo
+(incluso sin códigos completos). Se muestra como **PROVISORIA**: los códigos
+incompletos aparecen como pendientes, junto con sus movimientos y esperado.
+El universo es la unión de piezas de ambos inventarios, explotadas a sus
+componentes terminales; no se incorporan piezas ajenas desde los movimientos.
+Los pendientes no se interpretan como físico cero ni participan de la confiabilidad.
+
+El botón **Actualizar inventario final** relee el estado y los conteos guardados
+y recalcula los mismos períodos iniciales. Si el análisis ya está guardado,
+actualiza ese mismo registro sin cambiar su nombre ni duplicarlo; conserva las
+notas y las correcciones de movimientos. Si el recálculo falla conserva la
+fotografía anterior. Hay que terminar de guardar las notas y remitos pendientes
+antes de actualizar. No modifica el stock del inventario ni requiere migraciones.
 
 ## Datos que se deben conservar y respaldar
 
