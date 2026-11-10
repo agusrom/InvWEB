@@ -108,13 +108,42 @@ class AuditTests(unittest.TestCase):
             keys.append(audit.add_manual(99,dict(tipo='IN',fecha=day,remito=day,codigo='P1',cantidad=5))['clave'])
         result = calculate()
         manuals = {m['clave']:m for m in result['movimientos'] if m['manual']}
-        self.assertEqual(manuals[keys[0]]['escenarios'],[])
-        self.assertEqual(manuals[keys[1]]['escenarios'],[1])
+        self.assertEqual(manuals[keys[0]]['escenarios'],[1])
+        self.assertEqual(manuals[keys[1]]['escenarios'],[1,2])
         self.assertEqual(manuals[keys[2]]['escenarios'],[1,2,3])
         audit.edit(99,keys[2],dict(excluidos=[2]))
-        self.assertEqual(calculate()['escenarios'][1]['filas'][0]['ingresos'],50)
+        self.assertEqual(calculate()['escenarios'][1]['filas'][0]['ingresos'],55)
         audit.edit(99,keys[2],delete=True)
         self.assertEqual(calculate()['escenarios'][2]['filas'][0]['ingresos'],0)
+    def test_manual_out_on_initial_day_explodes_and_updates_each_piece(self):
+        key = audit.add_manual(99, dict(tipo='OUT', fecha='2026-07-01',
+            remito='MANUAL-INITIAL', codigo='PADRE', cantidad=4))['clave']
+        def recalculate():
+            return audit.reconcile(99, '2026-08-31', scenarios(), 0,
+                lambda a, b, t: abs(a-b) < 0.00001,
+                lambda m, codes: {'P1': 2, 'P2': 3})
+        for _ in range(2):
+            result = recalculate()
+            manual = next(m for m in result['movimientos'] if m['clave'] == key)
+            self.assertEqual(manual['escenarios'], [1, 2])
+            for scenario in result['escenarios'][:2]:
+                self.assertEqual([r['egresos'] for r in scenario['filas']], [28, 42])
+                self.assertEqual([r['esperado'] for r in scenario['filas']], [122, 108])
+                self.assertEqual([r['diferencia_conciliacion'] for r in scenario['filas']], [-12, 2])
+            self.assertEqual(result['escenarios'][2]['filas'][0]['egresos'], 0)
+        audit.edit(99, key, dict(excluidos=[2]))
+        result = recalculate()
+        self.assertEqual(result['escenarios'][0]['filas'][0]['egresos'], 28)
+        self.assertEqual(result['escenarios'][1]['filas'][0]['egresos'], 20)
+
+    def test_manual_outside_period_does_not_leak_into_other_periods(self):
+        for day in ('2026-06-29', '2026-09-01'):
+            audit.add_manual(99, dict(tipo='OUT', fecha=day,
+                remito=day, codigo='P1', cantidad=100))
+        result = calculate()
+        self.assertTrue(all(not m['escenarios'] for m in result['movimientos'] if m['manual']))
+        self.assertEqual(result['escenarios'][0]['filas'][0]['egresos'], 20)
+
     def test_automatic_cannot_delete(self):
         with self.assertRaises(ValueError):
             audit.edit(99,calculate()['movimientos'][0]['clave'],delete=True)

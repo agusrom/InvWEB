@@ -119,9 +119,9 @@ class ManualRemittanceTests(unittest.TestCase):
         self.assertEqual(rows['ALT']['egresos'], 0)
         self.assertNotIn('AJENA', rows)
         self.assertTrue(any('AJENA' in warning for warning in result['escenarios'][0]['advertencias']))
-        # Fecha inicial excluida: el mismo remito se conserva pero no participa.
+        # Fecha inicial incluida: se respeta la incorporación manual al período.
         self.save(self.payload(fecha=self.initial.fecha.isoformat(), solicitud_id='solicitud-2'))
         with patch.object(api, '_materiales_por_pieza', return_value={'MP1': {'TEST'}, 'MP2': {'ALT'}}):
             _, rows = self.calculate()
-        self.assertEqual(rows['TEST']['ingresos'], 0)
-        self.assertEqual(rows['ALT']['ingresos'], 0)
+        self.assertEqual(rows['TEST']['ingresos'], 5)
+        self.assertEqual(rows['ALT']['ingresos'], 7)

@@ -255,7 +255,9 @@ def reconcile(final_id, final_date, scenarios, tolerance, within, resolve_manual
             if movement.get("manual"):
                 present[movement["clave"]] = {
                     s["inicial"]["id"] for s in scenarios
-                    if not s.get("error") and str(s["inicial"]["fecha"])[:10] < movement["fecha"] <= str(final_date)[:10]
+                    # Un manual expresa una inclusión deliberada: el día inicial
+                    # también pertenece al período; no aplicar cortes automáticos.
+                    if not s.get("error") and str(s["inicial"]["fecha"])[:10] <= movement["fecha"] <= str(final_date)[:10]
                 }
         for scenario in scenarios:
             sid = scenario["inicial"]["id"]

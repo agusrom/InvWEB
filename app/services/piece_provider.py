@@ -471,7 +471,7 @@ def obtener_estructura_recursiva(
                             TRIM(`GCOD_`) AS codigo,
                             COALESCE(`QXUN_`, 0) AS uso
                         FROM `produc10`
-                        WHERE `VCOD_` = :padre
+                        WHERE UPPER(TRIM(`VCOD_`)) = :padre
                         ORDER BY `GCOD_`
                         """
                     ),

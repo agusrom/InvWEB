@@ -17,7 +17,7 @@ from app.services.piece_provider import (
 )
 
 
-VERSION_CALCULO_MOVIMIENTOS = 2
+VERSION_CALCULO_MOVIMIENTOS = 3
 
 MOVIMIENTOS_DEBUG = os.getenv("MOVIMIENTOS_DEBUG", "0").strip().lower() not in {
     "0", "false", "no", "off",
@@ -809,6 +809,7 @@ def calcular_movimientos(
         padres_permitidos,
         cache_estructuras,
     )
+    codigos_egreso.update(resultados_permitidos)
     codigos_egreso.update(_padres_de_componentes(resultados_permitidos))
     egresos = _filas_egresos_con_limites(
         egreso_fecha_desde,
@@ -860,21 +861,16 @@ def calcular_movimientos(
             f"AUTO|{fila['remito']}|{fila['fecha']}|{codigo_pieza}"
         )
         origen_componente = codigo_pieza not in padres_permitidos
-        if codigo_pieza in resultados_permitidos:
-            estructuras[codigo_pieza] = [{"codigo": codigo_pieza, "uso": 1.0}]
-            _debug(
-                f"{codigo_pieza!r} coincide directamente con un renglón de "
-                "la conciliación: se aplica uso 1."
-            )
-        elif codigo_pieza not in estructuras:
-            estructuras[codigo_pieza] = _componentes_terminales(
-                codigo_pieza,
-                cache_estructuras,
-            )
-            _debug(
-                f"{codigo_pieza!r} se trata como padre/subconjunto. "
-                f"Terminales encontrados: {estructuras[codigo_pieza]!r}."
-            )
+        if codigo_pieza not in estructuras:
+            # El proveedor agrega los usos de todas las rutas al mismo código.
+            # Proyectar sobre el universo del análisis, incluso si un componente
+            # tiene hijos en el maestro. Cada despacho se procesa una sola vez.
+            estructuras[codigo_pieza] = [
+                {"codigo": normalizar_codigo(nodo.codigo),
+                 "uso": float(nodo.uso_acumulado)}
+                for nodo in _estructura_cacheada(codigo_pieza, cache_estructuras)
+                if normalizar_codigo(nodo.codigo) in resultados_permitidos
+            ]
         componentes = []
         for componente in estructuras[codigo_pieza]:
             codigo = componente["codigo"]

@@ -137,11 +137,11 @@ function renderPeriodEvidence() {
 function renderSnapshotState() {
     if (!state.calculation) return;
     const pending = state.timers.size || noteSavesPending || [...failedNoteSaves].some((key) => key.startsWith(`${inventoryId}:`)) || document.querySelector(".remittance-group.dirty");
-    const obsoleteMovements = Number(state.calculation.version_movimientos || 0) < 2;
+    const obsoleteMovements = Number(state.calculation.version_movimientos || 0) < 3;
     const unavailableMovements = state.calculation.escenarios.some((p) => p.diagnostico_egresos?.fuente_configurada === false);
     $("#analysis-snapshot-state").classList.toggle("dirty", Boolean(state.snapshotDirty || pending || obsoleteMovements || unavailableMovements));
     const selectionChanged = !sameNumbers(selectedIds(), state.calculation.escenarios.map((p) => p.inicial.id));
-    const recalcular = Number(state.calculation.version_movimientos || 0) < 2 ? "Cálculo de despachos anterior: usá Actualizar inventario final para recalcular los movimientos. " : "";
+    const recalcular = Number(state.calculation.version_movimientos || 0) < 3 ? "Cálculo de despachos anterior: usá Actualizar inventario final para recalcular los movimientos. " : "";
     const sourceWarning = unavailableMovements ? "No se consultó la fuente productiva de movimientos: revisá la conexión antes de interpretar los resultados. " : "";
     const status = `${recalcular}${sourceWarning}${selectionChanged ? "Selección modificada: recalculá para aplicar. " : ""}${pending ? "Ediciones pendientes. " : ""}${state.snapshotDirty ? "Cambios sin guardar" : state.analysisId ? "Guardado" : "Análisis sin guardar"}`;
     $("#analysis-snapshot-state").textContent = `${status} · Cálculo: ${state.calculation.calculado_en ? formatDateTime(state.calculation.calculado_en) : "sin fecha"} · Guardado: ${state.savedAt ? formatDateTime(state.savedAt) : "pendiente"}`;

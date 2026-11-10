@@ -113,10 +113,48 @@ class DispatchMovementsTests(unittest.TestCase):
                     self.assertEqual(row['egresos'], 3)
                     self.assertEqual(row['detalle_egresos'][0]['pieza_origen'], 'TEST')
                     self.assertTrue(any(m['tipo'] == 'OUT' and m['codigo'] == 'TEST' for m in result['movimientos']))
-                    self.assertEqual(result['version_movimientos'], 2)
+                    self.assertEqual(result['version_movimientos'], service.VERSION_CALCULO_MOVIMIENTOS)
                     self.assertEqual(result['escenarios'][0]['diagnostico_egresos']['despachos_aplicados'], 1)
         finally:
             fixture.tearDown()
+
+    def test_real_structure_sql_normalizes_parents_and_sums_all_paths(self):
+        from app.services import piece_provider
+        with self.engine.begin() as db:
+            db.exec_driver_sql("DELETE FROM produc10")
+            db.exec_driver_sql("INSERT INTO produc10 VALUES "
+                "(' padre-a ', ' SUB-A ', 2), ('sub-a ', ' comp ', 3), "
+                "('PADRE-A', 'SUB-B', 4), ('SUB-B', 'COMP', 5), "
+                "(' padre-b ', ' COMP ', 7), ('AJENO', 'OTRO', 100)")
+        self.dispatch(' padre-a ', 10, '2026-11-03 12:00:00', 'E-100')
+        self.dispatch('PADRE-B', 2, '2026-11-03 12:00:00', 'E-100')
+        self.dispatch('PADRE-A', 1, '2026-11-04 12:00:00', 'E-101')
+        self.dispatch('AJENO', 999, '2026-11-03 12:00:00', 'E-102')
+        # No árbol simulado: ambos sentidos usan produc10 con su SQL real.
+        with patch.object(piece_provider, 'production_engine', self.engine), patch.object(
+            service, 'obtener_estructura_recursiva', piece_provider.obtener_estructura_recursiva
+        ):
+            result = self.calculate()
+        self.assertEqual(result['egresos_por_codigo'], {'COMP': 300})
+        details = result['detalles_egreso']['COMP']
+        self.assertEqual(len(details), 3)
+        self.assertEqual(sorted(d['uso'] for d in details), [7, 26, 26])
+        self.assertEqual(result['diagnostico_egresos']['despachos_aplicados'], 3)
+
+    def test_analysis_component_with_children_keeps_dispatch_from_each_parent(self):
+        from app.services import piece_provider
+        with self.engine.begin() as db:
+            db.exec_driver_sql("INSERT INTO produc10 VALUES ('PT2', 'COMP', 4), ('COMP', 'MP', 9)")
+        self.dispatch('PT', 2, '2026-11-03 12:00:00', 'E-100')
+        self.dispatch('PT2', 3, '2026-11-03 12:00:00', 'E-100')
+        self.dispatch('COMP', 5, '2026-11-03 12:00:00', 'E-101')
+        with patch.object(piece_provider, 'production_engine', self.engine), patch.object(
+            service, 'obtener_estructura_recursiva', piece_provider.obtener_estructura_recursiva
+        ):
+            result = self.calculate(parents={'PT'})
+        self.assertEqual(result['egresos_por_codigo'], {'COMP': 29})
+        self.assertEqual(len(result['detalles_egreso']['COMP']), 3)
+        self.assertNotIn('MP', result['egresos_por_codigo'])
 
     def test_missing_source_is_reported_explicitly(self):
         with patch.object(service, 'production_engine', None):
