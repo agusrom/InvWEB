@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ app_name }}</title>
-    <link rel="stylesheet" href="/static/css/styles.css?v=1168">
+    <link rel="stylesheet" href="/static/css/styles.css?v=1169">
 </head>
 <body data-initial-view="{{ vista_inicial | default('inventarios') }}">
     <div class="app-shell">
@@ -357,6 +357,7 @@
                     <div>
                         <span id="detalle-confiabilidad-etiqueta">Confiabilidad (±5%)</span>
                         <strong id="detalle-confiabilidad">—</strong>
+                        <small id="detalle-confiabilidad-objetivo"></small>
                         <small id="detalle-confiabilidad-detalle">0 / 0 renglones OK</small>
                     </div>
                 </section>
@@ -1136,6 +1137,6 @@
     <div id="toast" class="toast hidden" role="status"></div>
     <div id="loading" class="loading hidden">Procesando…</div>
 
-    <script src="/static/js/app.js?v=1168" defer></script>
+    <script src="/static/js/app.js?v=1169" defer></script>
 </body>
 </html>

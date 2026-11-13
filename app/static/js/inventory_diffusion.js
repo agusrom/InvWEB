@@ -98,6 +98,7 @@ if (rows.length > 48) document.body.classList.add("very-many-rows");
 document.querySelectorAll("[data-tolerance]").forEach((element) => { element.textContent = formatNumber(tolerance); });
 document.querySelector("#target-label").textContent = `Objetivo ≥ ${formatNumber(target)}%`;
 document.querySelector("#reliability").textContent = reliability == null ? "—" : `${formatNumber(reliability)}%`;
+document.querySelector("#reliability-target").textContent = `Objetivo: ${formatNumber(target)}%`;
 document.querySelector("#result-caption").textContent = reliability == null ? "Sin resultados" : reliability >= target ? "Satisfactorio" : "Requiere acciones";
 document.querySelector("#general-result").classList.toggle("warning", reliability != null && reliability < target);
 document.querySelector("#summary").innerHTML = `

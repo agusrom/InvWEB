@@ -87,6 +87,9 @@ function renderInventories() {
     $("#inventory-list").innerHTML = items.length ? items.map(inventoryCard).join("") : '<p class="empty">No hay inventarios para mostrar.</p>';
 }
 
+function confidenceTarget() {
+    return `Objetivo: ${format(state.data?.configuracion_indicadores?.objetivo_confiabilidad_pct ?? 90)}%`;
+}
 function inventoryCard(item) {
     const closed = item.estado === "Cerrado";
     const confidence = item.confiabilidad == null ? "—" : `${format(item.confiabilidad)}%`;
@@ -94,7 +97,7 @@ function inventoryCard(item) {
         <div class="card-head"><strong>${escapeHtml(item.codigo)}</strong><span class="badge ${closed ? "closed" : "open"}">${escapeHtml(item.estado)}</span></div>
         <h3>${escapeHtml(item.cliente_nombre || item.cliente)}</h3><p>${formatDate(item.fecha)} · ${escapeHtml(item.responsable)}</p>
         <div class="progress"><span style="width:${Number(item.progreso || 0)}%"></span></div>
-        <div class="metric-row"><span>${item.progreso}% cargado</span><span>Confiabilidad ${confidence}</span></div>
+        <div class="metric-row"><span>${item.progreso}% cargado</span><span>Confiabilidad ${confidence} · ${confidenceTarget()}</span></div>
         <div class="card-actions"><button data-detail="${item.id}">Ver resultados</button>${closed ? "" : `<a href="/inventarios/${item.id}/movil">Abrir conteo</a>`}</div>
     </article>`;
 }
@@ -117,7 +120,7 @@ function openDetail(id) {
         </div>
     </div>`).join("");
     $("#detail-content").innerHTML = `<div class="detail-title"><h2>${escapeHtml(item.codigo)}</h2><p>${escapeHtml(item.cliente_nombre || item.cliente)} · ${escapeHtml(item.estado)}</p></div>
-        <div class="summary-grid"><div><small>Renglones</small><strong>${counted}/${item.items.length}</strong></div><div><small>Sistema total</small><strong>${format(totalSystem)}</strong></div><div><small>Físico total</small><strong>${counted === 0 ? "—" : format(totalPhysical)}</strong></div><div class="total-percentage"><small>Confiabilidad</small><strong>${totalPercentage == null ? "—" : `${format(totalPercentage)}%`}</strong></div></div>
+        <div class="summary-grid"><div><small>Renglones</small><strong>${counted}/${item.items.length}</strong></div><div><small>Sistema total</small><strong>${format(totalSystem)}</strong></div><div><small>Físico total</small><strong>${counted === 0 ? "—" : format(totalPhysical)}</strong></div><div class="total-percentage"><small>Confiabilidad · ${confidenceTarget()}</small><strong>${totalPercentage == null ? "—" : `${format(totalPercentage)}%`}</strong></div></div>
         <div class="detail-items">${rows}</div>`;
     $("#detail-sheet").classList.remove("hidden");
     $("#detail-sheet").setAttribute("aria-hidden", "false");

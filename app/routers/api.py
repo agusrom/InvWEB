@@ -734,6 +734,7 @@ def obtener_inicio_movil(db: Session = Depends(get_db)):
         "plantillas": [plantilla_dict(item) for item in plantillas],
         "inventarios": [inventario_dict(item) for item in inventarios],
         "personas": [persona_dict(item) for item in personas],
+        "configuracion_indicadores": cargar_configuracion(db),
     }
 
 

@@ -24,7 +24,7 @@
                 </div>
             </div>
             <div class="general-result" id="general-result">
-                <small>RESULTADO GENERAL</small><strong id="reliability">—</strong>
+                <small>RESULTADO GENERAL</small><strong id="reliability">—</strong><span id="reliability-target"></span>
                 <span id="result-caption">Calculando…</span>
             </div>
         </section>
@@ -66,6 +66,6 @@
     <script id="inventory-data" type="application/json">{{ inventario | tojson }}</script>
     <script id="cause-data" type="application/json">{{ causas | tojson }}</script>
     <script id="settings-data" type="application/json">{{ configuracion | tojson }}</script>
-    <script src="/static/js/inventory_diffusion.js?v=8235"></script>
+    <script src="/static/js/inventory_diffusion.js?v=8236"></script>
 </body>
 </html>

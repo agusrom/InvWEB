@@ -4148,3 +4148,6 @@ tbody tr:last-child td { border-bottom: 0; }
 
 .inventory-pagination { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; padding: 12px 16px; font-size: 12px; }
 #refresh-inventory-clients{padding:3px 7px;border:1px solid #c8d3e2;border-radius:5px;background:#f5f8fc;color:#345b88;font:inherit;cursor:pointer}
+
+/* El objetivo comparte la línea del resultado sin aumentar la altura de fila. */
+.confidence-target { color: var(--muted); font-size: 10px; font-style: normal; font-weight: 400; white-space: nowrap; }

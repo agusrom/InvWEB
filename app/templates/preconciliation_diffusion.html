@@ -27,7 +27,7 @@
             </div>
             <div class="general-result" id="general-result">
                 <small>CONFIABILIDAD</small>
-                <strong id="reliability">—</strong>
+                <strong id="reliability">—</strong><span id="reliability-target"></span>
                 <span id="result-caption">Calculando…</span>
             </div>
         </section>
@@ -88,6 +88,6 @@
     <script id="movements-data" type="application/json">{{ movimientos | tojson }}</script>
     <script id="causes-data" type="application/json">{{ causas | tojson }}</script>
     <script id="settings-data" type="application/json">{{ configuracion | tojson }}</script>
-    <script src="/static/js/preconciliation_diffusion.js?v=1"></script>
+    <script src="/static/js/preconciliation_diffusion.js?v=2"></script>
 </body>
 </html>

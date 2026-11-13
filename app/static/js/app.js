@@ -4041,6 +4041,7 @@ function actualizarResumenConfiabilidad({ correctos, evaluados, total, porcentaj
     const valor = $("#detalle-confiabilidad");
     valor.textContent = porcentaje === null ? "—" : formatearPorcentaje(porcentaje);
     valor.className = porcentaje === null ? "" : claseConfiabilidad(porcentaje);
+    $("#detalle-confiabilidad-objetivo").textContent = objetivoConfiabilidadTexto();
     $("#detalle-confiabilidad-detalle").textContent =
         `${correctos} / ${total} renglones OK`
         + (evaluados < total ? ` · ${evaluados} contados` : "");
@@ -5243,15 +5244,18 @@ function statusHtml(estado) {
     const clase = estado === "Cerrado" || estado === "Activa" ? "closed" : estado === "En conteo" ? "counting" : "preparing";
     return `<span class="status ${clase}">${escapeHtml(estado)}</span>`;
 }
+function objetivoConfiabilidadTexto() {
+    return `Objetivo: ${formatearPorcentaje(Number(state.configuracionIndicadores.objetivo_confiabilidad_pct ?? 90))}`;
+}
 function confiabilidadHtml(inventario) {
     if (!inventario.items_evaluables) {
-        return '<span class="confidence-empty">—</span>';
+        return `<div class="confidence"><span class="confidence-empty">—</span><em class="confidence-target">${objetivoConfiabilidadTexto()}</em></div>`;
     }
     const porcentaje = inventario.confiabilidad ?? 0;
     const provisional = inventario.items_evaluados < inventario.items_evaluables;
     return `
         <div class="confidence ${claseConfiabilidad(porcentaje)}">
-            <span>${formatearPorcentaje(porcentaje)}</span>
+            <span>${formatearPorcentaje(porcentaje)}</span><em class="confidence-target">${objetivoConfiabilidadTexto()}</em>
             <i><b style="width:${Math.max(0, Math.min(100, porcentaje))}%"></b></i>
             <small>
                 ${inventario.items_ok} / ${inventario.items_evaluables} OK

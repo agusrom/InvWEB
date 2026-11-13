@@ -252,7 +252,7 @@ function renderReporte(data) {
         configuracion
     );
     $("#metric-reliability-detail").textContent =
-        `${general.correctos} de ${general.evaluados} renglones dentro del ±`
+        `Objetivo: ${formatoNumero(configuracion.objetivo_confiabilidad_pct)}% · ${general.correctos} de ${general.evaluados} renglones dentro del ±`
         + `${formatoNumero(configuracion.tolerancia_pct)}%`;
     $("#metric-inventories").textContent = general.inventarios;
     $("#metric-differences").textContent = general.diferencias;
@@ -323,7 +323,7 @@ function renderTiposInventario(tipos, configuracion) {
                 <span>${escapeHtml(tipo.nombre)}</span>
                 <strong class="${claseConfiabilidad(tipo.confiabilidad, configuracion)}">
                     ${formatoPorcentaje(tipo.confiabilidad)}
-                </strong>
+                </strong><small>Objetivo: ${formatoNumero(configuracion.objetivo_confiabilidad_pct)}%</small>
                 <div class="inventory-type-track">
                     <i style="width:${porcentaje}%"></i>
                 </div>
@@ -356,7 +356,7 @@ function renderGraficoClientes(clientes, configuracion) {
                 <div class="client-bar-row ${clase}">
                     <span>${nombre}</span>
                     <div class="client-bar-track"><i style="width:0"></i></div>
-                    <strong>—</strong>
+                    <strong>—<small style="display:block;font-size:10px;font-weight:400">Objetivo: ${formatoNumero(objetivo)}%</small></strong>
                 </div>
             `;
         }
@@ -371,7 +371,7 @@ function renderGraficoClientes(clientes, configuracion) {
                         : Math.max(1.5, serie.confiabilidad)}%"></i>
                     <b style="left:${objetivo}%" aria-hidden="true"></b>
                 </div>
-                <strong>${formatoPorcentaje(serie.confiabilidad)}</strong>
+                <strong>${formatoPorcentaje(serie.confiabilidad)}<small style="display:block;font-size:10px;font-weight:400">Objetivo: ${formatoNumero(objetivo)}%</small></strong>
                 <small>${serie.inventarios} inv.</small>
             </div>
         `;
@@ -525,7 +525,7 @@ function renderClientes(clientes, configuracion) {
             <td>
                 <span class="report-value-pill ${claseValor(item.confiabilidad, configuracion)}">
                     ${formatoPorcentaje(item.confiabilidad)}
-                </span>
+                </span> <small>Objetivo: ${formatoNumero(configuracion.objetivo_confiabilidad_pct)}%</small>
             </td>
             <td>${item.diferencias}</td>
             <td>${item.ajustes_pendientes}</td>

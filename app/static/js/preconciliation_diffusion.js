@@ -59,6 +59,7 @@ document.querySelector("#initial-inventory").textContent = scenario.inicial.codi
 document.querySelector("#initial-date").textContent = formatDate(scenario.inicial.fecha);
 document.querySelector("#analytics-period").textContent = `${scenario.inicial.codigo} → ${inventory.codigo} · ${analysis.nombre}`;
 document.querySelector("#reliability").textContent = reliability == null ? "—" : `${formatNumber(reliability)}%`;
+document.querySelector("#reliability-target").textContent = `Objetivo: ${formatNumber(target)}%`;
 document.querySelector("#result-caption").textContent = reliability == null ? "Sin resultados" : reliability >= target ? "Satisfactorio" : "Requiere acciones";
 document.querySelector("#general-result").classList.toggle("warning", reliability != null && reliability < target);
 document.querySelector("#summary").innerHTML = `
